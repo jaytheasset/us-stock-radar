@@ -1,0 +1,318 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+  "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+  "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+  "renderedChars": 12478,
+  "queries": [
+    "Was the tender offer explicitly withdrawn or terminated?",
+    "What is the current stated status of the tender offer?",
+    "Does this filing announce an actual withdrawal or termination or only a right or condition?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "v349922_sctoi-a.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": [
+        {
+          "id": "tender:42acb21afbc2d83d8a303e2d155428e231358b7d1595fd7f01aed16d87647992",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "e2e90885e7f1aa0cdb09f736435c8ca603f3c9ebf091d4ec7beb65f1faf58044",
+          "location": {
+            "start": 4433,
+            "end": 5636,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1203,
+          "score": 6.666666666666667,
+          "matchedTerms": [
+            "withdrawn",
+            "terminated"
+          ],
+          "expandedTerms": [
+            "withdraw",
+            "withdrawn"
+          ]
+        },
+        {
+          "id": "tender:d4b03ca0313baa38ccb75d2859a8db2ff736ece22719996aefb352a964133b21",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "d397f0b62f9ba2d874a2f88ae74a8f8b90236e48a25e5fd29f225403fe4879ca",
+          "location": {
+            "start": 2725,
+            "end": 4431,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1706,
+          "score": 6.421612990679356,
+          "matchedTerms": [
+            "withdrawn",
+            "terminated"
+          ],
+          "expandedTerms": [
+            "withdraw",
+            "withdrawn"
+          ]
+        },
+        {
+          "id": "tender:364472920e4311d40df8ca4dce4385834c43df74fa5135ac64afd1904d744bc4",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "599b5ad60d2ac4e49360cb8f81803529107e63e7290758e7b8323d618f7cd7c2",
+          "location": {
+            "start": 5083,
+            "end": 5996,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 913,
+          "score": 4.203416664624353,
+          "matchedTerms": [
+            "withdrawn"
+          ],
+          "expandedTerms": [
+            "withdraw",
+            "withdrawn"
+          ]
+        }
+      ]
+    },
+    {
+      "status": "retrieval-no-match",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "v349922_sctoi-a.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": []
+    },
+    {
+      "status": "hits",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "v349922_sctoi-a.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 3,
+      "hits": [
+        {
+          "id": "tender:3e2e4b145fd8ce4cca3b13b58019e7cc0c632246f4c240c25ca4adcabb1dbb9e",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "9f1bb7b6ed141cb02ae5866275f9f192a28e79c64b1001bae0f0c6c879edb0b9",
+          "location": {
+            "start": 4461,
+            "end": 5976,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1515,
+          "score": 8.990258186951097,
+          "matchedTerms": [
+            "termination",
+            "condition"
+          ],
+          "expandedTerms": [
+            "withdraw",
+            "withdrawn"
+          ]
+        },
+        {
+          "id": "tender:d4b03ca0313baa38ccb75d2859a8db2ff736ece22719996aefb352a964133b21",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "d397f0b62f9ba2d874a2f88ae74a8f8b90236e48a25e5fd29f225403fe4879ca",
+          "location": {
+            "start": 2725,
+            "end": 4431,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1706,
+          "score": 8.990258186951097,
+          "matchedTerms": [
+            "this",
+            "condition"
+          ],
+          "expandedTerms": [
+            "withdraw",
+            "withdrawn"
+          ]
+        },
+        {
+          "id": "tender:bb599a1d87849d8b70592b3f83e02180a9d6b4df0d68d2e204960d7e8a19ec35",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "a3e921afa798abc5644cb87e857229f0148262fcb919fcd673dff0d28a83c426",
+          "location": {
+            "start": 1032,
+            "end": 1896,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 864,
+          "score": 8.792919665367739,
+          "matchedTerms": [
+            "this",
+            "filing",
+            "only"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:83de31bdc8e3065b265c36edc2aba8c82bdbf60b9deb1f72a8bed1e4cfa7e3a1",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "ab1d5e5141c31434f91500ac79e3b481ab642bdf6e86bb5f79647a1d8af78555",
+          "location": {
+            "start": 1604,
+            "end": 2226,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 622,
+          "score": 3.187276291558383,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:aef95c516743505f9fbe68361c0593e581ef3ed3ab89d0d08c15bc2c7b749a7b",
+          "accession": "0001144204-13-039264",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001144204-13-039264",
+            "form": "SC TO-I/A",
+            "documentId": "v349922_sctoi-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+          "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+          "textHash": "d7bcfb7388a194d68dedde78134a6aecc6f0b5ae787ab1f53f09827db3d6e402",
+          "location": {
+            "start": 1415,
+            "end": 2079,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 664,
+          "score": 3.102266937317925,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ]
+}

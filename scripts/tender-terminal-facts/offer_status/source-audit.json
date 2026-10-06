@@ -1,0 +1,67 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "coveragePass": true,
+  "reviewedAt": "2026-10-06T11:26:16.249Z",
+  "sameTenderIdentity": true,
+  "completeness": "Complete individual documents, bounded selected slices; external references not followed. No partial/unavailable inputs.",
+  "overlapDecision": "withdrawn when explicit withdrawal and termination describe the same event; otherwise actual terminated only. Frozen before any paid call.",
+  "cases": {
+    "jos-withdrawn": {
+      "value": "withdrawn",
+      "direct": [
+        "E1"
+      ],
+      "corroborating": [],
+      "why": "E1 explicitly withdrew March 11 and terminated same own repurchase offer; withdrawal precedence frozen. E2/E3 exhibit references concern other agreements; E4-E7 fee/identity not direct."
+    },
+    "bluewolf-terminated": {
+      "value": "terminated",
+      "direct": [
+        "E1",
+        "E2",
+        "E3",
+        "E4"
+      ],
+      "corroborating": [],
+      "why": "Actual tender termination July 12 after July 11 expiration; planned merger agreement termination is a different object. E5-E7 fees."
+    },
+    "rumble-right-only": {
+      "value": null,
+      "direct": [],
+      "corroborating": [],
+      "why": "All 15 refs reviewed. E1/E2 scheduled active offer and may terminate, E3/E4/E11/E13 shareholder withdrawal procedures, E12 conditional public announcement, E14/E15 future conditions/proration. E5-E10 offer mechanics/market/listing context. No actual offer withdrawal or termination."
+    },
+    "carlyle-expired-final": {
+      "value": null,
+      "direct": [],
+      "corroborating": [],
+      "why": "Reused packet E2 explicitly received final results, offer expired January 21 and shares accepted. E1/E5 payment/NAV context; E3/E4 fees; E6 publication date. No offer withdrawal/termination. Fresh status-only retrieval omitted E2; pre-call SOURCE_COVERAGE selection miss remedied by exact prior SEC Evidence packet reuse, not post-call expansion."
+    },
+    "xerox-terminated": {
+      "value": "terminated",
+      "direct": [
+        "E1"
+      ],
+      "corroborating": [],
+      "why": "E1 Offer was terminated March 31, no HP shares purchased and return instructions. E3/E4 offer identity, E2 exhibit list, E5/E7 fees, E6 signature; no need to cite unrelated context."
+    }
+  },
+  "carlyleReuse": {
+    "from": "scripts/tender-fact-batches/expiration/runs/already-expired/source.json",
+    "originalAcquisition": {
+      "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+      "originalDocumentHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+      "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+      "fullRenderedChars": 5388,
+      "inputChars": 24290,
+      "controlledTruncation": null
+    },
+    "originalQueries": [
+      "What is the offer expiration or expiry time and deadline, and can it be extended?",
+      "Has the expiration date been changed, previously scheduled, extended, expired, or explicitly still unchanged?",
+      "Until what date and time is the offer open for acceptance?"
+    ],
+    "selectionFailureClass": "SOURCE_COVERAGE",
+    "resolvedBeforeCalls": true
+  }
+}

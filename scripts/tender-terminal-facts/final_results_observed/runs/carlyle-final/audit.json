@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-final-results-v1-carlyle-final",
+  "fact": "final_results_observed",
+  "name": "carlyle-final",
+  "accession": "0001702510-26-000009",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1811,
+  "usage": {
+    "promptTokenCount": 1994,
+    "candidatesTokenCount": 67,
+    "totalTokenCount": 2061,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1994
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

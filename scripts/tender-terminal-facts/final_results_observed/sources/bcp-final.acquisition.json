@@ -1,0 +1,525 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+  "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+  "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+  "renderedChars": 6429,
+  "queries": [
+    "Does this filing announce actual final results of the tender offer?",
+    "Are the tender results final, preliminary, interim, or expected?",
+    "Has the offer ended with final results and shares accepted for purchase, or is the offer still active?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d87145dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 4,
+      "hits": [
+        {
+          "id": "tender:3a6ddefb78bb16019b7cc1cc1134a2c795a162e094900b4954a381ff4cebdde2",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "b0ba84894337e15033e50139090cb1801e7a62facfa568a49ae22c88dc889171",
+          "location": {
+            "start": 5382,
+            "end": 6368,
+            "heading": "EXHIBIT INDEX",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 986,
+          "score": 9.449990771497893,
+          "matchedTerms": [
+            "filing",
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:4de46a74dcb05eb8c8b4123673d1a4ddbb8e26cbbc6bc5d1a646fb05f6bbffb5",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "487cecd4df0c4b20c9b313300c6c2b5bb919eca8b8c171cdc3e29bb9b96717ba",
+          "location": {
+            "start": 4166,
+            "end": 4420,
+            "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 254,
+          "score": 7.500915695015927,
+          "matchedTerms": [
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:38369024e53cb322ce33d546366a929e6bdd105f0a93d8b17113da9beff861a1",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "79d2d8718fbbc6d183ac778f724a02c93a28c2cdc4d123992fe8a61f4af08405",
+          "location": {
+            "start": 4050,
+            "end": 4239,
+            "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 189,
+          "score": 7.302967433402215,
+          "matchedTerms": [
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:e2f1019e7a5744276d7ce4116d52705e2d44809c6d57eb0502297429de767b37",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "d41c09cff12830ab6ca8d0f15663d53825f313013aa055c434b3cdf3ad3ca4e8",
+          "location": {
+            "start": 3652,
+            "end": 4068,
+            "heading": "Item 11 of the Schedule TO is hereby amended and supplemented by adding the following information to the end thereof:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 416,
+          "score": 6.504925025453934,
+          "matchedTerms": [
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:e9e2abd63327cdc0d38fa3dca0caf32ac153d29b0d7651eb24e759710e8e33b0",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "4905c4fe4441c87897e94f82e624a304f0ac85e113b5627e3fc27b3b8e27fa2f",
+          "location": {
+            "start": 1034,
+            "end": 1330,
+            "heading": "NIKITA KLASSEN",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 296,
+          "score": 3.5424595421603815,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d87145dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 2,
+      "hits": [
+        {
+          "id": "tender:4de46a74dcb05eb8c8b4123673d1a4ddbb8e26cbbc6bc5d1a646fb05f6bbffb5",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "487cecd4df0c4b20c9b313300c6c2b5bb919eca8b8c171cdc3e29bb9b96717ba",
+          "location": {
+            "start": 4166,
+            "end": 4420,
+            "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 254,
+          "score": 7.500915695015927,
+          "matchedTerms": [
+            "results",
+            "final"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:38369024e53cb322ce33d546366a929e6bdd105f0a93d8b17113da9beff861a1",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "79d2d8718fbbc6d183ac778f724a02c93a28c2cdc4d123992fe8a61f4af08405",
+          "location": {
+            "start": 4050,
+            "end": 4239,
+            "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 189,
+          "score": 7.302967433402215,
+          "matchedTerms": [
+            "results",
+            "final"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:e2f1019e7a5744276d7ce4116d52705e2d44809c6d57eb0502297429de767b37",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "d41c09cff12830ab6ca8d0f15663d53825f313013aa055c434b3cdf3ad3ca4e8",
+          "location": {
+            "start": 3652,
+            "end": 4068,
+            "heading": "Item 11 of the Schedule TO is hereby amended and supplemented by adding the following information to the end thereof:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 416,
+          "score": 6.504925025453934,
+          "matchedTerms": [
+            "results",
+            "final"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:3a6ddefb78bb16019b7cc1cc1134a2c795a162e094900b4954a381ff4cebdde2",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "b0ba84894337e15033e50139090cb1801e7a62facfa568a49ae22c88dc889171",
+          "location": {
+            "start": 5382,
+            "end": 6368,
+            "heading": "EXHIBIT INDEX",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 986,
+          "score": 6.299993847665262,
+          "matchedTerms": [
+            "results",
+            "final"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:e9e2abd63327cdc0d38fa3dca0caf32ac153d29b0d7651eb24e759710e8e33b0",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "4905c4fe4441c87897e94f82e624a304f0ac85e113b5627e3fc27b3b8e27fa2f",
+          "location": {
+            "start": 1034,
+            "end": 1330,
+            "heading": "NIKITA KLASSEN",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 296,
+          "score": 3.5424595421603815,
+          "matchedTerms": [
+            "preliminary"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d87145dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 2,
+      "hits": [
+        {
+          "id": "tender:3a6ddefb78bb16019b7cc1cc1134a2c795a162e094900b4954a381ff4cebdde2",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "b0ba84894337e15033e50139090cb1801e7a62facfa568a49ae22c88dc889171",
+          "location": {
+            "start": 5382,
+            "end": 6368,
+            "heading": "EXHIBIT INDEX",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 986,
+          "score": 12.599987695330524,
+          "matchedTerms": [
+            "with",
+            "final",
+            "results",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:65af59d1ecde18e8330411bb3dd5eb81093beb3582ef6025d3ab524cfb26283f",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "112ace683ab731a82eeefaadf6c066c47a90f844c6faec35c0a40a69c3aa6fd7",
+          "location": {
+            "start": 2029,
+            "end": 3616,
+            "heading": "SCHEDULE TO",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1587,
+          "score": 7.807200583588266,
+          "matchedTerms": [
+            "with",
+            "shares",
+            "purchase"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:4de46a74dcb05eb8c8b4123673d1a4ddbb8e26cbbc6bc5d1a646fb05f6bbffb5",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "487cecd4df0c4b20c9b313300c6c2b5bb919eca8b8c171cdc3e29bb9b96717ba",
+          "location": {
+            "start": 4166,
+            "end": 4420,
+            "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 254,
+          "score": 7.500915695015927,
+          "matchedTerms": [
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:38369024e53cb322ce33d546366a929e6bdd105f0a93d8b17113da9beff861a1",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "79d2d8718fbbc6d183ac778f724a02c93a28c2cdc4d123992fe8a61f4af08405",
+          "location": {
+            "start": 4050,
+            "end": 4239,
+            "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 189,
+          "score": 7.302967433402215,
+          "matchedTerms": [
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:e2f1019e7a5744276d7ce4116d52705e2d44809c6d57eb0502297429de767b37",
+          "accession": "0001193125-25-317765",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-25-317765",
+            "form": "SC TO-T/A",
+            "documentId": "d87145dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+          "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+          "textHash": "d41c09cff12830ab6ca8d0f15663d53825f313013aa055c434b3cdf3ad3ca4e8",
+          "location": {
+            "start": 3652,
+            "end": 4068,
+            "heading": "Item 11 of the Schedule TO is hereby amended and supplemented by adding the following information to the end thereof:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 416,
+          "score": 6.504925025453934,
+          "matchedTerms": [
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ]
+}

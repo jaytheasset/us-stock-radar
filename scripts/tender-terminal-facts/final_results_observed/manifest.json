@@ -1,0 +1,54 @@
+{
+  "fact": "final_results_observed",
+  "model": "gemini-3.5-flash",
+  "runId": "terminal-final-results-v1",
+  "maxPhysicalCallsPerCase": 1,
+  "cases": [
+    {
+      "name": "carlyle-final",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "sourceFile": "sources/carlyle-final.json",
+      "purpose": "E1 explicitly report final results. E9 received final results, expired, accepted shares. E5/E7 checked final amendment, E8/E10 purchase/payment context corroborate, not sufficient alone. Remaining identity/fees.",
+      "expected": {
+        "observed": true
+      },
+      "stop": "One call; any technical or semantic/contract failure stops batch"
+    },
+    {
+      "name": "bcp-final",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "sourceFile": "sources/bcp-final.json",
+      "purpose": "E4 narrative confirms December12 issued final-results release for expired Offer. E1-E3 list that actual release, E6 defines same offer. E5 preliminary-communications unchecked boilerplate. SEC index confirms actual parent SC TO-T/A, despite mixed issuer/group offer.",
+      "expected": {
+        "observed": true
+      },
+      "stop": "One call; any technical or semantic/contract failure stops batch"
+    },
+    {
+      "name": "dxl-interim",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "sourceFile": "sources/dxl-interim.json",
+      "purpose": "All14 refs reviewed. E12/E13 June22 as-of approximate tender count followed by extension to July24 and board evaluation. E1 outstanding shares, E2 offer identity, E3-E5/E10 hypothetical executive compensation, E6/E8 conditions, E7 unchecked preliminary-communications boilerplate, E9 competing merger recommendation, E11/E14 board recommendation. No actual final offer results.",
+      "expected": {
+        "facts": [],
+        "unresolved": []
+      },
+      "stop": "One call; any technical or semantic/contract failure stops batch"
+    },
+    {
+      "name": "rumble-active",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "sourceFile": "sources/rumble-active.json",
+      "purpose": "All8 refs reviewed. E1-E4 prospective proration and future preliminary/final announcements/payment, E5 operating risks, E6 historical financial interim results (different object), E7 tax consequences, E8 conditions and future determinations. No actual final offer results.",
+      "expected": {
+        "facts": [],
+        "unresolved": []
+      },
+      "stop": "One call; any technical or semantic/contract failure stops batch"
+    }
+  ]
+}

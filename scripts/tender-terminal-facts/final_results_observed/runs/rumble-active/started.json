@@ -1,0 +1,11 @@
+{
+  "runId": "terminal-final-results-v1-rumble-active",
+  "fact": "final_results_observed",
+  "name": "rumble-active",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:32:05.228Z",
+  "physicalCallLimit": 1,
+  "requestHash": "581d510e2e24630b0b6e5fcd9688718233e89283738c09977892b65ce24c53e5",
+  "mappingHash": "627715710a935dd2b0d2098b0d8a46c97c0f12f38313d7a577abcbb513023655"
+}

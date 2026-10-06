@@ -1,0 +1,11 @@
+{
+  "runId": "terminal-status-v1-bluewolf-terminated",
+  "fact": "offer_status",
+  "name": "bluewolf-terminated",
+  "accession": "0001144204-13-039264",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:27:18.335Z",
+  "physicalCallLimit": 1,
+  "requestHash": "d1f6d03dccc163ff37bde46028182b7d80c1c378ea216ba2f5bdec138235859f",
+  "mappingHash": "104c71f1acbc3b009724094262f76110d0d99e9589b32a0de4d42a5a03d5c8ed"
+}

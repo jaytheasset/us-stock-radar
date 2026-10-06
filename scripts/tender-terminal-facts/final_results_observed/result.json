@@ -1,0 +1,217 @@
+{
+  "fact": "final_results_observed",
+  "practicalPass": true,
+  "reviewer": "Codex direct source review; independent human signoff pending",
+  "physicalCalls": 4,
+  "semanticErrors": 0,
+  "schemaDecision": "KEEP true-only sparse minimal contract",
+  "limitations": [
+    "Four selected representative cases, not production accuracy estimate",
+    "No partial/unavailable/conflicting source case in this batch",
+    "Interim count tested; standalone actual preliminary-results release not separately tested",
+    "Narrative announcement without detailed incorporated exhibit qualifies only as observation, not detailed result verification"
+  ],
+  "cases": [
+    {
+      "name": "carlyle-final",
+      "audit": {
+        "runId": "terminal-final-results-v1-carlyle-final",
+        "fact": "final_results_observed",
+        "name": "carlyle-final",
+        "accession": "0001702510-26-000009",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1811,
+        "usage": {
+          "promptTokenCount": 1994,
+          "candidatesTokenCount": 67,
+          "totalTokenCount": 2061,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 1994
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:31:36.271Z",
+        "outputHash": "a9ca094f3034ebce1baebed4298ff945fa06658dca505d30abb02df23d60e4d6",
+        "semantic": "Actual final results correctly observed despite approximate final share figures; only minimal true observation.",
+        "refs": {
+          "E1": "DIRECT: this Amendment being filed to report final results of Offer.",
+          "E9": "DIRECT: Company received final results of expired Offer and accepted shares."
+        },
+        "failureClass": null
+      }
+    },
+    {
+      "name": "bcp-final",
+      "audit": {
+        "runId": "terminal-final-results-v1-bcp-final",
+        "fact": "final_results_observed",
+        "name": "bcp-final",
+        "accession": "0001193125-25-317765",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1821,
+        "usage": {
+          "promptTokenCount": 1702,
+          "candidatesTokenCount": 61,
+          "totalTokenCount": 1763,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 1702
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:31:48.713Z",
+        "outputHash": "712c1572d1b71bf74a1a2cd5dfdd381cc86a0833e0b14fedc3ee9c1604d82a06",
+        "semantic": "Narrative issued final-results release confirms actual announcement. Numerical exhibit not needed for observation. No inference solely from exhibit title.",
+        "refs": {
+          "E4": "DIRECT: Company issued press release announcing final results December12 for Offer expired December10."
+        },
+        "failureClass": null
+      }
+    },
+    {
+      "name": "dxl-interim",
+      "audit": {
+        "runId": "terminal-final-results-v1-dxl-interim",
+        "fact": "final_results_observed",
+        "name": "dxl-interim",
+        "accession": "0001193125-26-298540",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1617,
+        "usage": {
+          "promptTokenCount": 5896,
+          "candidatesTokenCount": 16,
+          "totalTokenCount": 5912,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 5896
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:32:04.523Z",
+        "outputHash": "28e64142cc6e459c1444b27ccf5caa572e3be977344454532a5aecbe9e5f86cc",
+        "semantic": "E12/E13 as-of tender count with extension is interim, not final. Correct sparse abstention; no false and no unnecessary unresolved. Other financial/compensation estimates not promoted to results.",
+        "refs": {},
+        "failureClass": null
+      }
+    },
+    {
+      "name": "rumble-active",
+      "audit": {
+        "runId": "terminal-final-results-v1-rumble-active",
+        "fact": "final_results_observed",
+        "name": "rumble-active",
+        "accession": "0001213900-25-000757",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1666,
+        "usage": {
+          "promptTokenCount": 3818,
+          "candidatesTokenCount": 16,
+          "totalTokenCount": 3834,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 3818
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:32:48.991Z",
+        "outputHash": "28e64142cc6e459c1444b27ccf5caa572e3be977344454532a5aecbe9e5f86cc",
+        "semantic": "E1-E4 future preliminary/final announcements and payment mechanics, no actual announcement. E6 interim financial results unrelated. Correct sparse abstention, no observed false.",
+        "refs": {},
+        "failureClass": null
+      }
+    }
+  ]
+}

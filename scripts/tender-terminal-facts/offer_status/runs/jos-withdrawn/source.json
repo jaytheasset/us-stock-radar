@@ -1,0 +1,187 @@
+{
+  "accession": "0001571049-14-000777",
+  "form": "SC TO-I/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:b882a3ae942d6fa472e91a7672ee1296a374935e9f58fdba0593db85aae7833a",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001571049-14-000777",
+        "form": "SC TO-I/A",
+        "documentId": "t1400406_scto-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+      "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+      "textHash": "6825451f307f8a96a4d0a940f5ecd781fd1e844a6fac589ad7cb098dc61b1610",
+      "location": {
+        "start": 4532,
+        "end": 5144,
+        "heading": "ITEMS 1 THROUGH 11.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "On March 11, 2014, the Company withdrew the Offer and issued a press release in connection therewith. The Company terminated the Offer because the terms and condition of the Offer were not satisfied. The Company terminated the Offer because it has terminated the Purchase Agreement.\n\nA copy of the press release issued by the Company on March 11, 2014 announcing the withdrawal of the Offer is incorporated by reference as Exhibit (a)(5)(I) to the Schedule TO. No Shares were purchased by the Company pursuant to the Offer and all Shares previously tendered and not withdrawn will be promptly returned.\n\nITEM 12."
+    },
+    {
+      "id": "tender:593aa4998053de7a389dbaf0e3504d4011ee494ef38df916a866bf437c979ea7",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001571049-14-000777",
+        "form": "SC TO-I/A",
+        "documentId": "t1400406_scto-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+      "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+      "textHash": "1a244190f76e60a248efb4176e7b1c5b7f18b45871da1ee6e6f76c904b98051f",
+      "location": {
+        "start": 10666,
+        "end": 12161,
+        "heading": "Item 12 is hereby amended and restated in its entirety as follows:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n| |\n\n[/TABLE]\n\n[TABLE]\n\n|(d)(14)| |Jos. A. Bank Clothiers, Inc. 2010 Equity Incentive Plan – EVP Performance Restricted Stock Unit Award Agreement (incorporated by reference to the Company’s Current Report on Form 8-K, dated June 17, 2010).|\n\n|(d)(15)| |Jos. A. Bank Clothiers, Inc. 2010 Equity Incentive Plan – Non-Employee Director Restricted Stock Unit 2010 Award Agreement (incorporated by reference to the Company’s Current Report on Form 8-K, dated June 17, 2010).|\n\n|(d)(16)| |Jos. A. Bank Clothiers, Inc. 2010 Equity Incentive Plan – Non-Employee Director Restricted Stock Unit Annual Award Agreement (incorporated by reference to the Company’s Current Report on Form 8-K, dated June 17, 2010).|\n\n|(d)(17)| |Jos. A. Bank Clothiers, Inc. 2010 Equity Incentive Plan – Non-Employee Director Restricted Stock Unit Inaugural Award Agreement (incorporated by reference to the Company’s Current Report on Form 8-K, dated June 17, 2010).|\n\n|(d)(18)| |Membership Interest Purchase Agreement, dated as of February 13, 2014, by and among Everest Topco LLC, Everest Holdings LLC and the Company (incorporated by reference to the Company’s Current Report on Form 8-K, dated February 14, 2014).|\n\n|(d)(19)| |Standstill and Stockholder Agreement, dated as of February 13, 2014, by and between the Company and Everest Topco LLC (incorporated by reference to the Company’s Current Report on Form 8-K, dated February 14, 2014).|\n\n|(g)| |Not applicable.|\n\n|(h)| |Not applicable.|\n\n[/TABLE]\n\n______"
+    },
+    {
+      "id": "tender:61f4a355f9cca243d8b87eabcb43d9c1b818c7accf142f6460facf1fd8fd722a",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001571049-14-000777",
+        "form": "SC TO-I/A",
+        "documentId": "t1400406_scto-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+      "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+      "textHash": "62b752c46aab1b25507fb49dc375d50e0a2fb7a12177d86e3d66a22a0702956e",
+      "location": {
+        "start": 6803,
+        "end": 10664,
+        "heading": "Item 12 is hereby amended and restated in its entirety as follows:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n| |\n\n[/TABLE]\n\n[TABLE]\n\n|(a)(5)(E)| |Complaint in The Men’s Wearhouse Inc. v. Robert N. Wildrick et al., filed by The Men’s Wearhouse in the Court of Chancery of the State of Delaware on February 24, 2014 (incorporated by reference to the Company’s Amendment No. 9 to Schedule 14D-9/A, filed on February 24, 2014).|\n\n|(a)(5)(F)| |Press release issued by the Company on February 24, 2014 (incorporated by reference to Exhibit 99.1 to the Company’s Current Report on Form 8-K, dated February 24, 2014).|\n\n|(a)(5)(G)| |Press release issued by the Company on February 27, 2014 (incorporated by reference to the Company’s Amendment No. 11 to Schedule 14D-9/A, filed on February 27, 2014).|\n\n|(a)(5)(H)| |Complaint in State-Boston Retirement System v. Wildrick, et al., filed by Boston in the Court of Chancery of the State of Delaware on March 4, 2014 (incorporated by reference to the Company’s Amendment No. 13 to Schedule 14D-9/A, filed on March 5, 2014).|\n\n|(a)(5)(I)| |Joint press release issued by the Company and The Men’s Wearhouse, Inc. on March 11, 2014 (incorporated by reference to Exhibit 99.1 to the Company’s Current Report on Form 8-K, dated March 11, 2014).|\n\n|(b)| |Not Applicable.|\n\n|(d)(1)| |Rights Agreement, dated as of September 6, 2007, including Exhibit B thereto (the form of Right Certificate) (incorporated by reference to the Company’s Current Report on Form 8-K, dated September 6, 2007).|\n\n|(d)(2)| |Amendment No. 1 to Rights Agreement, dated as of January 3, 2014, by and between the Company and Continental Stock Transfer & Trust Company, as rights agent (incorporated by reference to the Company’s Current Report on Form 8-K, dated January 3, 2014).|\n\n|(d)(3)| |Amendment No. 2 to Rights Agreement, dated as of February 13, 2014, by and between the Company and Continental Stock Transfer & Trust Company, as rights agent (incorporated by reference to the Company’s Current Report on Form 8-K, dated February 14, 2014).|\n\n|(d)(4)| |1994 Incentive Plan (incorporated by reference to the Company’s Registration Statement on Form S-1 filed May 3, 1994).|\n\n|(d)(5)| |Amendments, dated as of October 6, 1997, to Incentive Plan (incorporated by reference to the Company’s Annual Report on Form 10-K for the year ended January 31, 1998).|\n\n|(d)(6)| |Summary of 2012 and 2013 Cash and Equity Incentive Programs (incorporated by reference to the Company’s Annual Report on Form 10-K for the year ended February 2, 2013).|\n\n|(d)(7)| |2002 Long-Term Incentive Plan (incorporated by reference to the Company’s Definitive Proxy Statement on Schedule 14(A) filed May 20, 2002).|\n\n|(d)(8)| |Form of stock option agreement under the 2002 Long-Term Incentive Plan (incorporated by reference to the Company’s Current Report on Form 8-K, dated April 7, 2005).|\n\n|(d)(9)| |Jos. A. Bank Clothiers, Inc. Executive Management Incentive Plan (as amended) (incorporated by reference to the Company’s Current Report on Form 8-K, dated June 18, 2009).|\n\n|(d)(10)| |Amendment to Jos. A. Bank Clothiers, Inc. Executive Management Incentive Plan. (incorporated by reference to the Company’s Annual Report on Form 10-K for the year ended January 30, 2010).|\n\n|(d)(11)| |Jos. A. Bank Clothiers, Inc. 2010 Deferred Compensation Plan (incorporated by reference to the Company’s Annual Report on Form 10-K for the year ended January 30, 2010).|\n\n|(d)(12)| |Jos. A. Bank Clothiers, Inc. 2010 Equity Incentive Plan (incorporated by reference to the Company’s Annual Report on Form 10-K for the year ended January 30, 2010).|\n\n|(d)(13)| |Jos. A. Bank Clothiers, Inc. 2010 Equity Incentive Plan – CEO Performance Restricted Stock Unit Award Agreement, dated June 17, 2010, by and between JoS. A. Bank Clothiers, Inc. and R. Neal Black (incorporated by reference to the Company’s Current Report on Form 8-K, dated June 17, 2010).|\n\n[/TABLE]\n\n[TABLE]\n\n|3|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:c1cbfc6ca6fd0ecff19958187e167ae17127521ce2f3d6c807b02a2da1d4a1e1",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001571049-14-000777",
+        "form": "SC TO-I/A",
+        "documentId": "t1400406_scto-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+      "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+      "textHash": "e085b8c749aeef76c77308b73aaa93a16de5f60146398e70868d35b3b5a9650b",
+      "location": {
+        "start": 2113,
+        "end": 2522,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|Amount Previously Paid: $38,640| |Filing Party: Jos. A. Bank Clothiers, Inc.|\n\n|Form or Registration No.: Schedule TO| |Date Filed: February 19, 2014|\n\n[/TABLE]\n\n[TABLE]\n\n|[ ]||Check the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.|\n\n[/TABLE]\n\nCheck the appropriate boxes to designate any transactions to which the statement relates:"
+    },
+    {
+      "id": "tender:0dda79d8352771ce94d0c0811cb9f6c1afb2196396108e6387c0c10c6d317301",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001571049-14-000777",
+        "form": "SC TO-I/A",
+        "documentId": "t1400406_scto-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+      "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+      "textHash": "bcc3e0be95462a6de080b54850c1aae152449babe03f75c7d9b104520bdd7e9b",
+      "location": {
+        "start": 1818,
+        "end": 2431,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|[x]||Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.|\n\n[/TABLE]\n\n[TABLE]\n\n|Amount Previously Paid: $38,640| |Filing Party: Jos. A. Bank Clothiers, Inc.|\n\n|Form or Registration No.: Schedule TO| |Date Filed: February 19, 2014|\n\n[/TABLE]\n\n[TABLE]\n\n|[ ]||Check the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:8a25c984806a6f9e7d09f813dc7ad6b15419ab847e480dcf765b4106d81ba4bf",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001571049-14-000777",
+        "form": "SC TO-I/A",
+        "documentId": "t1400406_scto-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+      "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+      "textHash": "25b53123e1a78d1a48f26b08b02ce1168fcf80215b613adad5c391242508e75c",
+      "location": {
+        "start": 1601,
+        "end": 2283,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|(2)||The amount of the filing fee, calculated in accordance with Rule 0-11 of the Securities Exchange Act of 1934, as amended, equals $128.80 per million dollars of the value of the transaction.|\n\n[/TABLE]\n\n[TABLE]\n\n|[x]||Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.|\n\n[/TABLE]\n\n[TABLE]\n\n|Amount Previously Paid: $38,640| |Filing Party: Jos. A. Bank Clothiers, Inc.|\n\n|Form or Registration No.: Schedule TO| |Date Filed: February 19, 2014|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:38c9ce64e2fba049dd7aa2339936846879941c282657091896040a5cf55bdf14",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001571049-14-000777",
+        "form": "SC TO-I/A",
+        "documentId": "t1400406_scto-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+      "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+      "textHash": "173f7ca3d51461c8e8a984d071728a3b5665d82d64d7ad6fa426c7b5e0883da5",
+      "location": {
+        "start": 1215,
+        "end": 2111,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|(1)||Calculated solely for purposes of determining the amount of the filing fee. Pursuant to Rule 0-11(b)(1) of the Securities Exchange Act of 1934, the transaction valuation was calculated assuming that an aggregate of $300.0 million in value of the common stock, par value $0.01 per share of Jos. A. Bank Clothiers, Inc. will be purchased pursuant to the Offer.|\n\n[/TABLE]\n\n[TABLE]\n\n|(2)||The amount of the filing fee, calculated in accordance with Rule 0-11 of the Securities Exchange Act of 1934, as amended, equals $128.80 per million dollars of the value of the transaction.|\n\n[/TABLE]\n\n[TABLE]\n\n|[x]||Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.|\n\n[/TABLE]"
+    }
+  ]
+}

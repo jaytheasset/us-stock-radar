@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-status-v1-rumble-right-only",
+  "fact": "offer_status",
+  "model": "gemini-3.5-flash",
+  "accession": "0001213900-25-000757",
+  "frozenAt": "2026-10-06T11:26:40.655Z",
+  "files": {
+    "evidence-map.json": "498989504999503e82c2f15bc1383687d84c937949b4db654fa7005fe90ff240",
+    "prompt.txt": "39cb9b466ed695a7c05b019ca1ecf09073ec389dd4283c9b02885f55bb85e409",
+    "provider-schema.json": "4e063289cbb82f193e357d32e895cd6f0892ebe2109bc74573359be551e60af1",
+    "provider-source.json": "519926f91018992cfa81b1905b9d162918fb265aaa75f413c54d3a480e129a67",
+    "request.json": "c63399366bd206cd98330611d3df5b5e3d7e13c32e99f421420d37b7b68dfc62",
+    "source.json": "074f2fa3743f631c6917f00d19635a0377910d9e849e15eb730b82554c6c9c82"
+  }
+}

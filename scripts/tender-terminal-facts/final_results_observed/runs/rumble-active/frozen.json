@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-final-results-v1-rumble-active",
+  "fact": "final_results_observed",
+  "model": "gemini-3.5-flash",
+  "accession": "0001213900-25-000757",
+  "frozenAt": "2026-10-06T11:31:15.331Z",
+  "files": {
+    "evidence-map.json": "627715710a935dd2b0d2098b0d8a46c97c0f12f38313d7a577abcbb513023655",
+    "prompt.txt": "40ec8585b2544cc08315ddecbb36a85e02aef9ce3b9c765565b1a5d00df2c152",
+    "provider-schema.json": "71b52df22f346d5aa9aa547f9adfafc196a501b57cf6fc5cfbcc48e6d20bacc9",
+    "provider-source.json": "7f6f552b820c844bae1288906f0efce042ab20e346d29d26745952590bded277",
+    "request.json": "581d510e2e24630b0b6e5fcd9688718233e89283738c09977892b65ce24c53e5",
+    "source.json": "143ef7fc6cfdb7e121f01590998f13585d966dd93d2676ee5f70a9610b736448"
+  }
+}

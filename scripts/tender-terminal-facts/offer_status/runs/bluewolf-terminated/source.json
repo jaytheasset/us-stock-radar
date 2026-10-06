@@ -1,0 +1,187 @@
+{
+  "accession": "0001144204-13-039264",
+  "form": "SC TO-I/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:42acb21afbc2d83d8a303e2d155428e231358b7d1595fd7f01aed16d87647992",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001144204-13-039264",
+        "form": "SC TO-I/A",
+        "documentId": "v349922_sctoi-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+      "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+      "textHash": "e2e90885e7f1aa0cdb09f736435c8ca603f3c9ebf091d4ec7beb65f1faf58044",
+      "location": {
+        "start": 4433,
+        "end": 5636,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Items 1 through 9, and 11.\n\nOn July 12, 2013, Blue Wolf terminated the Offer and issued a press release in connection therewith. Blue Wolf terminated the Offer because the terms and conditions of each of the Offer and the Agreement and Plan of Merger were not satisfied. The Offer was scheduled to expire at 11:59 p.m., New York City time, on July 11, 2013. As of the Expiration Date, 1,827,761 Ordinary Shares were validly tendered and not properly withdrawn, which amount was in excess of the maximum number of Ordinary Shares that Blue Wolf could accept for purchase in satisfaction of the Maximum Tender Condition, and the Offer was terminated.\n\nBlue Wolf intends to terminate the Agreement and Plan of Merger and will not consummate the merger of Li3 Energy, Inc. with and into its subsidiary, Blue Wolf Acquisition Sub, Inc., and will, beginning on the first business day following July 22, 2013: (i) commence the process to distribute the Trust Account, pro rata, less interest earned on the proceeds of its initial public offering placed in the Trust Account, to its public shareholders by way of redemption and (ii) cease all operations except for the purposes of any winding up of its affairs."
+    },
+    {
+      "id": "tender:d4b03ca0313baa38ccb75d2859a8db2ff736ece22719996aefb352a964133b21",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001144204-13-039264",
+        "form": "SC TO-I/A",
+        "documentId": "v349922_sctoi-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+      "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+      "textHash": "d397f0b62f9ba2d874a2f88ae74a8f8b90236e48a25e5fd29f225403fe4879ca",
+      "location": {
+        "start": 2725,
+        "end": 4431,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "SCHEDULE TO\n\nBlue Wolf Mongolia Holdings Corp., a British Virgin Islands business company with limited liability (“Blue Wolf” or the “Company”), hereby amends and supplements its Tender Offer Statement on Schedule TO originally filed with the Securities and Exchange Commission (the “SEC”) on May 21, 2013 (together with all amendments and supplements thereto, the “Schedule TO”). The Schedule TO, as further amended by this Amendment No. 4, relates to the Company’s offer to purchase for cash up to 1,467,970 of its ordinary shares, no par value (“Ordinary Shares”), at a price of $9.97 per share, net to the seller in cash, without interest (the “Share Purchase Price”) for an aggregate purchase price of up to $14,635,660.90 upon the terms and subject to certain conditions set forth in the Amended and Restated Offer to Purchase dated July 5, 2013 (the “Offer to Purchase”) previously filed as Exhibit (a)(1)(F) to the Schedule TO and in the related Amended and Restated Letter of Transmittal (the “Letter of Transmittal”) previously filed as Exhibit (a)(1)(G) to the Schedule TO, which, as amended or supplemented from time to time, together constitute the offer (the “Offer”). The Offer was terminated on July 12, 2013 because the terms and conditions of the Offer were not satisfied inasmuch as the number of ordinary shares that were validly tendered and not properly withdrawn as of the previously announced Expiration Date of July 11, 2013 was in excess of the maximum number of shares that Blue Wolf could accept for purchase in satisfaction of the Maximum Tender Condition.\n\nDefined terms used but not defined herein shall have the respective meanings ascribed to them in the Offer to Purchase."
+    },
+    {
+      "id": "tender:364472920e4311d40df8ca4dce4385834c43df74fa5135ac64afd1904d744bc4",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001144204-13-039264",
+        "form": "SC TO-I/A",
+        "documentId": "v349922_sctoi-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+      "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+      "textHash": "599b5ad60d2ac4e49360cb8f81803529107e63e7290758e7b8323d618f7cd7c2",
+      "location": {
+        "start": 5083,
+        "end": 5996,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Blue Wolf intends to terminate the Agreement and Plan of Merger and will not consummate the merger of Li3 Energy, Inc. with and into its subsidiary, Blue Wolf Acquisition Sub, Inc., and will, beginning on the first business day following July 22, 2013: (i) commence the process to distribute the Trust Account, pro rata, less interest earned on the proceeds of its initial public offering placed in the Trust Account, to its public shareholders by way of redemption and (ii) cease all operations except for the purposes of any winding up of its affairs.\n\nA copy of the press release issued by Blue Wolf on July 12, 2013 announcing the termination of the Offer is filed as Exhibit (a)(5)(G) hereto, and incorporated herein by reference. No Ordinary Shares were purchased by Blue Wolf pursuant to the Offer and all Ordinary Shares previously tendered and not withdrawn will be promptly returned.\n\nItem 12. Exhibits."
+    },
+    {
+      "id": "tender:3e2e4b145fd8ce4cca3b13b58019e7cc0c632246f4c240c25ca4adcabb1dbb9e",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001144204-13-039264",
+        "form": "SC TO-I/A",
+        "documentId": "v349922_sctoi-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+      "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+      "textHash": "9f1bb7b6ed141cb02ae5866275f9f192a28e79c64b1001bae0f0c6c879edb0b9",
+      "location": {
+        "start": 4461,
+        "end": 5976,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "On July 12, 2013, Blue Wolf terminated the Offer and issued a press release in connection therewith. Blue Wolf terminated the Offer because the terms and conditions of each of the Offer and the Agreement and Plan of Merger were not satisfied. The Offer was scheduled to expire at 11:59 p.m., New York City time, on July 11, 2013. As of the Expiration Date, 1,827,761 Ordinary Shares were validly tendered and not properly withdrawn, which amount was in excess of the maximum number of Ordinary Shares that Blue Wolf could accept for purchase in satisfaction of the Maximum Tender Condition, and the Offer was terminated.\n\nBlue Wolf intends to terminate the Agreement and Plan of Merger and will not consummate the merger of Li3 Energy, Inc. with and into its subsidiary, Blue Wolf Acquisition Sub, Inc., and will, beginning on the first business day following July 22, 2013: (i) commence the process to distribute the Trust Account, pro rata, less interest earned on the proceeds of its initial public offering placed in the Trust Account, to its public shareholders by way of redemption and (ii) cease all operations except for the purposes of any winding up of its affairs.\n\nA copy of the press release issued by Blue Wolf on July 12, 2013 announcing the termination of the Offer is filed as Exhibit (a)(5)(G) hereto, and incorporated herein by reference. No Ordinary Shares were purchased by Blue Wolf pursuant to the Offer and all Ordinary Shares previously tendered and not withdrawn will be promptly returned."
+    },
+    {
+      "id": "tender:bb599a1d87849d8b70592b3f83e02180a9d6b4df0d68d2e204960d7e8a19ec35",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001144204-13-039264",
+        "form": "SC TO-I/A",
+        "documentId": "v349922_sctoi-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+      "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+      "textHash": "a3e921afa798abc5644cb87e857229f0148262fcb919fcd673dff0d28a83c426",
+      "location": {
+        "start": 1032,
+        "end": 1896,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|*| |Estimated for purposes of calculating the amount of the filing fee only, in accordance with Rule 0-11(d) under the Securities Exchange Act of 1934, as amended (the “Exchange Act”). This calculation assumes the purchase of a total of 1,467,970 ordinary shares of Blue Wolf Mongolia Holdings Corp., no par value, at the tender offer price of $9.97 per share.|\n\n[/TABLE]\n\n[TABLE]\n\n|**| |The amount of the filing fee, calculated in accordance with Rule 0-11(b) under the Exchange Act, equals $136.40 per million dollars of the transaction valuation.|\n\n[/TABLE]\n\n[TABLE]\n\n|x| |Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:83de31bdc8e3065b265c36edc2aba8c82bdbf60b9deb1f72a8bed1e4cfa7e3a1",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001144204-13-039264",
+        "form": "SC TO-I/A",
+        "documentId": "v349922_sctoi-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+      "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+      "textHash": "ab1d5e5141c31434f91500ac79e3b481ab642bdf6e86bb5f79647a1d8af78555",
+      "location": {
+        "start": 1604,
+        "end": 2226,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|x| |Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.|\n\n[/TABLE]\n\n[TABLE]\n\n|Amount Previously Paid: 1,996.30| | | |Filing Party: Blue Wolf Mongolia Holdings Corp.|\n\n|Form or Registration No.: Schedule TO-I| | | |Date Filed: May 21, 2013|\n\n[/TABLE]\n\n[TABLE]\n\n|¨| |Check the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:aef95c516743505f9fbe68361c0593e581ef3ed3ab89d0d08c15bc2c7b749a7b",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001144204-13-039264",
+        "form": "SC TO-I/A",
+        "documentId": "v349922_sctoi-a.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "359dca247a5028ccfc6e96dffa0cfe94cd506a00d46045579e25adaa04e770ac",
+      "renderedHash": "98b1e4bf6df57bc34054a1ef5f796c4a87fdf85602024a55814527ba9c54989c",
+      "textHash": "d7bcfb7388a194d68dedde78134a6aecc6f0b5ae787ab1f53f09827db3d6e402",
+      "location": {
+        "start": 1415,
+        "end": 2079,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|**| |The amount of the filing fee, calculated in accordance with Rule 0-11(b) under the Exchange Act, equals $136.40 per million dollars of the transaction valuation.|\n\n[/TABLE]\n\n[TABLE]\n\n|x| |Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.|\n\n[/TABLE]\n\n[TABLE]\n\n|Amount Previously Paid: 1,996.30| | | |Filing Party: Blue Wolf Mongolia Holdings Corp.|\n\n|Form or Registration No.: Schedule TO-I| | | |Date Filed: May 21, 2013|\n\n[/TABLE]"
+    }
+  ]
+}

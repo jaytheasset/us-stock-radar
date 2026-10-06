@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [\n    {\n      \"type\": \"offer_status\",\n      \"current\": \"withdrawn\",\n      \"evidence_refs\": [\n        \"E1\"\n      ]\n    }\n  ],\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0T4KAO77eeCPtD4Mb7HkAZG3bmmUs9dEOLkHVeLxBtksqBOOmzSp0JDFLx/CZInigKNyd29v1sC9Qm9dUGZDRkYVq9FN5ySDt+AH69oG8SqpfiSueFCm4ypKywWu1aOKRUkg=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 3161,
+    "candidatesTokenCount": 61,
+    "totalTokenCount": 3222,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3161
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "BdvEaqieOP3krfcPpKCG0AU"
+}

@@ -1,0 +1,11 @@
+{
+  "runId": "terminal-status-v1-carlyle-expired-final",
+  "fact": "offer_status",
+  "name": "carlyle-expired-final",
+  "accession": "0001702510-26-000009",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:27:42.847Z",
+  "physicalCallLimit": 1,
+  "requestHash": "35ed86fb5c02b79374b7346074ed1a1d25f125db0c3e339b44bae2fdbb476a72",
+  "mappingHash": "6b48a59cb8bdaf09b529b7ac6f1306dc45250be6626b4a10fca74917486df7f0"
+}

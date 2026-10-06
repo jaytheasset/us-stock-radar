@@ -1,0 +1,39 @@
+{
+  "queries": [
+    "Was the tender offer explicitly withdrawn or terminated?",
+    "What is the current stated status of the tender offer?",
+    "Does this filing announce an actual withdrawal or termination or only a right or condition?"
+  ],
+  "cases": [
+    {
+      "name": "jos-withdrawn",
+      "form": "SC TO-I/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm"
+    },
+    {
+      "name": "bluewolf-terminated",
+      "form": "SC TO-I/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/1517526/000114420413039264/v349922_sctoi-a.htm"
+    },
+    {
+      "name": "rumble-right-only",
+      "form": "SC TO-I",
+      "role": "attachment",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm"
+    },
+    {
+      "name": "carlyle-expired-final",
+      "form": "SC TO-I/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm"
+    },
+    {
+      "name": "xerox-terminated",
+      "form": "SC TO-T/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm"
+    }
+  ]
+}

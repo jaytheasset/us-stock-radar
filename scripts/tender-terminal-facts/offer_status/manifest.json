@@ -1,0 +1,65 @@
+{
+  "fact": "offer_status",
+  "model": "gemini-3.5-flash",
+  "runId": "terminal-status-v1",
+  "maxPhysicalCallsPerCase": 1,
+  "cases": [
+    {
+      "name": "jos-withdrawn",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "sourceFile": "sources/jos-withdrawn.json",
+      "purpose": "E1 explicitly withdrew March 11 and terminated same own repurchase offer; withdrawal precedence frozen. E2/E3 exhibit references concern other agreements; E4-E7 fee/identity not direct.",
+      "expected": {
+        "current": "withdrawn"
+      },
+      "stop": "One physical call; any technical or semantic/contract failure stops progression."
+    },
+    {
+      "name": "bluewolf-terminated",
+      "accession": "0001144204-13-039264",
+      "form": "SC TO-I/A",
+      "sourceFile": "sources/bluewolf-terminated.json",
+      "purpose": "Actual tender termination July 12 after July 11 expiration; planned merger agreement termination is a different object. E5-E7 fees.",
+      "expected": {
+        "current": "terminated"
+      },
+      "stop": "One physical call; any technical or semantic/contract failure stops progression."
+    },
+    {
+      "name": "rumble-right-only",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "sourceFile": "sources/rumble-right-only.json",
+      "purpose": "All 15 refs reviewed. E1/E2 scheduled active offer and may terminate, E3/E4/E11/E13 shareholder withdrawal procedures, E12 conditional public announcement, E14/E15 future conditions/proration. E5-E10 offer mechanics/market/listing context. No actual offer withdrawal or termination.",
+      "expected": {
+        "facts": [],
+        "unresolved": []
+      },
+      "stop": "One physical call; any technical or semantic/contract failure stops progression."
+    },
+    {
+      "name": "carlyle-expired-final",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "sourceFile": "sources/carlyle-reused.json",
+      "purpose": "Reused packet E2 explicitly received final results, offer expired January 21 and shares accepted. E1/E5 payment/NAV context; E3/E4 fees; E6 publication date. No offer withdrawal/termination. Fresh status-only retrieval omitted E2; pre-call SOURCE_COVERAGE selection miss remedied by exact prior SEC Evidence packet reuse, not post-call expansion.",
+      "expected": {
+        "facts": [],
+        "unresolved": []
+      },
+      "stop": "One physical call; any technical or semantic/contract failure stops progression."
+    },
+    {
+      "name": "xerox-terminated",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "sourceFile": "sources/xerox-terminated.json",
+      "purpose": "E1 Offer was terminated March 31, no HP shares purchased and return instructions. E3/E4 offer identity, E2 exhibit list, E5/E7 fees, E6 signature; no need to cite unrelated context.",
+      "expected": {
+        "current": "terminated"
+      },
+      "stop": "One physical call; any technical or semantic/contract failure stops progression."
+    }
+  ]
+}

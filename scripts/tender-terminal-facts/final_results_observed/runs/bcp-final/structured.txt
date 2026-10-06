@@ -1,0 +1,12 @@
+{
+  "facts": [
+    {
+      "type": "final_results_observed",
+      "observed": true,
+      "evidence_refs": [
+        "E4"
+      ]
+    }
+  ],
+  "unresolved": []
+}

@@ -1,0 +1,194 @@
+{
+  "E1": {
+    "evidence_id": "tender:8df428c3adf1a9edb55955fb568bd27f0854384c2647b94b868711052387da4a",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "b5ffe066349c14ecdbc945689c7fb7965fa1c291b46c7d84964239c351a83173",
+    "location": {
+      "start": 67475,
+      "end": 69702,
+      "heading": "THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E2": {
+    "evidence_id": "tender:8fe0350b0e76d9bebb80542bc857b54f4764e292043a6d03612c65719575a385",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "a3e808e6bb3977bfaa398768bdf6c61d51e0e791be8f752c1eebb49d5bf39b79",
+    "location": {
+      "start": 66074,
+      "end": 68777,
+      "heading": "THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E3": {
+    "evidence_id": "tender:c9de9d778ab1dc31b944babca8ebfb5ed895d0acc2af5e79b7476352e8db73b6",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "93e0ea0dc7398237e09509abde83980a843ae90fb3bf6db4ec7bee5a10cffc87",
+    "location": {
+      "start": 115755,
+      "end": 116682,
+      "heading": "THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E4": {
+    "evidence_id": "tender:0c7b752b378ca4d18ca1f938c7de0a7efffbe5f6aa3b6068e72344ad720e7f53",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "4b118fec980568ce5a2f79e1d2b194b8337e1f0c5e68b3472293ab2ea3af16a8",
+    "location": {
+      "start": 47066,
+      "end": 48197,
+      "heading": "SUMMARY TERM SHEET",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E5": {
+    "evidence_id": "tender:5f5cebaf07ce5e6b8c3df2d9903eeccf8cf8ac29fc15a04bd481666b57c5d37c",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "edf65e6c49cb971a62141fd49d54af2b2f231c7d93f8b196a243bc76bf5bdd53",
+    "location": {
+      "start": 58455,
+      "end": 61726,
+      "heading": "FORWARD-LOOKING STATEMENTS",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E6": {
+    "evidence_id": "tender:3edc26a0ed22cf6f23763f5e53934a6b2932b36e9ab638d584d56639d12afa50",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "231e55b741fe6ad0484931072372334fb9b77f5027eabea2e6d3dc8bd0458bcc",
+    "location": {
+      "start": 127767,
+      "end": 129547,
+      "heading": "THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E7": {
+    "evidence_id": "tender:fd4e2676ee1a32a560d42adb055bdb8e56e98a600547ebf5dac27dd7faa2c199",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "46b3b38081cb4fe2f4983d6e7d18cd53d2f6e604cdce86ffe53cd89c7e9421d7",
+    "location": {
+      "start": 188395,
+      "end": 190388,
+      "heading": "THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E8": {
+    "evidence_id": "tender:8d2a20cc68d378c4155b4520d008c7d29212b9b757b6764c7076095255495a61",
+    "accession": "0001213900-25-000757",
+    "form": "SC TO-I",
+    "document": {
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "documentId": "sctoi_ex99a1arumble.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "role": "attachment",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+    "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+    "textHash": "caf0bae0fbb63bca48800d7165c0562ecc5c2f958dbd415e64eeb532483627cb",
+    "location": {
+      "start": 121019,
+      "end": 123471,
+      "heading": "THE OFFER",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  }
+}

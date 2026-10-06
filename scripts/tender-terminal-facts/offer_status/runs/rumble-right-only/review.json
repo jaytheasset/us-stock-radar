@@ -1,0 +1,9 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:27:42.193Z",
+  "outputHash": "28e64142cc6e459c1444b27ccf5caa572e3be977344454532a5aecbe9e5f86cc",
+  "semantic": "All15 refs show active offer/future conditions/procedures; empty facts and empty unresolved correctly abstain. No invented actual event from may terminate, withdrawal rights, or final binding procedural decisions.",
+  "refs": {},
+  "failureClass": null
+}

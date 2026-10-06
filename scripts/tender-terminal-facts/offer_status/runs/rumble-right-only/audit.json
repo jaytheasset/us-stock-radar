@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-status-v1-rumble-right-only",
+  "fact": "offer_status",
+  "name": "rumble-right-only",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1662,
+  "usage": {
+    "promptTokenCount": 3731,
+    "candidatesTokenCount": 16,
+    "totalTokenCount": 3747,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3731
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

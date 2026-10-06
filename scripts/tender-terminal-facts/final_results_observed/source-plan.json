@@ -1,0 +1,33 @@
+{
+  "queries": [
+    "Does this filing announce actual final results of the tender offer?",
+    "Are the tender results final, preliminary, interim, or expected?",
+    "Has the offer ended with final results and shares accepted for purchase, or is the offer still active?"
+  ],
+  "cases": [
+    {
+      "name": "carlyle-final",
+      "form": "SC TO-I/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm"
+    },
+    {
+      "name": "bcp-final",
+      "form": "SC TO-T/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm"
+    },
+    {
+      "name": "dxl-interim",
+      "form": "SC 14D9/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm"
+    },
+    {
+      "name": "rumble-active",
+      "form": "SC TO-I",
+      "role": "attachment",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm"
+    }
+  ]
+}

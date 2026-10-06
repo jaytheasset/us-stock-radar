@@ -1,0 +1,13 @@
+{
+  "valid": true,
+  "errors": [],
+  "mappingHash": "6fd292f971610b0bd4251673b7ef6caf74cf791f95262a997000bac5d401a3fc",
+  "resolved": [
+    {
+      "fact_index": 0,
+      "ref": "E1",
+      "evidence_id": "tender:b882a3ae942d6fa472e91a7672ee1296a374935e9f58fdba0593db85aae7833a",
+      "accession": "0001571049-14-000777"
+    }
+  ]
+}

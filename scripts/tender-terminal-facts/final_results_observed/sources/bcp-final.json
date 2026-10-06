@@ -1,0 +1,162 @@
+{
+  "accession": "0001193125-25-317765",
+  "form": "SC TO-T/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:3a6ddefb78bb16019b7cc1cc1134a2c795a162e094900b4954a381ff4cebdde2",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-25-317765",
+        "form": "SC TO-T/A",
+        "documentId": "d87145dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+      "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+      "textHash": "b0ba84894337e15033e50139090cb1801e7a62facfa568a49ae22c88dc889171",
+      "location": {
+        "start": 5382,
+        "end": 6368,
+        "heading": "EXHIBIT INDEX",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "EXHIBIT INDEX\n\n[TABLE]\n\n|| || ||\n\n|\nEXHIBIT\n\nNUMBER\n| | | |\nDESCRIPTION\n|\n\n|| |[colspan=2]|\n\n|\n(a)(1)(A)**\n| | | |Offer to Purchase, November 12, 2025. |\n\n|| |[colspan=2]|\n\n|\n(a)(1)(B)**\n| | | |Form of Letter of Transmittal. |\n\n|| |[colspan=2]|\n\n|\n(a)(1)(C)**\n| | | |Letter to brokers, dealers, commercial banks, trust companies and other nominees, dated November 12, 2025. |\n\n|| |[colspan=2]|\n\n|\n(a)(1)(D)**\n| | | |Letter to Stockholders, dated November 12, 2025. |\n\n|| |[colspan=2]|\n\n|\n(a)(5)**\n| | | |Press release announcing the Tender Offer, dated November 6, 2025 (Previously filed in connection with the Registrant’s Tender Offer Statement on Schedule TO (File No. 005-82556) filed on November 6, 2025, and incorporated by reference herein.)|\n\n|| |[colspan=2]|\n\n|\n(a)(5)(B)*\n| | | |Press release announcing the final results of the tender offer. |\n\n|| |[colspan=2]|\n\n|\nEX-FILING FEES**\n| | | |Calculation of Filing Fee Table |\n\n[/TABLE]\n\n[TABLE]\n\n|*| |\nFiled herewith\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:4de46a74dcb05eb8c8b4123673d1a4ddbb8e26cbbc6bc5d1a646fb05f6bbffb5",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-25-317765",
+        "form": "SC TO-T/A",
+        "documentId": "d87145dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+      "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+      "textHash": "487cecd4df0c4b20c9b313300c6c2b5bb919eca8b8c171cdc3e29bb9b96717ba",
+      "location": {
+        "start": 4166,
+        "end": 4420,
+        "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "(a)(5)(B) Press release announcing the final results of the tender offer.\n\n[TABLE]\n\n|| || ||\n\n|EXHIBIT\n\nNUMBER| | | |\nDESCRIPTION\n|\n\n|| |[colspan=2]|\n\n|(a)(5)(B)| | | |Press release announcing the final results of the tender offer. |\n\n[/TABLE]\n\nSIGNATURE"
+    },
+    {
+      "id": "tender:38369024e53cb322ce33d546366a929e6bdd105f0a93d8b17113da9beff861a1",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-25-317765",
+        "form": "SC TO-T/A",
+        "documentId": "d87145dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+      "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+      "textHash": "79d2d8718fbbc6d183ac778f724a02c93a28c2cdc4d123992fe8a61f4af08405",
+      "location": {
+        "start": 4050,
+        "end": 4239,
+        "heading": "Item 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Item 12. Exhibits.\n\nItem 12 of the Schedule TO is hereby amended and supplemented by adding the following exhibit:\n\n(a)(5)(B) Press release announcing the final results of the tender offer."
+    },
+    {
+      "id": "tender:e2f1019e7a5744276d7ce4116d52705e2d44809c6d57eb0502297429de767b37",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-25-317765",
+        "form": "SC TO-T/A",
+        "documentId": "d87145dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+      "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+      "textHash": "d41c09cff12830ab6ca8d0f15663d53825f313013aa055c434b3cdf3ad3ca4e8",
+      "location": {
+        "start": 3652,
+        "end": 4068,
+        "heading": "Item 11 of the Schedule TO is hereby amended and supplemented by adding the following information to the end thereof:",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Item 11 of the Schedule TO is hereby amended and supplemented by adding the following information to the end thereof:\n\nOn December 12, 2025, the Company issued a press release announcing the final results of the Offer, which expired on December 10, 2025, at 11:59 PM, New York City time. A copy of such press release is filed herewith as Exhibit (a)(5)(B) and is incorporated herein by reference.\n\nItem 12. Exhibits."
+    },
+    {
+      "id": "tender:e9e2abd63327cdc0d38fa3dca0caf32ac153d29b0d7651eb24e759710e8e33b0",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-25-317765",
+        "form": "SC TO-T/A",
+        "documentId": "d87145dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+      "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+      "textHash": "4905c4fe4441c87897e94f82e624a304f0ac85e113b5627e3fc27b3b8e27fa2f",
+      "location": {
+        "start": 1034,
+        "end": 1330,
+        "heading": "NIKITA KLASSEN",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Telephone: (202) 261-3300\n\n[TABLE]\n\n|☐| |\nCheck the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.\n|\n\n[/TABLE]\n\n[TABLE]\n\n|Check| |\nthe appropriate boxes below to designate any transactions to which the statement relates:\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:65af59d1ecde18e8330411bb3dd5eb81093beb3582ef6025d3ab524cfb26283f",
+      "accession": "0001193125-25-317765",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-25-317765",
+        "form": "SC TO-T/A",
+        "documentId": "d87145dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1372807/000119312525317765/d87145dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9fd809c42023b20074fd53efbdde3a8ce1c07607fad978d3a999dcbc2982ae68",
+      "renderedHash": "b76323c96eb3869bf8189cc80019d7c00bc2697592297a14773b81676ea0e209",
+      "textHash": "112ace683ab731a82eeefaadf6c066c47a90f844c6faec35c0a40a69c3aa6fd7",
+      "location": {
+        "start": 2029,
+        "end": 3616,
+        "heading": "SCHEDULE TO",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "SCHEDULE TO\n\nThis Amendment No. 1 (“Amendment No. 1”) amends and supplements the Tender Offer Statement on Schedule TO (the “Schedule TO”) originally filed with the Securities and Exchange Commission on November 12, 2025 by BCP Investment Corporation, a Delaware corporation (the “Company”), in connection with an offer by (i) the Company, (ii) Edward Goldthorpe, the President and Chief Executive Officer of the Company, (iii) Patrick Schafer, the Chief Investment Officer of the Company and (iii) Brandon Satoren, the Chief Financial Officer of the Company, (iv) Joseph Morea, a member of the Company’s board of directors, (v) George Grunebaum, a member of the Company’s board of directors, (vi) Sam Reinhart, an officer at an entity affiliated with the Company’s investment adviser, and (vii) Nikita Klassen, an officer at an entity affiliated with the Company’s investment adviser (collectively, with the Company, the “Offeror Group”), to purchase, severally, and not jointly, for cash up to $9.0 million in the aggregate of shares of the Company’s common stock, $0.01 par value per share (the “shares”), at a price per share not less than $13.63 and not more than $14.93 in cash, less any applicable withholding taxes and without interest (the “Offer”).\n\nOnly those items amended or supplemented are reported in this Amendment No. 1. Except as specifically provided herein, the information contained in the Schedule TO remains unchanged. You should read this Amendment No. 1 together with the Schedule TO, the Offer to Purchase dated November 12, 2025 and the Letter of Transmittal."
+    }
+  ]
+}

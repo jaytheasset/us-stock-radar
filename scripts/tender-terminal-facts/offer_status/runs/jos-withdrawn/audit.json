@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-status-v1-jos-withdrawn",
+  "fact": "offer_status",
+  "name": "jos-withdrawn",
+  "accession": "0001571049-14-000777",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1651,
+  "usage": {
+    "promptTokenCount": 3161,
+    "candidatesTokenCount": 61,
+    "totalTokenCount": 3222,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3161
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

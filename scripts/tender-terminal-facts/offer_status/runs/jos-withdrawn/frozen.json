@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-status-v1-jos-withdrawn",
+  "fact": "offer_status",
+  "model": "gemini-3.5-flash",
+  "accession": "0001571049-14-000777",
+  "frozenAt": "2026-10-06T11:26:40.622Z",
+  "files": {
+    "evidence-map.json": "6fd292f971610b0bd4251673b7ef6caf74cf791f95262a997000bac5d401a3fc",
+    "prompt.txt": "39cb9b466ed695a7c05b019ca1ecf09073ec389dd4283c9b02885f55bb85e409",
+    "provider-schema.json": "e84638c57f5791e6df0d2609ed284d54e09e997c42455e39f0eaeca2b7468dd1",
+    "provider-source.json": "5fd7914297ba3899d8b3887cbf263c2e4f492eeace623037d7bc28ef129853b2",
+    "request.json": "da7ce59ec9065d46f1fa987e9a57811cb4c7e2434b7f9ae31a30def3d609df48",
+    "source.json": "66f058fea692aeb4620fc7cac750224a3dabd2d1d5215e1e1356bc68fd1b3ac0"
+  }
+}

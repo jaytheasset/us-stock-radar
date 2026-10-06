@@ -1,0 +1,11 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:31:48.713Z",
+  "outputHash": "712c1572d1b71bf74a1a2cd5dfdd381cc86a0833e0b14fedc3ee9c1604d82a06",
+  "semantic": "Narrative issued final-results release confirms actual announcement. Numerical exhibit not needed for observation. No inference solely from exhibit title.",
+  "refs": {
+    "E4": "DIRECT: Company issued press release announcing final results December12 for Offer expired December10."
+  },
+  "failureClass": null
+}

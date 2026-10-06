@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-final-results-v1-bcp-final",
+  "fact": "final_results_observed",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-25-317765",
+  "frozenAt": "2026-10-06T11:31:15.301Z",
+  "files": {
+    "evidence-map.json": "b9446f7390e19dae2db06ca337ac0ea5856b4d91d0ea13763c85b7c56306abeb",
+    "prompt.txt": "40ec8585b2544cc08315ddecbb36a85e02aef9ce3b9c765565b1a5d00df2c152",
+    "provider-schema.json": "d5edffd020648dd8e254dd21fd722127397489428d7ef8620410884f9eccf57f",
+    "provider-source.json": "8cca20654508327e7cd5e1d0e44eddb12b651160ad8f4b73932b11f29e63827a",
+    "request.json": "272b0ad77b63e490d4027264508157e47d7036ec7df404386dfd7a4d84461ab4",
+    "source.json": "1fb297586eb4a5710a1588361058cd4a1920076a58842ac085266b74cb8e82a4"
+  }
+}

@@ -1,0 +1,241 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+  "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+  "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+  "renderedChars": 5388,
+  "queries": [
+    "Was the tender offer explicitly withdrawn or terminated?",
+    "What is the current stated status of the tender offer?",
+    "Does this filing announce an actual withdrawal or termination or only a right or condition?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "cars_2026130xsctoa.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": [
+        {
+          "id": "tender:ff41b8399a85cbb0525cffed164fb7e23ac6d0acf557ec66a4bdc5157f4dce16",
+          "accession": "0001702510-26-000009",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001702510-26-000009",
+            "form": "SC TO-I/A",
+            "documentId": "cars_2026130xsctoa.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+          "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+          "textHash": "0902335f37aa5a0d43c4258c6cdb72b3ebcf7f16491947823310f83c74d009e9",
+          "location": {
+            "start": 4314,
+            "end": 4932,
+            "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 618,
+          "score": 4.618802153517006,
+          "matchedTerms": [
+            "withdrawn"
+          ],
+          "expandedTerms": [
+            "withdraw",
+            "withdrawn"
+          ]
+        }
+      ]
+    },
+    {
+      "status": "retrieval-no-match",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "cars_2026130xsctoa.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": []
+    },
+    {
+      "status": "hits",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "cars_2026130xsctoa.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 5,
+      "hits": [
+        {
+          "id": "tender:ff41b8399a85cbb0525cffed164fb7e23ac6d0acf557ec66a4bdc5157f4dce16",
+          "accession": "0001702510-26-000009",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001702510-26-000009",
+            "form": "SC TO-I/A",
+            "documentId": "cars_2026130xsctoa.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+          "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+          "textHash": "0902335f37aa5a0d43c4258c6cdb72b3ebcf7f16491947823310f83c74d009e9",
+          "location": {
+            "start": 4314,
+            "end": 4932,
+            "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 618,
+          "score": 4.618802153517006,
+          "matchedTerms": [],
+          "expandedTerms": [
+            "withdraw",
+            "withdrawn"
+          ]
+        },
+        {
+          "id": "tender:ae9cbdf42a2d611d79cc99afa5911a36c8bda2d7c84861b8ff589ca9ccec0f2b",
+          "accession": "0001702510-26-000009",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001702510-26-000009",
+            "form": "SC TO-I/A",
+            "documentId": "cars_2026130xsctoa.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+          "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+          "textHash": "a18a3fdb40b2840f54938b5047b3d4a29e60349e234348e9d957ffc060023a57",
+          "location": {
+            "start": 523,
+            "end": 640,
+            "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 117,
+          "score": 3.670651741928988,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:8894ffd4e2b984fa46c82d3f378af8ebcd95017c9a94f48a5801fb9cf51f5c1a",
+          "accession": "0001702510-26-000009",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001702510-26-000009",
+            "form": "SC TO-I/A",
+            "documentId": "cars_2026130xsctoa.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+          "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+          "textHash": "2311f0058edb97073af0b0f1b27fcefbb5581b8fe769e01161d0fe5a201396d8",
+          "location": {
+            "start": 1630,
+            "end": 2008,
+            "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 378,
+          "score": 3.4426518632954815,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:ce5d44bc39bd5e89f2bafa923814f5db4f923509559e844e90a5935be444766e",
+          "accession": "0001702510-26-000009",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001702510-26-000009",
+            "form": "SC TO-I/A",
+            "documentId": "cars_2026130xsctoa.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+          "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+          "textHash": "1f1a2ebde3bc54036aa800153c7ddac156c197f22847c0ddd8ab9d2dd055893c",
+          "location": {
+            "start": 1315,
+            "end": 1791,
+            "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 476,
+          "score": 3.3806170189140663,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:471527dc65d9eb3cc4663c1ebda364e2bc0f74519f53dee09b49040abd41c431",
+          "accession": "0001702510-26-000009",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001702510-26-000009",
+            "form": "SC TO-I/A",
+            "documentId": "cars_2026130xsctoa.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+          "renderedHash": "93ab574cffa17fb1390309e4e5221582c6f5aacca9097cd1aedb451ada33ad20",
+          "textHash": "ea0543da119ab5b211dc87080b5cda3b2b165f1810528702cc66bc08282d83c0",
+          "location": {
+            "start": 2311,
+            "end": 3422,
+            "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1111,
+          "score": 2.930973221789247,
+          "matchedTerms": [
+            "this"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ]
+}

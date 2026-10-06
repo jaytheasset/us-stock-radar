@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-status-v1-bluewolf-terminated",
+  "fact": "offer_status",
+  "name": "bluewolf-terminated",
+  "accession": "0001144204-13-039264",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1566,
+  "usage": {
+    "promptTokenCount": 2345,
+    "candidatesTokenCount": 31,
+    "totalTokenCount": 2376,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2345
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

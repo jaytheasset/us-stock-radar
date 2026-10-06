@@ -1,0 +1,308 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+  "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+  "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+  "renderedChars": 12643,
+  "queries": [
+    "Was the tender offer explicitly withdrawn or terminated?",
+    "What is the current stated status of the tender offer?",
+    "Does this filing announce an actual withdrawal or termination or only a right or condition?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "t1400406_scto-a.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": [
+        {
+          "id": "tender:b882a3ae942d6fa472e91a7672ee1296a374935e9f58fdba0593db85aae7833a",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "6825451f307f8a96a4d0a940f5ecd781fd1e844a6fac589ad7cb098dc61b1610",
+          "location": {
+            "start": 4532,
+            "end": 5144,
+            "heading": "ITEMS 1 THROUGH 11.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 612,
+          "score": 8.87125622400063,
+          "matchedTerms": [
+            "withdrawn",
+            "terminated"
+          ],
+          "expandedTerms": [
+            "withdrawal",
+            "withdraw",
+            "withdrawn"
+          ]
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "t1400406_scto-a.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": [
+        {
+          "id": "tender:593aa4998053de7a389dbaf0e3504d4011ee494ef38df916a866bf437c979ea7",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "1a244190f76e60a248efb4176e7b1c5b7f18b45871da1ee6e6f76c904b98051f",
+          "location": {
+            "start": 10666,
+            "end": 12161,
+            "heading": "Item 12 is hereby amended and restated in its entirety as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1495,
+          "score": 3.102266937317925,
+          "matchedTerms": [
+            "current"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:61f4a355f9cca243d8b87eabcb43d9c1b818c7accf142f6460facf1fd8fd722a",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "62b752c46aab1b25507fb49dc375d50e0a2fb7a12177d86e3d66a22a0702956e",
+          "location": {
+            "start": 6803,
+            "end": 10664,
+            "heading": "Item 12 is hereby amended and restated in its entirety as follows:",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 3861,
+          "score": 2.5686451962717425,
+          "matchedTerms": [
+            "current"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001571049-14-000777",
+      "form": "SC TO-I/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "t1400406_scto-a.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 5,
+      "hits": [
+        {
+          "id": "tender:b882a3ae942d6fa472e91a7672ee1296a374935e9f58fdba0593db85aae7833a",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "6825451f307f8a96a4d0a940f5ecd781fd1e844a6fac589ad7cb098dc61b1610",
+          "location": {
+            "start": 4532,
+            "end": 5144,
+            "heading": "ITEMS 1 THROUGH 11.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 612,
+          "score": 8.87125622400063,
+          "matchedTerms": [
+            "withdrawal",
+            "condition"
+          ],
+          "expandedTerms": [
+            "withdrawal",
+            "withdraw",
+            "withdrawn"
+          ]
+        },
+        {
+          "id": "tender:c1cbfc6ca6fd0ecff19958187e167ae17127521ce2f3d6c807b02a2da1d4a1e1",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "e085b8c749aeef76c77308b73aaa93a16de5f60146398e70868d35b3b5a9650b",
+          "location": {
+            "start": 2113,
+            "end": 2522,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 409,
+          "score": 3.3362306249131963,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:0dda79d8352771ce94d0c0811cb9f6c1afb2196396108e6387c0c10c6d317301",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "bcc3e0be95462a6de080b54850c1aae152449babe03f75c7d9b104520bdd7e9b",
+          "location": {
+            "start": 1818,
+            "end": 2431,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 613,
+          "score": 3.2,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:8a25c984806a6f9e7d09f813dc7ad6b15419ab847e480dcf765b4106d81ba4bf",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "25b53123e1a78d1a48f26b08b02ce1168fcf80215b613adad5c391242508e75c",
+          "location": {
+            "start": 1601,
+            "end": 2283,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 682,
+          "score": 3.090669637145023,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:38c9ce64e2fba049dd7aa2339936846879941c282657091896040a5cf55bdf14",
+          "accession": "0001571049-14-000777",
+          "form": "SC TO-I/A",
+          "document": {
+            "accession": "0001571049-14-000777",
+            "form": "SC TO-I/A",
+            "documentId": "t1400406_scto-a.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/920033/000157104914000777/t1400406_scto-a.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "12a4e1355bdecdc9421efe456df86bfd8dd3a0989610f441491374c9c99caeaf",
+          "renderedHash": "0056b0b3231ac060550792e96fe32cf607260cef0fb786be13672aafe099ac45",
+          "textHash": "173f7ca3d51461c8e8a984d071728a3b5665d82d64d7ad6fa426c7b5e0883da5",
+          "location": {
+            "start": 1215,
+            "end": 2111,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 896,
+          "score": 2.9814239699997196,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ]
+}

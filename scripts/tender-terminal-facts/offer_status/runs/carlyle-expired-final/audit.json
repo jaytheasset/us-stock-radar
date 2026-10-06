@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-status-v1-carlyle-expired-final",
+  "fact": "offer_status",
+  "name": "carlyle-expired-final",
+  "accession": "0001702510-26-000009",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1381,
+  "usage": {
+    "promptTokenCount": 1300,
+    "candidatesTokenCount": 8,
+    "totalTokenCount": 1308,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1300
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

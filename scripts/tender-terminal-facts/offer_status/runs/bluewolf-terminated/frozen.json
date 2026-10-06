@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-status-v1-bluewolf-terminated",
+  "fact": "offer_status",
+  "model": "gemini-3.5-flash",
+  "accession": "0001144204-13-039264",
+  "frozenAt": "2026-10-06T11:26:40.640Z",
+  "files": {
+    "evidence-map.json": "104c71f1acbc3b009724094262f76110d0d99e9589b32a0de4d42a5a03d5c8ed",
+    "prompt.txt": "39cb9b466ed695a7c05b019ca1ecf09073ec389dd4283c9b02885f55bb85e409",
+    "provider-schema.json": "e84638c57f5791e6df0d2609ed284d54e09e997c42455e39f0eaeca2b7468dd1",
+    "provider-source.json": "ffe095e7726a5a269c70128d0bcae7978d1035e52dad0a6447a231400967fb0d",
+    "request.json": "d1f6d03dccc163ff37bde46028182b7d80c1c378ea216ba2f5bdec138235859f",
+    "source.json": "2f57f3d97bcb0f824c6d8bb488aa9c71f3ebb0812b8f05d29f690018f5491e30"
+  }
+}

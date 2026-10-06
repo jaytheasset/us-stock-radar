@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-final-results-v1-carlyle-final",
+  "fact": "final_results_observed",
+  "model": "gemini-3.5-flash",
+  "accession": "0001702510-26-000009",
+  "frozenAt": "2026-10-06T11:31:15.284Z",
+  "files": {
+    "evidence-map.json": "cae3ae2dee8912a5c2a5a8d1016d1c32817b2252bf8547f51f53b1c2a5faac54",
+    "prompt.txt": "40ec8585b2544cc08315ddecbb36a85e02aef9ce3b9c765565b1a5d00df2c152",
+    "provider-schema.json": "c0d1f9b23a8fea5c867fc3054ab78e06f21ddd3f34eb0d52cbd01c621e6d1fcc",
+    "provider-source.json": "9a55627f3224ddd4f070aa9e703e365ee36cf79ea9193b8c8284a3022ab8ea16",
+    "request.json": "719ffd6ab93533bd07ec75d96141d49fe82778c83c153079a1496711970969b5",
+    "source.json": "03e211de8198a8f72b63dab1a834260d4c6b4f9beefd642e5825526e74fcd885"
+  }
+}

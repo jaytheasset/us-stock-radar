@@ -1,0 +1,11 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:27:17.717Z",
+  "outputHash": "2d567c4a260ceddc83fc3d7f540886d55e2cb531a0484be56f115fc500e58a9e",
+  "semantic": "Explicit withdrew and terminated same offer; withdrawn matches predeclared specific-label precedence. No extra claims.",
+  "refs": {
+    "E1": "DIRECT: actual Company withdrew Offer; same paragraph says terminated; no shares purchased."
+  },
+  "failureClass": null
+}

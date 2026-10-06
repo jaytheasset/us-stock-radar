@@ -1,0 +1,1 @@
+{"facts":[{"type":"offer_status","current":"terminated","evidence_refs":["E1"]}],"unresolved":[]}

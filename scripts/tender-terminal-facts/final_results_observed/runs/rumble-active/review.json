@@ -1,0 +1,9 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:32:48.991Z",
+  "outputHash": "28e64142cc6e459c1444b27ccf5caa572e3be977344454532a5aecbe9e5f86cc",
+  "semantic": "E1-E4 future preliminary/final announcements and payment mechanics, no actual announcement. E6 interim financial results unrelated. Correct sparse abstention, no observed false.",
+  "refs": {},
+  "failureClass": null
+}

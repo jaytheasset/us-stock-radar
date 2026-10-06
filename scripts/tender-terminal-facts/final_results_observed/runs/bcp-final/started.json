@@ -1,0 +1,11 @@
+{
+  "runId": "terminal-final-results-v1-bcp-final",
+  "fact": "final_results_observed",
+  "name": "bcp-final",
+  "accession": "0001193125-25-317765",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:31:37.376Z",
+  "physicalCallLimit": 1,
+  "requestHash": "272b0ad77b63e490d4027264508157e47d7036ec7df404386dfd7a4d84461ab4",
+  "mappingHash": "b9446f7390e19dae2db06ca337ac0ea5856b4d91d0ea13763c85b7c56306abeb"
+}

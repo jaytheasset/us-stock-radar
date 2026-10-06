@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-final-results-v1-dxl-interim",
+  "fact": "final_results_observed",
+  "name": "dxl-interim",
+  "accession": "0001193125-26-298540",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1617,
+  "usage": {
+    "promptTokenCount": 5896,
+    "candidatesTokenCount": 16,
+    "totalTokenCount": 5912,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 5896
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

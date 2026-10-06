@@ -1,0 +1,12 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:31:36.271Z",
+  "outputHash": "a9ca094f3034ebce1baebed4298ff945fa06658dca505d30abb02df23d60e4d6",
+  "semantic": "Actual final results correctly observed despite approximate final share figures; only minimal true observation.",
+  "refs": {
+    "E1": "DIRECT: this Amendment being filed to report final results of Offer.",
+    "E9": "DIRECT: Company received final results of expired Offer and accepted shares."
+  },
+  "failureClass": null
+}

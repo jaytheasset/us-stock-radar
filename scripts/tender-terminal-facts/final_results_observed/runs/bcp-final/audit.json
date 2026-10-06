@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-final-results-v1-bcp-final",
+  "fact": "final_results_observed",
+  "name": "bcp-final",
+  "accession": "0001193125-25-317765",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1821,
+  "usage": {
+    "promptTokenCount": 1702,
+    "candidatesTokenCount": 61,
+    "totalTokenCount": 1763,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1702
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

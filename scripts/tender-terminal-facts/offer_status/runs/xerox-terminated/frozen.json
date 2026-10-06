@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-status-v1-xerox-terminated",
+  "fact": "offer_status",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-20-092896",
+  "frozenAt": "2026-10-06T11:26:40.683Z",
+  "files": {
+    "evidence-map.json": "83c76a3ceb01c3a85ef9bcfab7d5e1d2f00797ff7347558e36aa640cf4457647",
+    "prompt.txt": "39cb9b466ed695a7c05b019ca1ecf09073ec389dd4283c9b02885f55bb85e409",
+    "provider-schema.json": "e84638c57f5791e6df0d2609ed284d54e09e997c42455e39f0eaeca2b7468dd1",
+    "provider-source.json": "6d64c16efb1bc8e553187537ad7732982c9ce5545852eb9559aa901051e6b9bb",
+    "request.json": "1d6f777a2671e9587fd41e07178a318c196397ff4cd5bedc5094d9c383075fd6",
+    "source.json": "47e346397598c30d872175dd6f368c5966b965ba2f68ba8cba60a18e3a5a427f"
+  }
+}

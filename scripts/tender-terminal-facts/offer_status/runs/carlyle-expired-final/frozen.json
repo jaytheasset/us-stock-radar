@@ -1,0 +1,15 @@
+{
+  "runId": "terminal-status-v1-carlyle-expired-final",
+  "fact": "offer_status",
+  "model": "gemini-3.5-flash",
+  "accession": "0001702510-26-000009",
+  "frozenAt": "2026-10-06T11:26:40.668Z",
+  "files": {
+    "evidence-map.json": "6b48a59cb8bdaf09b529b7ac6f1306dc45250be6626b4a10fca74917486df7f0",
+    "prompt.txt": "39cb9b466ed695a7c05b019ca1ecf09073ec389dd4283c9b02885f55bb85e409",
+    "provider-schema.json": "7577aad50f9e02e78699d722662131f9bda82df750af40a12164c609838eb605",
+    "provider-source.json": "1186120bca084da11991c1d67043c58e2a231b4179007b6b0e22656f0ccc99e6",
+    "request.json": "35ed86fb5c02b79374b7346074ed1a1d25f125db0c3e339b44bae2fdbb476a72",
+    "source.json": "a0d413e20c682acd1757f199cd7ff4b235743cea160433603c8b5b4cb8f586c3"
+  }
+}

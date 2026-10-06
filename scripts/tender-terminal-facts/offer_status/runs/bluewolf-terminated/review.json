@@ -1,0 +1,13 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:27:30.539Z",
+  "outputHash": "0092d952856d0feab84dedff1b04df6893d2c9e7959f288079e6aad043de5f50",
+  "semantic": "Actual tender termination correctly distinguished from historical expiry and intended future merger termination.",
+  "refs": {
+    "E1": "DIRECT: Blue Wolf terminated Offer July 12.",
+    "E2": "DIRECT: same defined Offer was terminated July 12.",
+    "E4": "DIRECT: repeats actual tender termination and return/no purchase."
+  },
+  "failureClass": null
+}

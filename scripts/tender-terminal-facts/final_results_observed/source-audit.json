@@ -1,0 +1,58 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "reviewedAt": "2026-10-06T11:30:38.938Z",
+  "coveragePass": true,
+  "priorFactGate": "offer_status/result.json practicalPass=true before preparation",
+  "completeness": "All complete individual SEC documents, bounded slices, no unavailable/partial; external references not followed",
+  "identity": "Same offer within each packet; actual parent forms checked against saved SEC index; BCP offeror group is one offer",
+  "cases": {
+    "carlyle-final": {
+      "expected": true,
+      "direct": [
+        "E1",
+        "E9"
+      ],
+      "corroborating": [
+        "E5",
+        "E7",
+        "E8",
+        "E10"
+      ],
+      "irrelevant": [
+        "E2",
+        "E3",
+        "E4",
+        "E6"
+      ],
+      "review": "E1 explicitly report final results. E9 received final results, expired, accepted shares. E5/E7 checked final amendment, E8/E10 purchase/payment context corroborate, not sufficient alone. Remaining identity/fees."
+    },
+    "bcp-final": {
+      "expected": true,
+      "direct": [
+        "E4"
+      ],
+      "corroborating": [
+        "E1",
+        "E2",
+        "E3",
+        "E6"
+      ],
+      "irrelevant": [
+        "E5"
+      ],
+      "review": "E4 narrative confirms December12 issued final-results release for expired Offer. E1-E3 list that actual release, E6 defines same offer. E5 preliminary-communications unchecked boilerplate. SEC index confirms actual parent SC TO-T/A, despite mixed issuer/group offer."
+    },
+    "dxl-interim": {
+      "expected": null,
+      "direct": [],
+      "corroborating": [],
+      "review": "All14 refs reviewed. E12/E13 June22 as-of approximate tender count followed by extension to July24 and board evaluation. E1 outstanding shares, E2 offer identity, E3-E5/E10 hypothetical executive compensation, E6/E8 conditions, E7 unchecked preliminary-communications boilerplate, E9 competing merger recommendation, E11/E14 board recommendation. No actual final offer results."
+    },
+    "rumble-active": {
+      "expected": null,
+      "direct": [],
+      "corroborating": [],
+      "review": "All8 refs reviewed. E1-E4 prospective proration and future preliminary/final announcements/payment, E5 operating risks, E6 historical financial interim results (different object), E7 tax consequences, E8 conditions and future determinations. No actual final offer results."
+    }
+  }
+}

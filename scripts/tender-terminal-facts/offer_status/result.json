@@ -1,0 +1,269 @@
+{
+  "fact": "offer_status",
+  "practicalPass": true,
+  "reviewer": "Codex direct source review; independent human signoff pending",
+  "physicalCalls": 5,
+  "semanticErrors": 0,
+  "schemaDecision": "KEEP minimal contract with predeclared explicit-withdrawal precedence",
+  "limitations": [
+    "Five selected representative cases, not production accuracy estimate",
+    "No actual partial/unavailable/conflicting source case in this batch",
+    "Jos uses both withdrew and terminated; exclusive enum intentionally preserves the more specific withdrawal label",
+    "Carlyle generic status-only search missed expiry; prior generic deadline Evidence packet reused before calls"
+  ],
+  "cases": [
+    {
+      "name": "jos-withdrawn",
+      "audit": {
+        "runId": "terminal-status-v1-jos-withdrawn",
+        "fact": "offer_status",
+        "name": "jos-withdrawn",
+        "accession": "0001571049-14-000777",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1651,
+        "usage": {
+          "promptTokenCount": 3161,
+          "candidatesTokenCount": 61,
+          "totalTokenCount": 3222,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 3161
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:27:17.717Z",
+        "outputHash": "2d567c4a260ceddc83fc3d7f540886d55e2cb531a0484be56f115fc500e58a9e",
+        "semantic": "Explicit withdrew and terminated same offer; withdrawn matches predeclared specific-label precedence. No extra claims.",
+        "refs": {
+          "E1": "DIRECT: actual Company withdrew Offer; same paragraph says terminated; no shares purchased."
+        },
+        "failureClass": null
+      }
+    },
+    {
+      "name": "bluewolf-terminated",
+      "audit": {
+        "runId": "terminal-status-v1-bluewolf-terminated",
+        "fact": "offer_status",
+        "name": "bluewolf-terminated",
+        "accession": "0001144204-13-039264",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1566,
+        "usage": {
+          "promptTokenCount": 2345,
+          "candidatesTokenCount": 31,
+          "totalTokenCount": 2376,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 2345
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:27:30.539Z",
+        "outputHash": "0092d952856d0feab84dedff1b04df6893d2c9e7959f288079e6aad043de5f50",
+        "semantic": "Actual tender termination correctly distinguished from historical expiry and intended future merger termination.",
+        "refs": {
+          "E1": "DIRECT: Blue Wolf terminated Offer July 12.",
+          "E2": "DIRECT: same defined Offer was terminated July 12.",
+          "E4": "DIRECT: repeats actual tender termination and return/no purchase."
+        },
+        "failureClass": null
+      }
+    },
+    {
+      "name": "rumble-right-only",
+      "audit": {
+        "runId": "terminal-status-v1-rumble-right-only",
+        "fact": "offer_status",
+        "name": "rumble-right-only",
+        "accession": "0001213900-25-000757",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1662,
+        "usage": {
+          "promptTokenCount": 3731,
+          "candidatesTokenCount": 16,
+          "totalTokenCount": 3747,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 3731
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:27:42.193Z",
+        "outputHash": "28e64142cc6e459c1444b27ccf5caa572e3be977344454532a5aecbe9e5f86cc",
+        "semantic": "All15 refs show active offer/future conditions/procedures; empty facts and empty unresolved correctly abstain. No invented actual event from may terminate, withdrawal rights, or final binding procedural decisions.",
+        "refs": {},
+        "failureClass": null
+      }
+    },
+    {
+      "name": "carlyle-expired-final",
+      "audit": {
+        "runId": "terminal-status-v1-carlyle-expired-final",
+        "fact": "offer_status",
+        "name": "carlyle-expired-final",
+        "accession": "0001702510-26-000009",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1381,
+        "usage": {
+          "promptTokenCount": 1300,
+          "candidatesTokenCount": 8,
+          "totalTokenCount": 1308,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 1300
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:27:52.619Z",
+        "outputHash": "15656971618d6638e422d0e4c1472316f797628008ff5e8e85f470b04c6eb42a",
+        "semantic": "E2 explicit final results/expired/accepted shares, E1/E5 payment; correctly no withdrawn/terminated fact and no unnecessary unresolved.",
+        "refs": {},
+        "failureClass": null
+      }
+    },
+    {
+      "name": "xerox-terminated",
+      "audit": {
+        "runId": "terminal-status-v1-xerox-terminated",
+        "fact": "offer_status",
+        "name": "xerox-terminated",
+        "accession": "0001193125-20-092896",
+        "model": "gemini-3.5-flash",
+        "modelVersion": "gemini-3.5-flash",
+        "physicalCalls": 1,
+        "httpStatus": 200,
+        "finishReason": "STOP",
+        "latencyMs": 1748,
+        "usage": {
+          "promptTokenCount": 1976,
+          "candidatesTokenCount": 25,
+          "totalTokenCount": 2001,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 1976
+            }
+          ],
+          "serviceTier": "standard"
+        },
+        "validation": {
+          "providerSchema": {
+            "valid": true,
+            "errors": []
+          },
+          "local": {
+            "valid": true,
+            "errors": []
+          }
+        },
+        "provenanceValid": true,
+        "technicalPass": true,
+        "failureClass": null
+      },
+      "review": {
+        "reviewer": "Codex direct source review; not independent human signoff",
+        "pass": true,
+        "reviewedAt": "2026-10-06T11:28:09.283Z",
+        "outputHash": "fbd52f84de4758dc027edf75c53bd0eda024e92f3a4cc2082f2a137c175343cf",
+        "semantic": "E1 explicitly confirms actual termination of HP tender; no other status inferred.",
+        "refs": {
+          "E1": "DIRECT: Offer was terminated March31 and shares returned."
+        },
+        "failureClass": null
+      }
+    }
+  ]
+}

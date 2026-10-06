@@ -1,0 +1,9 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:27:52.619Z",
+  "outputHash": "15656971618d6638e422d0e4c1472316f797628008ff5e8e85f470b04c6eb42a",
+  "semantic": "E2 explicit final results/expired/accepted shares, E1/E5 payment; correctly no withdrawn/terminated fact and no unnecessary unresolved.",
+  "refs": {},
+  "failureClass": null
+}

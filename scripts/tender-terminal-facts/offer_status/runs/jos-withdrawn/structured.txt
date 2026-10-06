@@ -1,0 +1,12 @@
+{
+  "facts": [
+    {
+      "type": "offer_status",
+      "current": "withdrawn",
+      "evidence_refs": [
+        "E1"
+      ]
+    }
+  ],
+  "unresolved": []
+}

@@ -1,0 +1,37 @@
+{
+  "runId": "terminal-status-v1-xerox-terminated",
+  "fact": "offer_status",
+  "name": "xerox-terminated",
+  "accession": "0001193125-20-092896",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1748,
+  "usage": {
+    "promptTokenCount": 1976,
+    "candidatesTokenCount": 25,
+    "totalTokenCount": 2001,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 1976
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

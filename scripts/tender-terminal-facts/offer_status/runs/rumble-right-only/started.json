@@ -1,0 +1,11 @@
+{
+  "runId": "terminal-status-v1-rumble-right-only",
+  "fact": "offer_status",
+  "name": "rumble-right-only",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:27:31.240Z",
+  "physicalCallLimit": 1,
+  "requestHash": "c63399366bd206cd98330611d3df5b5e3d7e13c32e99f421420d37b7b68dfc62",
+  "mappingHash": "498989504999503e82c2f15bc1383687d84c937949b4db654fa7005fe90ff240"
+}

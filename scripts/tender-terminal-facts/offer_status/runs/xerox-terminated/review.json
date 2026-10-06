@@ -1,0 +1,11 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:28:09.283Z",
+  "outputHash": "fbd52f84de4758dc027edf75c53bd0eda024e92f3a4cc2082f2a137c175343cf",
+  "semantic": "E1 explicitly confirms actual termination of HP tender; no other status inferred.",
+  "refs": {
+    "E1": "DIRECT: Offer was terminated March31 and shares returned."
+  },
+  "failureClass": null
+}

@@ -1,0 +1,9 @@
+{
+  "reviewer": "Codex direct source review; not independent human signoff",
+  "pass": true,
+  "reviewedAt": "2026-10-06T11:32:04.523Z",
+  "outputHash": "28e64142cc6e459c1444b27ccf5caa572e3be977344454532a5aecbe9e5f86cc",
+  "semantic": "E12/E13 as-of tender count with extension is interim, not final. Correct sparse abstention; no false and no unnecessary unresolved. Other financial/compensation estimates not promoted to results.",
+  "refs": {},
+  "failureClass": null
+}

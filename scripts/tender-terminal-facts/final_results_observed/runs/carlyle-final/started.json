@@ -1,0 +1,11 @@
+{
+  "runId": "terminal-final-results-v1-carlyle-final",
+  "fact": "final_results_observed",
+  "name": "carlyle-final",
+  "accession": "0001702510-26-000009",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:31:21.937Z",
+  "physicalCallLimit": 1,
+  "requestHash": "719ffd6ab93533bd07ec75d96141d49fe82778c83c153079a1496711970969b5",
+  "mappingHash": "cae3ae2dee8912a5c2a5a8d1016d1c32817b2252bf8547f51f53b1c2a5faac54"
+}

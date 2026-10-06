@@ -1,0 +1,51 @@
+{
+  "form": "SC TO-I/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "ref": "E1",
+      "text": "FINAL AMENDMENT TO TENDER OFFER STATEMENT\n\nThis Amendment No. 2 (this “Amendment”) amends and supplements the Tender Offer Statement on Schedule TO filed by Carlyle Credit Solutions, Inc., a Maryland corporation (the “Company”), with the U.S. Securities and Exchange Commission (the “SEC”) on December 22, 2025 (together with Amendment No. 1 thereto filed by the Company with the SEC on January 26, 2026, the “Schedule TO”). The Schedule TO relates to the offer by the Company to purchase up to 2,709,108 shares of its common stock, par value $0.01 per share (the “Shares”), at a purchase price equal to the net asset value per Share as of December 31, 2025, upon the terms and subject to the conditions set forth in the Offer to Purchase, dated December 22, 2025 (together with any amendments or supplements thereto, the “Offer to Purchase”), and in the accompanying Letter of Transmittal (together with any amendments or supplements thereto and with the Offer to Purchase, the “Offer”), filed with the Schedule TO as Exhibits (a)(1)(ii) and (a)(1)(iii), respectively.\n\nThis Amendment is being filed by the Company to report the final results of the Offer. Capitalized terms used but not defined herein have the meanings ascribed to them in the Schedule TO."
+    },
+    {
+      "ref": "E2",
+      "text": "Carlyle Credit Solutions, Inc.\n\n(Name of Filing Person (Offeror and Issuer))\n\nCommon Stock, $0.01 par value per share"
+    },
+    {
+      "ref": "E3",
+      "text": "[TABLE]\n\n||||||||||||\n\n|[colspan=3]Amount Previously Paid:||[colspan=3]Filing Parties:|\n\n|[colspan=3]Form or Registration No.:||[colspan=3]Date Filed:|\n\n[/TABLE]\n\n☐ Check the box if the filing relates solely to preliminary communications made before commencement of a tender offer.\n\nCheck the appropriate boxes below to designate any transactions to which the statement relates:"
+    },
+    {
+      "ref": "E4",
+      "text": "[TABLE]\n\n||||||\n\n|[colspan=3]\n\n|\n\n[/TABLE]\n\n☐ Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form of Schedule and the date of its filing.\n\n[TABLE]\n\n||||||||||||\n\n|[colspan=3]Amount Previously Paid:||[colspan=3]Filing Parties:|\n\n|[colspan=3]Form or Registration No.:||[colspan=3]Date Filed:|\n\n[/TABLE]"
+    },
+    {
+      "ref": "E5",
+      "text": "☐ amendment to Schedule 13D under Rule 13d-2.\n\nCheck the following box if the filing is a final amendment reporting the results of the tender offer: ☒\n\n[TABLE]\n\n||||||\n\n|[colspan=3]|\n\n[/TABLE]"
+    },
+    {
+      "ref": "E6",
+      "text": "☐ Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form of Schedule and the date of its filing.\n\n[TABLE]\n\n||||||||||||\n\n|[colspan=3]Amount Previously Paid:||[colspan=3]Filing Parties:|\n\n|[colspan=3]Form or Registration No.:||[colspan=3]Date Filed:|\n\n[/TABLE]\n\n☐ Check the box if the filing relates solely to preliminary communications made before commencement of a tender offer."
+    },
+    {
+      "ref": "E7",
+      "text": "☐ going-private transaction subject to Rule 13e-3.\n\n☐ amendment to Schedule 13D under Rule 13d-2.\n\nCheck the following box if the filing is a final amendment reporting the results of the tender offer: ☒"
+    },
+    {
+      "ref": "E8",
+      "text": "- The number of Shares that the Company has accepted for purchase in the Offer represents approximately 4.456% of the total number of Shares outstanding as of December 31, 2025;\n\n- Payment of the purchase price for the Shares was made in the form of non-interest bearing, non-transferrable promissory notes issued to the Stockholders whose tenders were accepted for purchase by the Company in accordance with the terms of the Offer; and\n\n- On January 29, 2026, the Company determined that as of December 31, 2025, the net asset value per Share was $18.82 per Share, resulting in an aggregate purchase price of approximately $78,673,802 for approximately 4,180,330 Shares validly tendered and not withdrawn, which amount will be paid by the Company pursuant to the terms of the promissory notes."
+    },
+    {
+      "ref": "E9",
+      "text": "The following information is provided pursuant to Rule 13e-4:\n\n- The Company has received the final results of the Offer, which expired at 11:59 p.m., New York City Time, on January 21, 2026;\n\n- The Company has accepted for purchase pursuant to the Offer approximately 4,180,330 Shares at a purchase price per Share equal to the net asset value per Share as of December 31, 2025, of which Share amount includes an additional 1,471,222 Shares for which the Company reserved in the Offer to Purchase the right to purchase;"
+    },
+    {
+      "ref": "E10",
+      "text": "- The Company has accepted for purchase pursuant to the Offer approximately 4,180,330 Shares at a purchase price per Share equal to the net asset value per Share as of December 31, 2025, of which Share amount includes an additional 1,471,222 Shares for which the Company reserved in the Offer to Purchase the right to purchase;\n\n- The number of Shares that the Company has accepted for purchase in the Offer represents approximately 4.456% of the total number of Shares outstanding as of December 31, 2025;\n\n- Payment of the purchase price for the Shares was made in the form of non-interest bearing, non-transferrable promissory notes issued to the Stockholders whose tenders were accepted for purchase by the Company in accordance with the terms of the Offer; and"
+    }
+  ]
+}
