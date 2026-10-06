@@ -1,0 +1,37 @@
+{
+  "pass": false,
+  "failureClass": "MODEL_ERROR",
+  "physicalCalls": 1,
+  "semanticCorrections": 0,
+  "technicalPass": true,
+  "differences": [
+    {
+      "field": "offer_price.current.currency_text",
+      "expected": "$",
+      "actual": "per share in cash"
+    },
+    {
+      "field": "offer_price.previous.currency_text",
+      "expected": "$",
+      "actual": "$0.82"
+    }
+  ],
+  "files": {
+    "audit.json": "4b406e5b793187390ec60f8dee37cc2123887976942916c4c5bf62b50defb586",
+    "canonical.json": "ccde56ed7472322600ed11b1d32d9d14cbf6a953d92a4b4d4a8ebe2787c21268",
+    "evidence-map.json": "c5ad97f31410e373d87c94b3bad134c8a89b8ba786f8732ffa4869d47455631d",
+    "frozen.json": "bae1e2d1cd2a1330bf27d97658dc8b1790b0636216846d777e309849a1ffd5ea",
+    "preflight-tests.txt": "8f6edde16141fcb5cf7d3b8d99f11bdaad6f09109e6a1bbb4cfc129d49080811",
+    "preflight.json": "a3ed9e6aea4835e405832afca7a5186db1c2e33af9947d33483647f158bd5e7c",
+    "prompt.txt": "f63e3edcc96ffc4968724ab6f37000ea895e7e39061ba4b95a1325d0898ce946",
+    "provenance-audit.json": "9f40bb1980c52e3b813ee4f9d07f5f5759e178254b2e5b0c0daf57fe9c2a467a",
+    "provider-response.txt": "3093948668a4bbbc83c5fe9a5a8938cd763c26729121c51c1f3f821c4c5a9554",
+    "provider-schema.json": "e14d075f0ea92a0e838a76a8b0e6525a460e2707411b7f197af417321c9a0134",
+    "provider-source.json": "41060db95865df2bf38991910b40c8fc2817f6303b0d567bdfdf80f901033145",
+    "request.json": "6ae9c114cfbb37b4545962328fee26b9f52691402114186c11632b1eab432708",
+    "review.json": "651f47f88865f4473b514bb3a7901295816c1e2dedb23b244c25d38a86bfb646",
+    "source.json": "6682b450b32e9c3ec10116cf5619065118de3728941b66c16768539018caff90",
+    "started.json": "c7207c67a5978b04fbcb5e3d7d6c3b386b1e2cb6e2456f9485f4fc870e128237",
+    "structured.txt": "b766c0408badf7d90f1cf20c54a60dcd202e2321f740839afec2acead3847070"
+  }
+}

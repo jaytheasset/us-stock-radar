@@ -1,0 +1,35 @@
+{
+  "pass": false,
+  "failureClass": "MODEL_ERROR",
+  "reviewer": "Codex direct comparison of all 18 frozen SEC evidence units; not independent human signoff",
+  "sourceCoverageSufficient": true,
+  "schemaRepresentationFailure": false,
+  "sourceAmbiguity": false,
+  "semanticCorrections": 0,
+  "checks": [
+    {"field":"expiration.current","expected":"2026-07-24","actual":"2026-07-24","pass":true,"refs":["E1","E12","E13"],"support":"E1 explicitly states currently scheduled July 24; E12/E13 explicitly extend this offer to July 24."},
+    {"field":"expiration.previous","expected":"2026-06-22","actual":"2026-06-22","pass":true,"refs":["E4","E13"],"support":"E4 explicitly gives June 22 after the May 27 amendment; E13 places this and the later July 24 extension in the same history."},
+    {"field":"offer_price.current.amount","expected":0.84,"actual":0.84,"pass":true,"refs":["E8","E9","E12","E13"],"support":"E8/E9 give operative $0.84 per share in cash; E12/E13 explicitly increase to $0.84."},
+    {"field":"offer_price.current.currency_text","expected":"$","actual":"per share in cash","pass":false,"refs":["E8","E9","E12","E13"],"support":"The phrase occurs in E8/E9 but describes unit/payment form, not currency notation. The attached currency notation is $. Literal source substring presence does not make its semantic role correct."},
+    {"field":"offer_price.previous.amount","expected":0.82,"actual":0.82,"pass":true,"refs":["E12","E13"],"support":"Both explicitly say increased from $0.82 to $0.84."},
+    {"field":"offer_price.previous.currency_text","expected":"$","actual":"$0.82","pass":false,"refs":["E12","E13"],"support":"The model copied the full price token, including amount, into a field reserved for literal currency notation alone. Expected $; no normalization was performed."},
+    {"field":"offer_price.current_and_previous.unit","expected":"cash_per_share","actual":"cash_per_share","pass":true,"refs":["E8","E9","E12","E13"],"support":"E8/E9 establish same offer's all-cash per-share consideration, E12/E13 amend its amount."},
+    {"field":"board_recommendation.current","expected":"reject","actual":"reject","pass":true,"refs":["E11","E12"],"support":"E11 July 8 announcement and E12 July 2 decision explicitly recommend reject/not tender."},
+    {"field":"board_recommendation.previous","expected":null,"actual":null,"pass":true,"refs":[],"support":"Temporary take-no-action in E12/E13 is not prior recommendation; E15 concerns different FBB merger."},
+    {"field":"offer_status","expected":null,"actual":null,"pass":true,"refs":[],"support":"E3 HSR conditions, E5 shareholder withdrawal and E15 merger recommendation withdrawal are not confirmed tender-level status events. Null does not assert canonical absence."},
+    {"field":"final_results_observed","expected":null,"actual":null,"pass":true,"refs":[],"support":"E12/E13 June 22 approximate tender count is interim; no explicit final results in the packet."},
+    {"field":"unresolved","expected":[],"actual":[],"pass":true,"refs":[],"support":"Sufficient explicit source. A missing optional prior board value and absent positive status/final events do not require unresolved."}
+  ],
+  "referenceReview": {
+    "allReturnedRefsExistAndAreRelevantToTheirOfferAndField": true,
+    "allExpirationAndBoardClaimsDirectlySupported": true,
+    "allPriceAmountsDirectlySupported": true,
+    "allSemanticClaimsSupported": false,
+    "unsupportedClaims": ["offer_price.current.currency_text","offer_price.previous.currency_text"],
+    "foreignFabricatedRefs": 0,
+    "irrelevantRefSelections": 0,
+    "note": "Technical provenance proves identity/linkage, not semantic correctness of the two currency_text values. Sharing E13 across current and previous is valid."
+  },
+  "decision": "single-call v2 DXL = FAIL; stop; no source expansion, repair, retry or further paid cases",
+  "history": "v1 DXL remains MODEL_ERROR for omitted expiration.previous; v2 fixes that omission in this one observation but introduces currency_text errors. No generalized v2 Practical PASS."
+}

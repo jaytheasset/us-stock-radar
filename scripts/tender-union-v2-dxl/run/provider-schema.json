@@ -1,0 +1,398 @@
+{
+  "type": "object",
+  "properties": {
+    "expiration": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "current": {
+          "type": "string"
+        },
+        "previous": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        },
+        "previous_evidence_refs": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        }
+      },
+      "required": [
+        "current",
+        "previous",
+        "current_evidence_refs",
+        "previous_evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "offer_price": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "current": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "type": "number"
+            },
+            "currency_text": {
+              "type": "string"
+            },
+            "unit": {
+              "type": "string",
+              "enum": [
+                "cash_per_share"
+              ]
+            }
+          },
+          "required": [
+            "amount",
+            "currency_text",
+            "unit"
+          ],
+          "additionalProperties": false
+        },
+        "previous": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "amount": {
+              "type": "number"
+            },
+            "currency_text": {
+              "type": "string"
+            },
+            "unit": {
+              "type": "string",
+              "enum": [
+                "cash_per_share"
+              ]
+            }
+          },
+          "required": [
+            "amount",
+            "currency_text",
+            "unit"
+          ],
+          "additionalProperties": false
+        },
+        "current_evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        },
+        "previous_evidence_refs": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        }
+      },
+      "required": [
+        "current",
+        "previous",
+        "current_evidence_refs",
+        "previous_evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "board_recommendation": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "current": {
+          "type": "string",
+          "enum": [
+            "accept",
+            "reject",
+            "no_recommendation"
+          ]
+        },
+        "previous": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "accept",
+            "reject",
+            "no_recommendation",
+            null
+          ]
+        },
+        "current_evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        },
+        "previous_evidence_refs": {
+          "type": "array",
+          "minItems": 0,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        }
+      },
+      "required": [
+        "current",
+        "previous",
+        "current_evidence_refs",
+        "previous_evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "offer_status": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "current": {
+          "type": "string",
+          "enum": [
+            "withdrawn",
+            "terminated"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        }
+      },
+      "required": [
+        "current",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "final_results_observed": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "observed": {
+          "type": "boolean",
+          "enum": [
+            true
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "E1",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9",
+              "E10",
+              "E11",
+              "E12",
+              "E13",
+              "E14",
+              "E15",
+              "E16",
+              "E17",
+              "E18"
+            ]
+          }
+        }
+      },
+      "required": [
+        "observed",
+        "evidence_refs"
+      ],
+      "additionalProperties": false
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "expiration",
+    "offer_price",
+    "board_recommendation",
+    "offer_status",
+    "final_results_observed",
+    "unresolved"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,18 @@
+{
+  "base": "04633a09b000cc69f389f0e1fb0e6ce15fcbcc5d",
+  "state": "detached candidate",
+  "changedScope": "scripts/tender-union-v2-dxl",
+  "offlinePreflight": "21/21 PASS",
+  "combinedV1V2Regression": "29/29 PASS",
+  "typecheck": "npx tsc --noEmit --incremental false: PASS",
+  "frozenAndPriorIntegrity": "PASS",
+  "artifactConsistency": "PASS",
+  "secretScan": "PASS",
+  "largestArtifactBytes": 38187,
+  "totalScannedBytes": 189029,
+  "semanticResult": "FAIL / MODEL_ERROR",
+  "physicalCalls": 1,
+  "additionalPaidCalls": 0,
+  "productChanges": false,
+  "mainMergePushDeploy": false
+}

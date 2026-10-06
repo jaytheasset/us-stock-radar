@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"expiration\": {\n    \"current\": \"2026-07-24\",\n    \"previous\": \"2026-06-22\",\n    \"current_evidence_refs\": [\"E1\", \"E12\", \"E13\"],\n    \"previous_evidence_refs\": [\"E4\", \"E13\"]\n  },\n  \"offer_price\": {\n    \"current\": {\n      \"amount\": 0.84,\n      \"currency_text\": \"per share in cash\",\n      \"unit\": \"cash_per_share\"\n    },\n    \"previous\": {\n      \"amount\": 0.82,\n      \"currency_text\": \"$0.82\",\n      \"unit\": \"cash_per_share\"\n    },\n    \"current_evidence_refs\": [\"E8\", \"E9\", \"E12\", \"E13\"],\n    \"previous_evidence_refs\": [\"E12\", \"E13\"]\n  },\n  \"board_recommendation\": {\n    \"current\": \"reject\",\n    \"previous\": null,\n    \"current_evidence_refs\": [\"E11\", \"E12\"],\n    \"previous_evidence_refs\": []\n  },\n  \"offer_status\": null,\n  \"final_results_observed\": null,\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0Ty3ThyVdc4iMQiVk1SQFlnflQ/XY+aEK/JdxHWFZ2GkuFR0KeDkCsiEC8/h2R1DntKfIEpv9xlb4bcGkYqexHYRFb8rvn6wE2QQwsD0VIBEKl1bS+c/6erfrS8cbwJ8zTEA=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6125,
+    "candidatesTokenCount": 317,
+    "totalTokenCount": 6442,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 6125
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "f-3EaqxkkY2-vQ_g1o65Aw"
+}

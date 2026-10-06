@@ -1,0 +1,29 @@
+✔ 01 all five root slots required in provider and local shape (24.1931ms)
+✔ 02 all null slots accepted; no canonical false inferred (1.4976ms)
+✔ 03 expiration requires previous decision (3.6825ms)
+✔ 04 offer_price requires previous decision (4.356ms)
+✔ 05 board_recommendation requires previous decision (3.6591ms)
+✔ 06 previous value requires previous refs for all historical types (15.4281ms)
+✔ 07 null previous requires explicit empty previous refs (7.2807ms)
+✔ 08 foreign refs rejected in every ref location (7.2978ms)
+✔ 09 duplicate refs rejected within arrays; cross-field sharing allowed (9.4279ms)
+✔ 10 projection preserves even wrong-but-well-shaped values and selected refs (5.404ms)
+✔ 11 null slots create no canonical facts (0.1821ms)
+✔ 12 observed false forbidden (0.817ms)
+✔ 13 status false/unknown forbidden (3.7611ms)
+✔ 14 exact v1 source/provider/map bytes and frozen hashes; unchanged E ordering (9.5058ms)
+✔ 15 exact generic request reconstruction and no non-source baseline leakage (1.7277ms)
+✔ 16 max one physical fetch; exclusive reservation blocks concurrent/repeated call (16.5795ms)
+✔ 17 no retry/repair/fallback on transport/HTTP/malformed/schema failure (35.4664ms)
+✔ 18 provenance rejects changed hash/map identity, retains exact evidence IDs (2.2249ms)
+✔ 19 invalid inputs fail before network; successful mock projects without repair (14.4265ms)
+✔ 20 reject extra fields, missing current refs, wrong value shapes; never normalize (6.6442ms)
+✔ 21 provider schema and provider-shape validator agree on nullable/required representations (12.1807ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 379.8125

@@ -1,0 +1,43 @@
+{
+  "facts": [
+    {
+      "type": "expiration",
+      "current": "2026-07-24",
+      "previous": "2026-06-22",
+      "evidence_refs": [
+        "E1",
+        "E12",
+        "E13",
+        "E4"
+      ]
+    },
+    {
+      "type": "offer_price",
+      "current": {
+        "amount": 0.84,
+        "currency_text": "per share in cash",
+        "unit": "cash_per_share"
+      },
+      "previous": {
+        "amount": 0.82,
+        "currency_text": "$0.82",
+        "unit": "cash_per_share"
+      },
+      "evidence_refs": [
+        "E8",
+        "E9",
+        "E12",
+        "E13"
+      ]
+    },
+    {
+      "type": "board_recommendation",
+      "current": "reject",
+      "evidence_refs": [
+        "E11",
+        "E12"
+      ]
+    }
+  ],
+  "unresolved": []
+}

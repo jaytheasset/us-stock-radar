@@ -1,0 +1,31 @@
+{
+  "runId": "tender-union-v2-dxl-d3a3c22b-6ffe-4bae-9065-d542f7b48699",
+  "base": "04633a09b000cc69f389f0e1fb0e6ce15fcbcc5d",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-26-298540",
+  "maxPhysicalCalls": 1,
+  "frozenAt": "2026-10-06T12:45:39.380Z",
+  "files": {
+    "evidence-map.json": "c5ad97f31410e373d87c94b3bad134c8a89b8ba786f8732ffa4869d47455631d",
+    "prompt.txt": "f63e3edcc96ffc4968724ab6f37000ea895e7e39061ba4b95a1325d0898ce946",
+    "provider-schema.json": "e14d075f0ea92a0e838a76a8b0e6525a460e2707411b7f197af417321c9a0134",
+    "provider-source.json": "41060db95865df2bf38991910b40c8fc2817f6303b0d567bdfdf80f901033145",
+    "request.json": "6ae9c114cfbb37b4545962328fee26b9f52691402114186c11632b1eab432708",
+    "source.json": "6682b450b32e9c3ec10116cf5619065118de3728941b66c16768539018caff90"
+  },
+  "code": {
+    "contract.mjs": "72ea3b9953d91564bab67d676c877aad9f20b3cd554d7c212889a85790ae26a4",
+    "run.mjs": "75d47592e5c8143878b1cbdd224de571e65ec92bb1b68596e7c20e485475b2de",
+    "contract.test.mjs": "dfb65cd450fa2e530ee06c44603dcb32c8e263ac505cbae7fe8a46eb4c918045",
+    "PLAN.md": "f8e8a76277152d2f445884f10f37ccfd88b2ce6f2f309a2a81c40c4ed9c75076",
+    "baseline.json": "0ff0d51735ab97acd2c24d55d0e4d69e0c190ddd66728ec357cffde683154db3"
+  },
+  "sizes": {
+    "v1PromptChars": 6215,
+    "v2PromptChars": 4073,
+    "v1SchemaChars": 2683,
+    "v2SchemaChars": 3302,
+    "providerSourceChars": 19742,
+    "evidenceUnits": 18
+  }
+}
