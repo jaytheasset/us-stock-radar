@@ -10,6 +10,7 @@ import { PostgresSecStructuredRepository } from '../lib/sec-structured-data/repo
 import { normalizeSecStructuredDocuments } from '../lib/sec-structured-data/normalization.ts';
 import { readStockHeaderSecIdentity } from '../lib/watchlist/stockHeaderSecIdentity.ts';
 import { readSecCompanyCatalog, SEC_COMPANY_CATALOG_URL } from '../lib/sources/sec/tickerCatalog.ts';
+import { rawRaces, rawGuards } from './sec-submissions-conflict-cases.mjs';
 
 assert.ok(process.argv.includes('--run'), 'Explicit --run is required');
 const expectedSystem = process.argv.find(arg => arg.startsWith('--system-id='))?.slice(12);
@@ -40,6 +41,7 @@ const quote = value => `"${value.replaceAll('"', '""')}"`;
 const tempUrl = new URL(adminUrl); tempUrl.pathname = `/${database}`;
 const captures = new Map();
 const sqlTrace = [];
+let Repository = PostgresSecStructuredRepository;
 report.sqlTrace = sqlTrace; // Preserve partial evidence even when a later assertion stops the run.
 function countQueries(client, kind) {
   const query = client.query.bind(client);
@@ -86,7 +88,7 @@ async function connect(role = 'service_role') {
 }
 async function close(client) { await client.end(); clients.delete(client); }
 function repository(client, label, beforeQuery) {
-  return new PostgresSecStructuredRepository({ async query(sql, values) {
+  return new Repository({ async query(sql, values) {
     // A failed transaction rejects SELECT too. The connection was verified
     // before BEGIN and PostgreSQL cannot switch databases within that session.
     if (sql.trim().toLowerCase() !== 'rollback') await databaseIdentity(client);
@@ -205,6 +207,24 @@ try {
   report.rls = (await schemaClient.query("select relname,relrowsecurity from pg_class where relnamespace='public'::regnamespace and relkind='r' order by relname")).rows;
   assert.equal(report.rls.length,6); assert.ok(report.rls.every(row=>row.relrowsecurity));
   await close(schemaClient);
+
+  const conflictContext={connect,close,repository,snapshot,report};
+  if(process.argv.includes('--pause-for-repair')){
+    report.phase='before-races';
+    const races=await rawRaces(conflictContext,4,100,false);
+    assert.ok(races.some(r=>r.outcomes.some(x=>x.code==='23505')), 'Original defect not reproduced');
+    await writeFile(`${output}.before.json`,JSON.stringify(report,null,2),{flag:'wx'});
+    console.log(JSON.stringify({phase:'before-reproduced-awaiting-repair',failures:races.filter(r=>r.outcomes.some(x=>x.status==='rejected')).length,continueFile:`${output}.continue`}));
+    const deadline=Date.now()+15*60_000;
+    while(true){
+      try{if((await readFile(`${output}.continue`,'utf8')).trim()==='continue')break;}catch(error){if(error.code!=='ENOENT')throw error;}
+      assert.ok(Date.now()<deadline,'Repair pause expired');
+      await new Promise(resolve=>setTimeout(resolve,500));
+    }
+    Repository=(await import(new URL(`../lib/sec-structured-data/repository.ts?repair=${runId}`,import.meta.url).href)).PostgresSecStructuredRepository;
+  }
+  report.phase='after-races';await rawRaces(conflictContext,10,200,true);
+  report.phase='raw-guards';await rawGuards(conflictContext);
 
   globalThis.fetch = async (input, init) => {
     const url = String(input); assert.ok([...sourceUrls,SEC_COMPANY_CATALOG_URL].includes(url), 'Unapproved network request');

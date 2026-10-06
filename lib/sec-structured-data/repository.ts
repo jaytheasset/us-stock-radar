@@ -138,7 +138,7 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
            source_schema_version text, raw_content_kind text, raw_content text,
            payload jsonb
          )
-         on conflict (source_kind, source_identity, content_hash) do nothing
+         on conflict do nothing
          returning id`,
         [JSON.stringify(rows.map((row) => ({
           id: row.id, source_kind: row.sourceKind, source_url: row.sourceUrl,
@@ -150,6 +150,37 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
         })))],
       );
       ids.push(...result.rows.map((row) => row.id));
+      // A separate statement sees a concurrent winner after INSERT has waited
+      // for its commit (READ COMMITTED). A single INSERT/SELECT CTE can retain
+      // the pre-conflict snapshot. Never connect observations to an unverified ID.
+      const verified = await this.client.query<{ id: string }>(
+        `select stored.id
+         from pg_catalog.jsonb_to_recordset($1::jsonb) as expected(
+           id uuid, cik text, source_kind text, source_url text,
+           source_identity text, content_hash text, raw_content text,
+           payload jsonb, raw_payload jsonb
+         )
+         join public.sec_structured_raw_sources stored
+           on stored.id = expected.id
+          and stored.cik = expected.cik
+          and stored.source_kind = expected.source_kind
+          and stored.source_url = expected.source_url
+          and stored.source_identity = expected.source_identity
+          and stored.content_hash = expected.content_hash
+          and stored.raw_content = expected.raw_content
+          and stored.payload = expected.payload
+          and stored.payload = expected.raw_payload`,
+        [JSON.stringify(rows.map((row) => ({
+          id: row.id, cik: row.cik, source_kind: row.sourceKind,
+          source_url: row.sourceUrl, source_identity: row.sourceIdentity,
+          content_hash: row.contentHash, raw_content: row.rawContent,
+          payload: row.payload,
+          // Match the existing JSON.parse -> JSONB payload contract, including
+          // number representation. Exact source bytes are compared separately.
+          raw_payload: JSON.parse(row.rawContent),
+        })))],
+      );
+      if (verified.rows.length !== rows.length) throw new Error("sec_raw_source_identity_mismatch");
     }
     return { ids };
   }
