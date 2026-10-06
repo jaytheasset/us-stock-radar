@@ -176,3 +176,37 @@ export interface SecStructuredRepository {
   readFilings(cik: string, limit?: number, filter?: SecFilingReadFilter): Promise<SecFilingRow[]>;
   readFacts(filter: SecFactReadFilter): Promise<SecCompanyFactRow[]>;
 }
+
+// Internal persistence receipt, never populated from public request parameters.
+export type SecSubmissionsConfirmation = {
+  cik: string;
+  sourceRawId: string;
+  refreshSequence: string; // PostgreSQL bigint; never a JS Number.
+  confirmedAt: string;
+};
+export type SecSubmissionsPublication = "published" | "unchanged" | "superseded";
+export type SecSubmissionsRefreshWrite = {
+  counts: SecRepositoryWriteCounts;
+  publication: SecSubmissionsPublication;
+};
+export interface SecSubmissionsRefreshRepository {
+  allocateSubmissionsRefreshSequence(): Promise<string>;
+  ingestSubmissionsRefresh(batch: SecNormalizedBatch, confirmation: SecSubmissionsConfirmation): Promise<SecSubmissionsRefreshWrite>;
+}
+export type SecCurrentSubmissionsResult =
+  | { status: "not-confirmed" }
+  | { status: "unavailable" }
+  | {
+      status: "available";
+      cik: string;
+      sourceRawId: string;
+      sourceUrl: string;
+      sourceIdentity: string;
+      contentHash: string;
+      sourceKind: "submissions";
+      entityName: string;
+      listings: { ticker: string; exchange: string }[];
+      refreshSequence: string;
+      confirmedAt: string;
+      firstFetchedAt: string;
+    };

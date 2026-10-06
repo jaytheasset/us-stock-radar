@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **SEC Submissions explicit current confirmation** — immutable raw/current separation, explicit refresh, snapshot reader and isolated PostgreSQL verification: [`operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md`](operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md). Existing site reader is not switched.
+
 - **S-4/F-4 local MCP evidence candidate** — existing selector/index → MCP search/read, five-case 15-query stdio E2E, restored pre-MCP Primary retry/repair policy and metadata-only registration filing Monitor condition: [`MCP_EVIDENCE_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md). Earlier offline audit: [`EVIDENCE_RETRIEVAL_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/EVIDENCE_RETRIEVAL_HANDOFF.md).
 
 - **S-8 direct-registration v1 frozen handoff** — separate registration history, evidence/reader, deferred Registry/Monitor integration and next-audit boundary: [`architecture/sec-s8-direct-registration-v1.md`](architecture/sec-s8-direct-registration-v1.md)

@@ -10,6 +10,7 @@ import { PostgresSecStructuredRepository } from '../lib/sec-structured-data/repo
 import { normalizeSecStructuredDocuments } from '../lib/sec-structured-data/normalization.ts';
 import { readStockHeaderSecIdentity } from '../lib/watchlist/stockHeaderSecIdentity.ts';
 import { readSecCompanyCatalog, SEC_COMPANY_CATALOG_URL } from '../lib/sources/sec/tickerCatalog.ts';
+import { verifySubmissionsCurrent } from './sec-submissions-current-cases.mjs';
 import { rawRaces, rawGuards } from './sec-submissions-conflict-cases.mjs';
 
 assert.ok(process.argv.includes('--run'), 'Explicit --run is required');
@@ -20,7 +21,8 @@ assert.ok(output, 'External receipt path required');
 const adminUrl = new URL(process.env.SEC_VERIFY_ADMIN_DB_URL ?? '');
 assert.equal(adminUrl.hostname, '127.0.0.1'); assert.equal(adminUrl.port, '56322');
 assert.equal(adminUrl.pathname, '/postgres');
-assert.ok(process.env.SEC_USER_AGENT, 'Existing SEC_USER_AGENT required; never invent a contact');
+const currentOnly = process.argv.includes('--current-only');
+if (!currentOnly) assert.ok(process.env.SEC_USER_AGENT, 'Existing SEC_USER_AGENT required; never invent a contact');
 const runId = randomUUID();
 const database = `sec_submissions_eeb4_${runId.replaceAll('-', '')}`;
 const marker = `eeb4 submissions verification ${runId}`;
@@ -209,6 +211,9 @@ try {
   await close(schemaClient);
 
   const conflictContext={connect,close,repository,snapshot,report};
+  if (currentOnly) {
+    await verifySubmissionsCurrent(conflictContext);
+  } else {
   if(process.argv.includes('--pause-for-repair')){
     report.phase='before-races';
     const races=await rawRaces(conflictContext,4,100,false);
@@ -374,7 +379,9 @@ try {
   report.finalRowCounts=Object.fromEntries(await Promise.all(tables.map(async table=>[table,(await reader.query(`select count(*)::int n from public.${table}`)).rows[0].n])));
   report.sqlTrace=sqlTrace; report.sql.repositoryStatements=sqlTrace.length;
   assert.equal(report.forbiddenCalls,0);
-  await close(reader); report.phase='complete'; report.pass=true;
+  await close(reader);
+  }
+  report.phase='complete'; report.pass=true;
 } catch(error) {
   report.pass=false; report.failure={phase:report.phase,name:error.name,code:error.code??null,
     message:error.name==='AssertionError'?'Assertion failed; inspect the recorded phase and inputs':error.message};
