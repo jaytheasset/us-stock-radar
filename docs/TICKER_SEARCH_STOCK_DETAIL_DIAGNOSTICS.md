@@ -25,6 +25,13 @@ same observation used by the readout. On `/stocks/[ticker]`, the readout's
 detail render state is the existing stock overview state that also drives the
 visible profile/loading/unavailable presentation.
 
+The stock-mode SEC header separately reports current company identity via
+`data-ticker-flow-company-identity-state` (`available`, `not-confirmed`,
+`unavailable`). Its name/exchange/confirmation time can be available while the
+market/source-data overview remains unavailable. No profile or historical raw
+fallback fills missing current identity. Candidate and verification boundaries:
+[`SEC_CURRENT_STOCK_HEADER.md`](operations/SEC_CURRENT_STOCK_HEADER.md).
+
 Find the semantic `status` named **Ticker search to stock detail state**. It
 exposes only allowlisted `data-ticker-flow-*` values:
 

@@ -64,6 +64,7 @@ export type TickerSearchSelectionSnapshot = {
 };
 
 export type TickerSearchFlowReadoutState = {
+  companyIdentityState?: "available" | "not-confirmed" | "unavailable";
   activeTicker: string | null;
   apiOk: boolean | null;
   detailRenderState: StockDetailRenderState | "not_rendered";
@@ -323,11 +324,13 @@ export function parseTickerSearchSelectionSnapshot(
 
 export function resolveTickerSearchToStockDetailReadout({
   detailRenderState,
+  companyIdentityState,
   routeHref,
   routeTicker,
   selection,
 }: {
   detailRenderState: StockDetailRenderState;
+  companyIdentityState?: "available" | "not-confirmed" | "unavailable";
   routeHref: string;
   routeTicker: unknown;
   selection: TickerSearchSelectionSnapshot | null;
@@ -347,6 +350,7 @@ export function resolveTickerSearchToStockDetailReadout({
 
   return {
     activeTicker: null,
+    ...(companyIdentityState ? { companyIdentityState } : {}),
     apiOk: selection?.apiOk ?? null,
     detailRenderState,
     httpStatus: selection?.httpStatus ?? null,
@@ -364,7 +368,7 @@ export function resolveTickerSearchToStockDetailReadout({
     selectionHref: selection?.selectionHref ?? "",
     sourceResultCount: selection?.sourceResultCount ?? null,
     stage: "detail",
-    summary: `${summary}${selection?.responseStatus === "partial" ? ` ${TICKER_SEARCH_PARTIAL_MESSAGE}` : ""}`,
+    summary: `${companyIdentityState ? summary.replaceAll("Stock detail", "Stock market/source data") + ` SEC company information is ${companyIdentityState}.` : summary}${selection?.responseStatus === "partial" ? ` ${TICKER_SEARCH_PARTIAL_MESSAGE}` : ""}`,
   };
 }
 

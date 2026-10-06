@@ -8,9 +8,11 @@ import { SecStructuredDataService } from '../lib/sec-structured-data/service.ts'
 import { SecStructuredHttpClient } from '../lib/sec-structured-data/httpClient.ts';
 import { PostgresSecStructuredRepository } from '../lib/sec-structured-data/repository.ts';
 import { normalizeSecStructuredDocuments } from '../lib/sec-structured-data/normalization.ts';
+import { readCurrentIssuerSubmissions } from '../lib/sec-structured-data/currentSubmissionsReader.ts';
 import { readStockHeaderSecIdentity } from '../lib/watchlist/stockHeaderSecIdentity.ts';
 import { readSecCompanyCatalog, SEC_COMPANY_CATALOG_URL } from '../lib/sources/sec/tickerCatalog.ts';
 import { verifySubmissionsCurrent } from './sec-submissions-current-cases.mjs';
+import { verifyCurrentHeader } from './sec-current-header-verification.mjs';
 import { rawRaces, rawGuards } from './sec-submissions-conflict-cases.mjs';
 
 assert.ok(process.argv.includes('--run'), 'Explicit --run is required');
@@ -21,7 +23,8 @@ assert.ok(output, 'External receipt path required');
 const adminUrl = new URL(process.env.SEC_VERIFY_ADMIN_DB_URL ?? '');
 assert.equal(adminUrl.hostname, '127.0.0.1'); assert.equal(adminUrl.port, '56322');
 assert.equal(adminUrl.pathname, '/postgres');
-const currentOnly = process.argv.includes('--current-only');
+const headerOnly = process.argv.includes('--header-only');
+const currentOnly = process.argv.includes('--current-only') || headerOnly;
 if (!currentOnly) assert.ok(process.env.SEC_USER_AGENT, 'Existing SEC_USER_AGENT required; never invent a contact');
 const runId = randomUUID();
 const database = `sec_submissions_eeb4_${runId.replaceAll('-', '')}`;
@@ -213,7 +216,11 @@ try {
   const conflictContext={connect,close,repository,snapshot,report};
   if (currentOnly) {
     await verifySubmissionsCurrent(conflictContext);
+    if (headerOnly) await verifyCurrentHeader(conflictContext,{connectionString:tempUrl.href,output});
   } else {
+  const currentSchema=await connect('postgres');
+  await currentSchema.query(await readFile('supabase/migrations/20261006140457_sec_submissions_current.sql','utf8'));
+  await close(currentSchema);
   if(process.argv.includes('--pause-for-repair')){
     report.phase='before-races';
     const races=await rawRaces(conflictContext,4,100,false);
@@ -301,10 +308,10 @@ try {
     const matches=catalog.rows.filter(row=>row.ticker.toUpperCase()===pair.ticker);
     const result=await readStockHeaderSecIdentity(pair.ticker,{
       readCatalog:async(ticker,options)=>{assert.equal(options.exactTicker,true);assert.equal(ticker,pair.ticker);return{ok:true,data:matches};},
-      selectRows:selectRows(reader),readCanonicalExchange:async()=>{throw new Error('Unexpected canonical fallback');},
+      readCurrent:cik=>readCurrentIssuerSubmissions(reader,{cik}),
     });
     report.detailReader.push({cik:sample.cik,...pair,catalogMatches:matches.map(row=>({ticker:row.ticker,cik:row.cik_str})),result});
-    assert.deepEqual(result,{companyName:sample.name,exchange:pair.exchange});
+    assert.deepEqual(result,{ticker:pair.ticker,status:'not-confirmed',reason:'no-current'});
   }
   report.phase = 'sequential-replay';
   const beforeReplay=await snapshot(reader);
@@ -395,6 +402,12 @@ try {
       const row=(await admin.query("select oid::text,pg_get_userbyid(datdba) owner,shobj_description(oid,'pg_database') marker from pg_database where datname=$1",[database])).rows[0];
       assert.equal(row.oid,databaseOid);assert.equal(row.owner,'postgres');assert.equal(row.marker,marker);
       assert.match(database,/^sec_submissions_eeb4_[a-f0-9]{32}$/);
+      // A just-stopped Next process can take a moment to close its pooled socket.
+      // Wait for natural teardown; never terminate another backend or FORCE DROP.
+      for(let i=0;i<20;i++) {
+        if((await admin.query('select count(*)::int n from pg_stat_activity where datid=$1',[databaseOid])).rows[0].n===0)break;
+        await new Promise(resolve=>setTimeout(resolve,250));
+      }
       assert.equal((await admin.query('select count(*)::int n from pg_stat_activity where datid=$1',[databaseOid])).rows[0].n,0);
       await admin.query(`drop database ${quote(database)}`); // No FORCE and no terminate_backend.
       assert.equal((await admin.query('select oid from pg_database where datname=$1',[database])).rowCount,0);
