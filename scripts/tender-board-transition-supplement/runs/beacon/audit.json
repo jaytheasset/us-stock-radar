@@ -1,0 +1,37 @@
+{
+  "runId": "tender-board-previous-supplement-gemini35-20261006-beacon",
+  "fact": "board_recommendation",
+  "accession": "0001213900-25-026560",
+  "name": "beacon",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1936,
+  "usage": {
+    "promptTokenCount": 2998,
+    "candidatesTokenCount": 106,
+    "totalTokenCount": 3104,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2998
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

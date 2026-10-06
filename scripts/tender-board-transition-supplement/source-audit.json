@@ -1,0 +1,34 @@
+{
+  "reviewer":"Codex direct reading of selected SEC Evidence and SEC filing indexes; not independent human signoff",
+  "beacon":{
+    "coveragePass":true,
+    "form":"SC 14D9/A",
+    "accession":"0001213900-25-026560",
+    "document":"ea0236304-sc14d9a15_beacon.htm",
+    "selectedUnits":11,
+    "currentDirectRefs":["E1","E4","E5","E6","E9"],
+    "previousDirectRefs":["E2","E3"],
+    "currentQuote":"THE BOARD UNANIMOUSLY RECOMMENDS THAT THE COMPANY’S STOCKHOLDERS ACCEPT THE OFFER AND TENDER ALL OF THEIR SHARES TO QXO PURSUANT TO THE OFFER.",
+    "previousQuote":"On February 6, 2025, the Company filed the Schedule 14D-9 and issued a press release announcing the Board’s recommendation that stockholders reject the Initial Offer and not tender their Shares pursuant to the Initial Offer.",
+    "lineage":"E8/E10 define QXO's Initial Offer. E3 describes QXO's response to the Board rejection. E1/E9 current recommendation explicitly tenders to QXO, and E5 calls it the Amended Offer. Same bidder/tender amendment history, not a competing merger recommendation.",
+    "distractors":"E7 is a financial advisor opinion disclaimer; E8/E10 temporary company take-no-action and earlier proposal rejection are not the definitive Board previous recommendation. E11 discusses other parties without establishing Board tender recommendation.",
+    "failureClass":null
+  },
+  "cream":{
+    "coveragePass":false,
+    "form":"6-K",
+    "accession":"0001137171-10-000736",
+    "document":"notice.htm",
+    "documentType":"EX-99.8",
+    "documentRole":"attachment",
+    "indexVerified":true,
+    "selectedUnits":0,
+    "physicalCalls":0,
+    "failureClass":"SOURCE_COVERAGE",
+    "failedLayer":"Tender Evidence filing-form identity validation before retrieval",
+    "error":"Invalid Tender filing identity",
+    "reason":"Unchanged prepare-source fetched the target but buildTenderEvidenceIndex rejected authoritative parent form6-K. TENDER_EVIDENCE_FORMS excludes6-K. No selected Evidence or provider input can be built in the unchanged path.",
+    "interpretation":"This is an unsupported source-form boundary, not missing SEC document, semantic MODEL_ERROR, or proof that the notice lacks either recommendation. The expected source transition remains untested.",
+    "action":"No form relabeling, validator bypass, alternate retrieval or paid call. Preserve failed preparation trace."
+  }
+}

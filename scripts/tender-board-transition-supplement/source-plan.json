@@ -1,0 +1,29 @@
+{
+  "queries": [
+    "What does the board of directors explicitly recommend to stockholders about accepting rejecting or tendering shares in the offer?",
+    "Has the board changed withdrawn reaffirmed its recommendation on this tender offer and what was the previous recommendation?",
+    "Does the board make no recommendation remain neutral or advise take no action while evaluating the offer?"
+  ],
+  "cases": [
+    {
+      "name": "beacon",
+      "cik": "1124941",
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "role": "primary",
+      "document": "ea0236304-sc14d9a15_beacon.htm",
+      "documentType": "SC 14D9/A",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm"
+    },
+    {
+      "name": "cream",
+      "cik": "1066130",
+      "accession": "0001137171-10-000736",
+      "form": "6-K",
+      "role": "attachment",
+      "document": "notice.htm",
+      "documentType": "EX-99.8",
+      "url": "https://www.sec.gov/Archives/edgar/data/1066130/000113717110000736/notice.htm"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "reviewer":"Codex direct reading of exact frozen SEC Evidence; not independent human signoff",
+  "semanticPass":true,
+  "evidenceSupportPass":true,
+  "failureClass":null,
+  "current":{"value":"accept","directRefs":["E1","E4","E5","E6","E9"],"finding":"Explicit Board recommendation to accept/tender the current/amended offer. E1/E9 name QXO; E5 explicitly says Amended Offer."},
+  "previous":{"value":"reject","directRefs":["E2","E3"],"finding":"Explicit February6 Board recommendation to reject/not tender the Initial Offer. E3 identifies QXO's response; E8/E10 source context identifies its Initial Offer."},
+  "refs":{
+    "E1":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"Current accept and tender to QXO"},
+    "E2":{"strength":"direct","supports":["previous"],"nonconflicting":true,"reason":"Explicit historical Board reject/not tender Initial Offer"},
+    "E3":{"strength":"direct","supports":["previous"],"nonconflicting":true,"reason":"Same historical reject with QXO response context"},
+    "E4":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"Board recommends accept and tender to Merger Sub in same Offer and Merger transaction"},
+    "E5":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"Explicit accept/tender Amended Offer"},
+    "E6":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"Current amendment restates Board accept/tender recommendation"},
+    "E9":{"strength":"direct","supports":["current"],"nonconflicting":true,"reason":"Current Board accept/tender to QXO after recommendation reasoning"}
+  },
+  "sameTenderLineage":true,
+  "lineageFinding":"Same QXO Initial Offer and Amended Offer. No competing merger recommendation used. The optional previous field was supplied by Gemini itself.",
+  "postprocessing":"None; no insertion, replacement, deletion, normalization or ref substitution"
+}

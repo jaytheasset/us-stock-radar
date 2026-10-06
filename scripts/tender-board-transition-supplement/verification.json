@@ -1,0 +1,16 @@
+{
+  "audit": "PASS",
+  "priorArtifacts": "UNCHANGED",
+  "contract": "UNCHANGED",
+  "queries": "UNCHANGED",
+  "physicalCalls": 1,
+  "beacon": "PASS",
+  "cream": "SOURCE_COVERAGE_NOT_EXECUTED",
+  "transition": "1/2; not PASS",
+  "boardFinal": "HELD",
+  "preflightFinal": {
+    "passed": 7,
+    "failed": 0
+  },
+  "typecheck": "PASS"
+}

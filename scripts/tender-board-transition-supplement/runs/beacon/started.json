@@ -1,0 +1,11 @@
+{
+  "runId": "tender-board-previous-supplement-gemini35-20261006-beacon",
+  "fact": "board_recommendation",
+  "accession": "0001213900-25-026560",
+  "name": "beacon",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T10:09:02.484Z",
+  "physicalCallLimit": 1,
+  "requestHash": "e877062d8b29b634e8b029414026c3ccf672c0969a1b81a82254f652a7e2a1d2",
+  "mappingHash": "95749cc57097ee2e98c21eb86fd0d31679509b390919b77e6a2e3e6d1e82dadc"
+}

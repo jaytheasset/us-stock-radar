@@ -1,0 +1,266 @@
+{
+  "E1": {
+    "evidence_id": "tender:faec9babbd737795987f4a5db772f3b7536da2066d19e4338943f0c87ef2d925",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "9c64ef47b0bc2d7a54951cd7fcfdfd153cec78c5ea49a713ad75faad4ac48887",
+    "location": {
+      "start": 131875,
+      "end": 132219,
+      "heading": "ACCORDINGLY, THE BOARD UNANIMOUSLY RECOMMENDS THAT THE COMPANY’S STOCKHOLDERS ACCEPT THE OFFER AND TENDER ALL OF THEIR SHARES TO QXO PURSUANT TO THE OFFER.",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E2": {
+    "evidence_id": "tender:0012a149b5fc5540319c797e018ea82d75c4e55331ca633f8108c2c45d642e67",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "ee3e6cdfd48f8ae38611dbcbaae8d126256e83e2dc06e6cf7f5e2bf68e4673fb",
+    "location": {
+      "start": 77561,
+      "end": 77906,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E3": {
+    "evidence_id": "tender:1a2297bd95d5c407f495cbfbb5d026fedfe97df69fba9be3bb276940aeb368c4",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "62bd8049496ac18c40d4d4a76618fef736ea17dce671109a2906b22d78191bb7",
+    "location": {
+      "start": 77682,
+      "end": 78404,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E4": {
+    "evidence_id": "tender:fe99edfef0ee7426e35326f64285c4c319ebd0b696fc5dadd4a2973ff69cb4fe",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "bed4cabb8e0c0ec15483abd5959906bcbd719dcb9c66c5ae142e94c9def86922",
+    "location": {
+      "start": 106854,
+      "end": 107618,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E5": {
+    "evidence_id": "tender:33cbb9bc3c015119a928809550bf64628dcc9d035597029d1b26137f887d6fa4",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "78d680ac692ed134f50bccbfaa33797928a18dad58e6635afbecbee2e6394188",
+    "location": {
+      "start": 38097,
+      "end": 38695,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E6": {
+    "evidence_id": "tender:6aa810386bbab1cf89e574daf2955a315d35476d726bcf76cda6a25a60164170",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "ae0b62dc7477d4d040a4f7f67f7977af6e9ae9c3579b920c999dcde69bbc78a1",
+    "location": {
+      "start": 106782,
+      "end": 107614,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E7": {
+    "evidence_id": "tender:7a2ee9f14709cb326657e0f94c830dea7c0737bb6a1054ee2f63835bca049e84",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "b4c8f7fc117243f9f390f9dc14dcbbb9e48b70c222dd66f85603123e395a0885",
+    "location": {
+      "start": 298549,
+      "end": 299778,
+      "heading": "ANNEX A",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E8": {
+    "evidence_id": "tender:dad7f6d07005cbd8ad294d5a1b94ebb3a12dbf902a5eb76e6b8a2936a4d5a983",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "64ed69e964f26c3ab59661ba4724f0264c6d875b17f231662834709b8f75a060",
+    "location": {
+      "start": 68621,
+      "end": 69720,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E9": {
+    "evidence_id": "tender:a7f18ebff0ad81c02f41ab2717381b4fd793713c64a0bc75e0042bda77936ff1",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "a3d215703309f0c210a1c6152963d1b8ff50d8267533553fc0e5b21748362579",
+    "location": {
+      "start": 130693,
+      "end": 132174,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E10": {
+    "evidence_id": "tender:27ae74337607bfdf757b461fae6639e813d57b9c937fce098625c2f36256e5ae",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "72c2803574e0654a6699695658524f39a628349ec5b015c5e99b34164777facb",
+    "location": {
+      "start": 69246,
+      "end": 71105,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  },
+  "E11": {
+    "evidence_id": "tender:51b95ad35557e78b23e193584edbcf311444c996bb20a9e3899b1b5ef887e685",
+    "accession": "0001213900-25-026560",
+    "form": "SC 14D9/A",
+    "document": {
+      "accession": "0001213900-25-026560",
+      "form": "SC 14D9/A",
+      "documentId": "ea0236304-sc14d9a15_beacon.htm",
+      "url": "https://www.sec.gov/Archives/edgar/data/1124941/000121390025026560/ea0236304-sc14d9a15_beacon.htm",
+      "role": "primary",
+      "format": "html",
+      "completeness": "complete"
+    },
+    "sourceHash": "7ec0762f535fa0e22e63ff186b4db36024648b15eea9867880c9637415b5f6a5",
+    "renderedHash": "4214ffae70bb69d76201c9b62ccbe0bc699b877549c4e0337f65016117d5eca6",
+    "textHash": "d81a30b91d571642242bfff23f69ad32eaf8144bb7ab069ff297cf021d227169",
+    "location": {
+      "start": 80334,
+      "end": 82756,
+      "heading": "Item 4. The Solicitation or Recommendation",
+      "representation": "tender-render-v1",
+      "offsets": "UTF-16-half-open"
+    }
+  }
+}

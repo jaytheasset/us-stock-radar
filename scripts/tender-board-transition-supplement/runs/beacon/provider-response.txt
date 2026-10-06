@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [\n    {\n      \"type\": \"board_recommendation\",\n      \"current\": \"accept\",\n      \"previous\": \"reject\",\n      \"evidence_refs\": [\n        \"E1\",\n        \"E2\",\n        \"E3\",\n        \"E4\",\n        \"E5\",\n        \"E6\",\n        \"E9\"\n      ]\n    }\n  ],\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0TfJXh4FW2YE0GwlfLEHoQEQ/PmUU1tS4e9kdMT7KR5RIh5wzx577iEtqFIVXiNeq8qxxTdYhTPjrCrz6Di7LaM/1fg8MpSieFuCLVbevo5xpb774jbxWASNTqZ9UJno6ZZQ=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 2998,
+    "candidatesTokenCount": 106,
+    "totalTokenCount": 3104,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2998
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "v8jEaqPOLJbZ9tMPhrSR2Qg"
+}

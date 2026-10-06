@@ -1,0 +1,11 @@
+{
+  "base":"af34a2d142dd853fc7c3e2e2d8de65b0d329cab7",
+  "runId":"tender-board-previous-supplement-gemini35-20261006",
+  "model":"gemini-3.5-flash",
+  "maxPhysicalCalls":2,
+  "contract":"../tender-fact-batches/contracts/board_recommendation.ts",
+  "cases":[
+    {"name":"beacon","accession":"0001213900-25-026560","sourceFile":"sources/beacon.json","purpose":"Same QXO tender initial reject to amended accept, both in selected source","expected":{"current":"accept","previous":"reject","unresolved":[]},"coveragePass":true},
+    {"name":"cream","accession":"0001137171-10-000736","purpose":"Same Endeavour tender initial no_recommendation to amended accept","expected":{"current":"accept","previous":"no_recommendation","unresolved":[]},"coveragePass":false,"skipClass":"SOURCE_COVERAGE","skipReason":"Authoritative6-K parent form rejected by unchanged Tender Evidence layer"}
+  ]
+}

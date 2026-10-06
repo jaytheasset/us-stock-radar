@@ -1,0 +1,8 @@
+{
+  "failureClass": "PREFLIGHT_TEST_ERROR",
+  "providerCalls": 0,
+  "frozenCreated": false,
+  "startedCreated": false,
+  "reason": "Git checkout-filter output assumes CRLF while existing handoff Markdown is LF; both Git-clean",
+  "fix": "Verify Git-clean identity for existing lib files, then freeze exact actual bytes; experiment artifact bytes still compared strictly to base blob"
+}

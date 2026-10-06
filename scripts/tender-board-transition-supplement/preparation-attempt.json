@@ -1,0 +1,7 @@
+{
+  "command": "Unchanged tender-fact-batches/prepare-source.mjs with authoritative forms and unchanged generic queries",
+  "exitCode": 1,
+  "stdout": "{\"name\":\"beacon\",\"accession\":\"0001213900-25-026560\",\"units\":11,\"chars\":11695}\n",
+  "stderr": "file:///C:/Users/PC/.codex/worktrees/87db/US-Stock%20Radar/lib/sources/sec/forms/tender/evidenceSource.ts:76\r\n  if (!/^\\d{10}-\\d{2}-\\d{6}$/.test(packet.accession) || !TENDER_EVIDENCE_FORMS.includes(packet.form                                        )) throw new Error(\"Invalid Tender filing identity\");\r\n                                                                                                                                                    ^\r\n\r\nError: Invalid Tender filing identity\r\n    at validateTenderFiling (file:///C:/Users/PC/.codex/worktrees/87db/US-Stock%20Radar/lib/sources/sec/forms/tender/evidenceSource.ts:76:149)\r\n    at buildTenderEvidenceIndex (file:///C:/Users/PC/.codex/worktrees/87db/US-Stock%20Radar/lib/sources/sec/forms/tender/evidenceRetrieval.ts:29:3)\r\n    at file:///C:/Users/PC/.codex/worktrees/87db/US-Stock%20Radar/scripts/tender-fact-batches/prepare-source.mjs:14:14\r\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\r\n\r\nNode.js v24.15.0\r\n",
+  "providerCalls": 0
+}

@@ -1,0 +1,23 @@
+{
+  "case":"cream",
+  "accession":"0001137171-10-000736",
+  "form":"6-K",
+  "document":"notice.htm",
+  "documentType":"EX-99.8",
+  "status":"NOT_EXECUTED",
+  "failureClass":"SOURCE_COVERAGE",
+  "failedLayer":"Unsupported authoritative filing form in unchanged Tender Evidence identity gate",
+  "physicalCalls":0,
+  "providerHttpStatus":null,
+  "providerModelVersion":null,
+  "tokens":null,
+  "latencyMs":null,
+  "structuredOutput":null,
+  "schemaValidation":"NOT_RUN",
+  "localValidation":"NOT_RUN",
+  "provenanceMapping":"NOT_CREATED",
+  "currentMeaning":"UNTESTED",
+  "previousMeaning":"UNTESTED",
+  "evidenceSupport":"UNTESTED",
+  "reason":"SEC index identifies parent6-K and attachment EX-99.8. Source fetch reached existing index builder but authoritative6-K form was rejected. No selected Evidence was produced; no form spoofing or code bypass permitted. This is not a finding that the SEC notice lacks either recommendation."
+}

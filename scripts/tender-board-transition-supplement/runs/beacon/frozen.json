@@ -1,0 +1,15 @@
+{
+  "runId": "tender-board-previous-supplement-gemini35-20261006-beacon",
+  "fact": "board_recommendation",
+  "model": "gemini-3.5-flash",
+  "accession": "0001213900-25-026560",
+  "frozenAt": "2026-10-06T10:08:41.756Z",
+  "files": {
+    "evidence-map.json": "95749cc57097ee2e98c21eb86fd0d31679509b390919b77e6a2e3e6d1e82dadc",
+    "prompt.txt": "1b075cf3a41765800583466bed8a31482fcec99b7f1d335dfac9ec2fc72c47b5",
+    "provider-schema.json": "9e528208e678ebb6813d202772a8f2328d2055a6ef9f981e6b7c02c9b43f240d",
+    "provider-source.json": "f22d0f782b4924fd5784c2fbb61338540ef61f1cb220728d51c7512406d80dab",
+    "request.json": "e877062d8b29b634e8b029414026c3ccf672c0969a1b81a82254f652a7e2a1d2",
+    "source.json": "aba62d42cd2e9046f6839f63c26dd84ea737edb761d1256bf8a827e8ea1a5939"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "base":"af34a2d142dd853fc7c3e2e2d8de65b0d329cab7",
+  "model":"gemini-3.5-flash",
+  "physicalCalls":1,
+  "caseResults":{"beacon":"PASS","cream":"SOURCE_COVERAGE_NOT_EXECUTED"},
+  "transitionPassCount":1,
+  "transitionRequiredCount":2,
+  "transitionPathPass":false,
+  "boardCurrentStateCasesPassed":5,
+  "boardObservedSuccessfulCasesIncludingSupplement":6,
+  "boardFinalPracticalPass":"HELD",
+  "threeFactFinalPracticalPassCount":2,
+  "threeFactStatus":{"expiration":"ACCEPTED_PASS","offer_price":"ACCEPTED_SCOPED_PASS","board_recommendation":"HELD_MISSING_NO_RECOMMENDATION_TRANSITION"},
+  "supersedesConclusionOnly":"Earlier scripts/tender-fact-batches/REPORT.md 3/3 conclusion is not accepted under current user's transition gate. Earlier artifacts remain byte-identical; only this supplement records the stricter final judgment.",
+  "failureCounts":{"SOURCE_COVERAGE":1,"MODEL_ERROR":0,"SCHEMA_ERROR":0,"SOURCE_UNRESOLVED":0,"PROVIDER_MODEL_UNAVAILABLE":0,"PREFLIGHT_TEST_ERROR":2},
+  "preflightNote":"Two zero-call freeze attempts mishandled mixed Windows LF/CRLF code-file representation. Preserved in preflight-01/02. Fixed only supplement file-preservation check before any frozen request/started marker; contract, source queries and Selector unchanged.",
+  "decision":"STOP. No contract revision justified by Beacon; Cream cannot test the unchanged source pipeline. Do not expand supported forms, substitute another case or implement downstream work without a separately authorized next step."
+}

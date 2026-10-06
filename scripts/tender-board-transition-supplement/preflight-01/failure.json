@@ -1,0 +1,14 @@
+{
+  "failureClass": "PREFLIGHT_TEST_ERROR",
+  "providerCalls": 0,
+  "frozenCreated": false,
+  "startedCreated": false,
+  "reason": "Compared Git blob bytes directly to Windows checkout bytes for lib/tender adapter.ts; CRLF checkout differs from LF blob",
+  "offlineTests": {
+    "passed": 6,
+    "failed": 1,
+    "failedBecause": "frozen-supplement.json absent after failed freeze"
+  },
+  "confirmedNoSourceCodeChange": true,
+  "fix": "Compare against git cat-file --filters checkout representation, then freeze actual byte hashes; no contract/query/semantic change"
+}
