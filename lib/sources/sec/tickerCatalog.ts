@@ -30,29 +30,30 @@ export function readSecExchangeCatalog(fresh = false) {
 async function loadCompanyCatalog() {
   const userAgent = getServerEnv().secUserAgent;
   if (!userAgent) throw new Error("SEC_USER_AGENT is missing");
-  // Preserve the company reader's existing 15-second fetch timeout and no retry.
+  // One 15-second budget through headers and the complete body, with no retry.
   // Other integrations' timedFetch callers remain untouched.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
-  let response: Response;
   try {
-    response = await fetch(SEC_COMPANY_CATALOG_URL, { cache: "no-store", signal: controller.signal,
+    const response = await fetch(SEC_COMPANY_CATALOG_URL, { cache: "no-store", signal: controller.signal,
       headers: { "User-Agent": userAgent, Accept: "application/json" } });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new SecCompanyCatalogHttpError(response.status, response.statusText);
+    }
+    const data: unknown = await response.json();
+    // A completion arriving after cancellation must never become a fresh snapshot.
+    controller.signal.throwIfAborted();
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("SEC company catalog invalid schema");
+    const rows = Object.values(data);
+    if (!rows.length || !rows.every((row) => row && typeof row === "object" && !Array.isArray(row) &&
+      typeof row.cik_str === "number" && Number.isSafeInteger(row.cik_str) && row.cik_str > 0 && row.cik_str <= 9_999_999_999 &&
+      typeof row.ticker === "string" && row.ticker.trim() && typeof row.title === "string" && row.title.trim())) {
+      throw new Error("SEC company catalog invalid rows");
+    }
+    // Keep original values/types, duplicate candidates and Object.values row order.
+    return { rows: rows as SecCompanyTickerRow[], status: response.status };
   } finally { clearTimeout(timeout); }
-  if (!response.ok) {
-    await response.body?.cancel().catch(() => undefined);
-    throw new SecCompanyCatalogHttpError(response.status, response.statusText);
-  }
-  const data: unknown = await response.json();
-  if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("SEC company catalog invalid schema");
-  const rows = Object.values(data);
-  if (!rows.length || !rows.every((row) => row && typeof row === "object" && !Array.isArray(row) &&
-    typeof row.cik_str === "number" && Number.isSafeInteger(row.cik_str) && row.cik_str > 0 && row.cik_str <= 9_999_999_999 &&
-    typeof row.ticker === "string" && row.ticker.trim() && typeof row.title === "string" && row.title.trim())) {
-    throw new Error("SEC company catalog invalid rows");
-  }
-  // Keep original values/types, duplicate candidates and Object.values row order.
-  return { rows: rows as SecCompanyTickerRow[], status: response.status };
 }
 
 async function loadExchangeCatalog() {
