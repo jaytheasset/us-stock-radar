@@ -1,0 +1,965 @@
+{
+  "runAt": "2026-10-06T02:28:11.869Z",
+  "source": "live SEC HTTP; complete individual documents in memory only",
+  "results": [
+    {
+      "number": 1,
+      "name": "issuer",
+      "question": "What purchase price maximum number of shares and aggregate purchase amount?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "checks": [
+        {
+          "pattern": "\\$7\\.50",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "70,000,000",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "525",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:a6834f7fdaf5443bc81b18978f91db04f08fea48dad7886d40c0fec69c3e6a6b",
+          "location": {
+            "start": 61747,
+            "end": 62036,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 289,
+          "score": 17.990823348881012
+        },
+        {
+          "id": "tender:e3abae06a9ef653659b4fa00e2bb6fba70616a23855fb46c7688b2b19c435958",
+          "location": {
+            "start": 17826,
+            "end": 18111,
+            "heading": "SUMMARY TERM SHEET",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 285,
+          "score": 15.205262246998569
+        },
+        {
+          "id": "tender:214184f7b5db6b0f294fe3bab5239cb7c5d0b7b63f93a8e74c8771435db97dca",
+          "location": {
+            "start": 246,
+            "end": 1189,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 943,
+          "score": 14.990442815213244
+        },
+        {
+          "id": "tender:87181daaa83e9a1a523c054f28ff91fdf2d51e815851236be3ea2ba9b29a426f",
+          "location": {
+            "start": 125669,
+            "end": 127765,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2096,
+          "score": 14.185298989573
+        },
+        {
+          "id": "tender:8165ebd630cb8326179a62d723ab8a825c694ab54c66d5a275306acf8494f275",
+          "location": {
+            "start": 136120,
+            "end": 139209,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 3089,
+          "score": 14.058038927888331
+        }
+      ],
+      "readChars": 6702
+    },
+    {
+      "number": 2,
+      "name": "issuer",
+      "question": "When does the offer expire and can it be extended?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "checks": [
+        {
+          "pattern": "February\\s+4,\\s+2025",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "extend",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:df83f703e5f5551b80b7145afc057cd05098af49401e1617e8d7c4918231a0d4",
+          "location": {
+            "start": 33868,
+            "end": 35029,
+            "heading": "SUMMARY TERM SHEET",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1161,
+          "score": 16.089636555695783
+        },
+        {
+          "id": "tender:885c62531c420499f4e452b1fcc9985366d852e032fa9ad10f7a4cfef32d4144",
+          "location": {
+            "start": 34300,
+            "end": 35627,
+            "heading": "SUMMARY TERM SHEET",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1327,
+          "score": 15.86831051777487
+        },
+        {
+          "id": "tender:c8a076ceece5db8be848b7ea69799927ecb5897f38ad42185b12b40b334737bb",
+          "location": {
+            "start": 40986,
+            "end": 41622,
+            "heading": "SUMMARY TERM SHEET",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 636,
+          "score": 14.17498615724684
+        },
+        {
+          "id": "tender:214184f7b5db6b0f294fe3bab5239cb7c5d0b7b63f93a8e74c8771435db97dca",
+          "location": {
+            "start": 246,
+            "end": 1189,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 943,
+          "score": 13.562781594716744
+        },
+        {
+          "id": "tender:e15406bfd8e16975f872bc9764c169d90b7b2132697f6dac71c61ba17d4609ae",
+          "location": {
+            "start": 114437,
+            "end": 115055,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 618,
+          "score": 13.492488432253266
+        }
+      ],
+      "readChars": 4685
+    },
+    {
+      "number": 3,
+      "name": "issuer",
+      "question": "What are proration and withdrawal rights?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "checks": [
+        {
+          "pattern": "prorat|pro rata",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "withdraw",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:79c6f8d06c82cd609097b0facba27cffc5867c2060d935a98941b9f1ad421792",
+          "location": {
+            "start": 63822,
+            "end": 64999,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1177,
+          "score": 11.421289763971995
+        },
+        {
+          "id": "tender:10839dd19dfd3fa4d523c4b80672dfc47fee9514b29f23259e4b2dad602b7f31",
+          "location": {
+            "start": 63421,
+            "end": 64608,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1187,
+          "score": 11.140969981164663
+        },
+        {
+          "id": "tender:214184f7b5db6b0f294fe3bab5239cb7c5d0b7b63f93a8e74c8771435db97dca",
+          "location": {
+            "start": 246,
+            "end": 1189,
+            "heading": null,
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 943,
+          "score": 10.707459153723745
+        },
+        {
+          "id": "tender:0ca2d5c64012b3fd1e84bf4924b69f696f5c3d82cf85ee5b0fdf2b8466b6e177",
+          "location": {
+            "start": 15516,
+            "end": 16912,
+            "heading": "TABLE OF CONTENTS",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1396,
+          "score": 10.540925533894598
+        },
+        {
+          "id": "tender:34b71a6e3d4ef6afb3afc1d8bb2b686ffcdcee43a31034f4ccf61e980ead15cc",
+          "location": {
+            "start": 65344,
+            "end": 66072,
+            "heading": "THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 728,
+          "score": 9.306800811953774
+        }
+      ],
+      "readChars": 5431
+    },
+    {
+      "number": 4,
+      "name": "third-party",
+      "question": "What minimum tender and regulatory antitrust conditions apply?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001104659-25-006713",
+      "form": "SC TO-T",
+      "url": "https://www.sec.gov/Archives/edgar/data/1067701/000110465925006713/tm253288d1_ex99-a1a.htm",
+      "sourceHash": "afda49495494bac60ad104981825d3fe4c1e6c01e878ba93599ce95774eb0f67",
+      "checks": [
+        {
+          "pattern": "minimum",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "HSR|antitrust|regulatory",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:664888007170355b9d85638c4852d97678849ec13fdff4f540cfe2409cf7c71a",
+          "location": {
+            "start": 285331,
+            "end": 286257,
+            "heading": "TABLE OF CONTENTS​​",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 926,
+          "score": 12.759972625693626
+        },
+        {
+          "id": "tender:a76d2bd987177843f58b90e4a49a7ab05a04cf5bcb9356be18f583151be83cbe",
+          "location": {
+            "start": 52197,
+            "end": 53115,
+            "heading": "THE TENDER OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 918,
+          "score": 12.715279064115018
+        },
+        {
+          "id": "tender:168a127b3e7bb6673cff52bcb69bd3137e30ae125ce6f8b10b4ff13d3d7f5434",
+          "location": {
+            "start": 160668,
+            "end": 162305,
+            "heading": "TABLE OF CONTENTS",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1637,
+          "score": 11.060200826750043
+        },
+        {
+          "id": "tender:0644748950e8e8a444399d505a01171861ccc12524c56c829091b9e05043e10b",
+          "location": {
+            "start": 48321,
+            "end": 50248,
+            "heading": "TABLE OF CONTENTS",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1927,
+          "score": 10.724965063900699
+        },
+        {
+          "id": "tender:3eb6b0361a5a40ddfddaa3d6089c7085ea0818d16e03c6b8cbda4c0b6725a3df",
+          "location": {
+            "start": 52825,
+            "end": 55253,
+            "heading": "THE TENDER OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2428,
+          "score": 10.182196720003157
+        }
+      ],
+      "readChars": 7836
+    },
+    {
+      "number": 5,
+      "name": "accept",
+      "question": "What is the board recommendation to accept and tender shares?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001193125-25-335440",
+      "form": "SC 14D9",
+      "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm",
+      "sourceHash": "00c61adaf3fcd73344d4e63a394a7de365b9fa7586d7190f2ea19f77b3766ce8",
+      "checks": [
+        {
+          "pattern": "recommend[\\s\\S]{0,250}accept[\\s\\S]{0,150}tender",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:4558365bcd238641cd8ad83d1417542bfb808e8fb2c6d6c7ae4858c629b0aa08",
+          "location": {
+            "start": 148925,
+            "end": 149936,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1011,
+          "score": 14.62620681947052
+        },
+        {
+          "id": "tender:e5515e3ff6631bd9f8ee5cfd83816aca62665118e9d25f277d69574829da28ac",
+          "location": {
+            "start": 83319,
+            "end": 84372,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1053,
+          "score": 14.41422159440675
+        },
+        {
+          "id": "tender:1b6e5fd44d8eca6a7d664f35c438bfb42edaf0cddef7232e990219278e31b302",
+          "location": {
+            "start": 163116,
+            "end": 164144,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1028,
+          "score": 13.416407864998739
+        },
+        {
+          "id": "tender:0e52520fc09e36c245eaf70766b7fe30e923e05d414fcada70feddc05460e29f",
+          "location": {
+            "start": 82629,
+            "end": 83391,
+            "heading": "Item 4. The Solicitation or Recommendation.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 762,
+          "score": 13.370064348747736
+        },
+        {
+          "id": "tender:c1b6821f4c10e66c3166696922f1b1a31847080fd452e280e3a1240926e3d55e",
+          "location": {
+            "start": 46699,
+            "end": 47588,
+            "heading": "Item 3. Past Contacts, Transactions, Negotiations and Agreements.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 889,
+          "score": 13.234482050745891
+        }
+      ],
+      "readChars": 4743
+    },
+    {
+      "number": 6,
+      "name": "reject",
+      "question": "What is the board recommendation to reject and not tender shares?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001193125-26-096287",
+      "form": "SC 14D9",
+      "url": "https://www.sec.gov/Archives/edgar/data/1711929/000119312526096287/d28126dsc14d9.htm",
+      "sourceHash": "89b9ac3f1a185c58621800d51d3d1566f058d6c647981181e79eb3d5b34e2798",
+      "checks": [
+        {
+          "pattern": "recommend[\\s\\S]{0,300}REJECT[\\s\\S]{0,150}NOT\\s+tender",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:7636b2bf1af963343d53b1e82cd7e77498738afbf8a01d42c42aaa9982143eb2",
+          "location": {
+            "start": 4798,
+            "end": 5252,
+            "heading": "Item 4. The Solicitation or Recommendation",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 454,
+          "score": 20.467268770138602
+        },
+        {
+          "id": "tender:0db76b67dcd462c41ec5a0565e2eb5a78639cfd6352030d9b5926e18216f8ee6",
+          "location": {
+            "start": 6768,
+            "end": 8113,
+            "heading": "Item 4. The Solicitation or Recommendation",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1345,
+          "score": 14.874714883221891
+        },
+        {
+          "id": "tender:1c476ecd1b518558a22f795c37dfdffd3c3b729274fdca814c119a9648ef1473",
+          "location": {
+            "start": 10014,
+            "end": 11101,
+            "heading": "Item 7. Purposes of the Transaction and Plans or Proposals.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1087,
+          "score": 9.007039500489618
+        },
+        {
+          "id": "tender:f9021595cdd4a56c79aa98505159e5695e7f8045358f53eb2c08b7006feeaf23",
+          "location": {
+            "start": 8420,
+            "end": 9364,
+            "heading": "Item 4. The Solicitation or Recommendation",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 944,
+          "score": 8.763560920082657
+        },
+        {
+          "id": "tender:7cc5b1cf29ee8eedb68add09c475c3900870e56c87674c291abbd7bcee72440d",
+          "location": {
+            "start": 1874,
+            "end": 3626,
+            "heading": "Item 2. Identity and Background of Filing Person",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1752,
+          "score": 8.502909222180472
+        }
+      ],
+      "readChars": 5582
+    },
+    {
+      "number": 7,
+      "name": "price-amendment",
+      "question": "How was the offer price increased from the previous price?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "checks": [
+        {
+          "pattern": "from\\s+\\$20\\.05\\s+to\\s+\\$24\\.00",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:ca9e195d7305a3298bb0d14253f6d27a5a62827b5c182222ef973168adefc66e",
+          "location": {
+            "start": 211,
+            "end": 280,
+            "heading": "AT AN INCREASED CASH OFFER PRICE OF",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 69,
+          "score": 7.542472332656508
+        },
+        {
+          "id": "tender:cf2630075c152cc99c17e8e892d31d53082574fd05f188c457f21dd0baed407b",
+          "location": {
+            "start": 8269,
+            "end": 8686,
+            "heading": "SUMMARY OF THE AMENDED OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 417,
+          "score": 6.531972647421809
+        },
+        {
+          "id": "tender:4c37610a38ddbc431b5d6d60d540eb73cd73a1ccd20fb4d2db71e641348de3e8",
+          "location": {
+            "start": 1694,
+            "end": 4148,
+            "heading": "IN AN OFFER BEING CONDUCTED IN THE UNITED STATES",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2454,
+          "score": 5.150582239837203
+        },
+        {
+          "id": "tender:54cb57e12c23a2c27e0d5b309133f50d24a86df49fd7d1d3cdce49d94de540dd",
+          "location": {
+            "start": 357,
+            "end": 3130,
+            "heading": "IN AN OFFER BEING CONDUCTED IN THE UNITED STATES",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2773,
+          "score": 4.846260262523061
+        },
+        {
+          "id": "tender:8655f87c7413c9112493dccd7c2b74609e920489de02a378581fdc8f9ba9ade9",
+          "location": {
+            "start": 29657,
+            "end": 30172,
+            "heading": "AMENDMENTS TO SPECIFIC PROVISIONS",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 515,
+          "score": 3.293547878370473
+        }
+      ],
+      "readChars": 6228
+    },
+    {
+      "number": 8,
+      "name": "deadline-amendment",
+      "question": "What expiration was previously scheduled and what is the extended expiration?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "checks": [
+        {
+          "pattern": "January\\s+27,\\s+2026",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "January\\s+28,\\s+2026",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:939f82ace5ec58c8236160784881a16d0ca6f32dda631f33b3b44cf10069961d",
+          "location": {
+            "start": 5224,
+            "end": 5847,
+            "heading": "CYCLE GROUP HOLDINGS LIMITED",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 623,
+          "score": 16
+        },
+        {
+          "id": "tender:7c0c88395fc0f73d6e692a69e6bf6de72aca847a270965c33581559cdc875984",
+          "location": {
+            "start": 5483,
+            "end": 6495,
+            "heading": "CYCLE GROUP HOLDINGS LIMITED",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1012,
+          "score": 14.462030521243744
+        },
+        {
+          "id": "tender:06263389de185ea622badca62a0be70de46d63ea1bc61ba46c96de32d68dbd3b",
+          "location": {
+            "start": 6245,
+            "end": 6700,
+            "heading": "CYCLE GROUP HOLDINGS LIMITED",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 455,
+          "score": 9.135002783911396
+        },
+        {
+          "id": "tender:1c8dbb05e0e40184857d70e7bdd6dfcc796c4b08dd84d2dda912cbf4e15fdfaf",
+          "location": {
+            "start": 2489,
+            "end": 5254,
+            "heading": "CYCLE GROUP HOLDINGS LIMITED",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2765,
+          "score": 5.185360817241096
+        },
+        {
+          "id": "tender:a58804ec92d516e9d8828567a8f5e62612d9bdfcc987bb17735457a06c3b5538",
+          "location": {
+            "start": 1367,
+            "end": 1809,
+            "heading": "CYCLE GROUP HOLDINGS LIMITED",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 442,
+          "score": 3.3075929223788925
+        }
+      ],
+      "readChars": 5297
+    },
+    {
+      "number": 9,
+      "name": "final",
+      "question": "What shares were accepted at what price and aggregate purchase amount in final results?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+      "sourceHash": "4013a17879620c18aa3676aae9934c9873b6852ef39e2dfd50b240d46ddbcae9",
+      "checks": [
+        {
+          "pattern": "4,180,330",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "18\\.82",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "78,673,802",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:ff41b8399a85cbb0525cffed164fb7e23ac6d0acf557ec66a4bdc5157f4dce16",
+          "location": {
+            "start": 4314,
+            "end": 4932,
+            "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 618,
+          "score": 19.245008972987524
+        },
+        {
+          "id": "tender:5dd427bb39693f973c0fe1eb8b4bea3d366c28b8506fb174b146090b0ccd4636",
+          "location": {
+            "start": 2353,
+            "end": 3611,
+            "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1258,
+          "score": 16.97056274847714
+        },
+        {
+          "id": "tender:00f5f3ff6517365345a74f6c93a801dffb6d7c18274642bd0d705d431bc3ff20",
+          "location": {
+            "start": 3613,
+            "end": 4133,
+            "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 520,
+          "score": 6.5737573513391645
+        },
+        {
+          "id": "tender:5b7d2cf55513cb61c3c806029ad690e31ffa6ab8e1845d63cfdd588fb37d31de",
+          "location": {
+            "start": 3806,
+            "end": 4571,
+            "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 765,
+          "score": 4.884154157278521
+        },
+        {
+          "id": "tender:8894ffd4e2b984fa46c82d3f378af8ebcd95017c9a94f48a5801fb9cf51f5c1a",
+          "location": {
+            "start": 1630,
+            "end": 2008,
+            "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 378,
+          "score": 3.4426518632954815
+        }
+      ],
+      "readChars": 3539
+    },
+    {
+      "number": 10,
+      "name": "exchange",
+      "question": "What exchange ratio and share consideration will holders receive for each share?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001062993-17-000336",
+      "form": "CB",
+      "url": "https://www.sec.gov/Archives/edgar/data/1629583/000106299317000336/exhibit1-1.htm",
+      "sourceHash": "a0278506e0e87307ecbb48ee4761375f54156f7a60ecf6c72ad3fee3e11d9455",
+      "checks": [
+        {
+          "pattern": "0\\.16",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "each|every|per",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:d4c9630c3705a250e87b3d158f70dfff97eaa5fe5dd804d0039ca5aa7676adf2",
+          "location": {
+            "start": 36693,
+            "end": 38068,
+            "heading": "QUESTIONS AND ANSWERS ABOUT THE OFFER",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1375,
+          "score": 20.952908873087345
+        },
+        {
+          "id": "tender:8d65bb38ef7a8505145616a30265a9f63ab4199f8acd2d32c9616b4d3bf15cf7",
+          "location": {
+            "start": 2003,
+            "end": 3075,
+            "heading": "CAZA GOLD CORP.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1072,
+          "score": 19.051325941630104
+        },
+        {
+          "id": "tender:a29c8b61862a15186fa846540752d315e5c21bdeb7a7e06f19cc2089703648ea",
+          "location": {
+            "start": 95208,
+            "end": 96351,
+            "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1143,
+          "score": 18.618986725025255
+        },
+        {
+          "id": "tender:ee86182c42bb0221df1a318fae8d3adde8bbe05ee72db87733f60d5e4377266d",
+          "location": {
+            "start": 97494,
+            "end": 98781,
+            "heading": "TO: THE HOLDERS OF COMMON SHARES OF CAZA GOLD CORP.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1287,
+          "score": 18.384776310850235
+        },
+        {
+          "id": "tender:ce44b6099ae28799a345f908fb3b123c7be0623beacebe15cfbfdeac85f3727f",
+          "location": {
+            "start": 301371,
+            "end": 302736,
+            "heading": "CIRCULAR",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1365,
+          "score": 18.214805546705527
+        }
+      ],
+      "readChars": 6242
+    },
+    {
+      "number": 11,
+      "name": "fairness",
+      "question": "What did the special committee determine about fairness and the best interests of stockholders?",
+      "pass": true,
+      "failure": null,
+      "accession": "0001213900-25-019787",
+      "form": "SC 13E3",
+      "url": "https://www.sec.gov/Archives/edgar/data/72333/000121390025019787/ea0231395-sc13e3_nordstrom.htm",
+      "sourceHash": "aee0b03045095b3fea0e12194daac5c8c52825564824dd0dd76df223a8742c18",
+      "checks": [
+        {
+          "pattern": "special committee",
+          "sourcePresent": true,
+          "retrieved": true
+        },
+        {
+          "pattern": "determined[\\s\\S]{0,600}fair",
+          "sourcePresent": true,
+          "retrieved": true
+        }
+      ],
+      "hits": [
+        {
+          "id": "tender:92e1ad759587786c8e0b2da25bf8bd51957b7808f28ec9e2c30896a67996e501",
+          "location": {
+            "start": 11686,
+            "end": 14275,
+            "heading": "INTRODUCTION",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2589,
+          "score": 14.31320106991182
+        },
+        {
+          "id": "tender:ea05cbbf2ad81166053fab11b5ceea02b42cac04fcd4589ee94c0d4b2b1db153",
+          "location": {
+            "start": 13452,
+            "end": 15520,
+            "heading": "INTRODUCTION",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 2068,
+          "score": 14.091277534847668
+        },
+        {
+          "id": "tender:56278fdee26db312c3e94966ee70b0d18514a58a8ce05cbf483525a274444e11",
+          "location": {
+            "start": 44793,
+            "end": 45063,
+            "heading": "Item 8. Fairness of the Transaction",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 270,
+          "score": 13.055067315364392
+        },
+        {
+          "id": "tender:67d8c278d93b9ed0cb35445da8c87b12d107cbfc38d40f949684f1ed74af5db7",
+          "location": {
+            "start": 59720,
+            "end": 60222,
+            "heading": "Item 16. Exhibits",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 502,
+          "score": 11.939240115914183
+        },
+        {
+          "id": "tender:8dde2bbcb5e1fd6d315c9601bc9bb69cf56d3df8c6f5ba99065c0d6fa09fd4d6",
+          "location": {
+            "start": 59974,
+            "end": 60637,
+            "heading": "Item 16. Exhibits",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 663,
+          "score": 11.676807187196188
+        }
+      ],
+      "readChars": 6092
+    }
+  ],
+  "recommendationCoverage": [
+    {
+      "name": "accept",
+      "pass": true,
+      "blocks": 25,
+      "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312525335440/d84762dsc14d9.htm"
+    },
+    {
+      "name": "reject",
+      "pass": true,
+      "blocks": 11,
+      "url": "https://www.sec.gov/Archives/edgar/data/1711929/000119312526096287/d28126dsc14d9.htm"
+    }
+  ],
+  "limitations": [
+    "Only listed documents supplied; other exhibits and incorporated references remain unresolved.",
+    "Lexical source-language ranking; no determination of final terms or source ambiguity."
+  ]
+}

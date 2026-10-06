@@ -96,6 +96,18 @@ export function buildSecTenderSourceBlockPromptInput({
     });
   }
 
+  // Preserve actual Recommendation paragraphs before the generic 14-section budget.
+  // Do not turn this source coverage into a Parser recommendation classification.
+  if (/^SC\s*14D-?9(?:\/A)?$/i.test(firstString(filing.form_type, rawPayload.form_type, currentFiling.form_type))) {
+    for (const [value, source] of [[fallbackText, "filing_excerpt"], [sourceText.primary_excerpt, "raw.source_package.text.primary_excerpt"]] as const) {
+      const text = normalizeSourceText(stringValue(value));
+      const pattern = /\b(?:Item\s*4\s*[.\-]?\s*(?:The\s+)?Solicitation\s+(?:or|and)\s+Recommendation|Recommendation\s+of\s+(?:the\s+)?Board|Reasons\s+for\s+(?:the\s+)?Recommendation|recommend(?:s|ed)?\b[^.]{0,240}\b(?:accept|reject|not\s+tender|take\s+no\s+action))\b/gi;
+      for (const match of findPatternMatches(text, pattern, 10)) {
+        addBlock(blocks, { block_type: "tender_section_source_block", label: "Item 4 / Board Recommendation source", source, text: text.slice(Math.max(0, match.index - 240), match.index + 2800) }, maxBlockChars);
+      }
+    }
+  }
+
   collectExistingSourceBlocks(raw.cleaned_source_blocks, blocks, "cleaned_source_block", maxBlockChars);
   collectExistingSourceBlocks(raw.cleanedSourceBlocks, blocks, "cleaned_source_block", maxBlockChars);
   collectExistingSourceBlocks(parser.cleaned_source_blocks, blocks, "cleaned_source_block", maxBlockChars);

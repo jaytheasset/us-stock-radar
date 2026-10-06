@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **Tender Evidence v1 candidate** — SC 14D9 Recommendation coverage, source-only local MCP search/read, eleven live SEC question groups, provenance/isolation and source-versus-retrieval limits: [`EVIDENCE_HANDOFF.md`](../lib/sources/sec/forms/tender/EVIDENCE_HANDOFF.md).
+
 - **S-4/F-4 local MCP evidence candidate** — existing selector/index → MCP search/read, five-case 15-query stdio E2E, restored pre-MCP Primary retry/repair policy and metadata-only registration filing Monitor condition: [`MCP_EVIDENCE_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md). Earlier offline audit: [`EVIDENCE_RETRIEVAL_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/EVIDENCE_RETRIEVAL_HANDOFF.md).
 - **EFFECT registration Monitor — candidate live-input E2E PASS and earlier Practical PASS** — live S-3/EFFECT and compiler, original XML identity, explicit registration confirmation, existing Monitor alerts and atomic dedupe, isolated checks and activation limits: [`architecture/effect-registration-monitor-v1.md`](architecture/effect-registration-monitor-v1.md)
 
