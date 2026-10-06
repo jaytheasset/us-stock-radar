@@ -1,0 +1,39 @@
+{
+  "pass": true,
+  "errors": [],
+  "selectedRefs": [
+    "E1",
+    "E2",
+    "E5",
+    "E6"
+  ],
+  "claims": {
+    "current": {
+      "direct": [
+        "E1",
+        "E2",
+        "E5",
+        "E6"
+      ],
+      "corroborating": []
+    },
+    "previous": {
+      "direct": [
+        "E1",
+        "E2",
+        "E5",
+        "E6"
+      ],
+      "corroborating": []
+    }
+  },
+  "selectedRefReview": {
+    "unreviewed": [],
+    "unsupported": [],
+    "conflicting": []
+  },
+  "currentValue": "2026-01-28",
+  "previousValue": "2026-01-27",
+  "unresolved": [],
+  "failureClass": null
+}

@@ -1,0 +1,50 @@
+{
+  "review_version": "tender-expiration-evidence-support-review-v1",
+  "source_run": "tender-expiration-v5-applied-extension-gemini35-20261006",
+  "accession": "0001193125-26-026154",
+  "fact_type": "expiration",
+  "claims": {
+    "current": {
+      "present": true,
+      "value": "2026-01-28"
+    },
+    "previous": {
+      "present": true,
+      "value": "2026-01-27"
+    }
+  },
+  "refs": {
+    "E1": {
+      "supports": [
+        "current",
+        "previous"
+      ],
+      "strength": "direct",
+      "note": "Explicitly announces extension to January 28, 2026 and says the Offer was previously scheduled to expire January 27, 2026."
+    },
+    "E2": {
+      "supports": [
+        "current",
+        "previous"
+      ],
+      "strength": "direct",
+      "note": "Amendment text explicitly states both the January 28 extended Expiration Time and January 27 previous schedule."
+    },
+    "E5": {
+      "supports": [
+        "current",
+        "previous"
+      ],
+      "strength": "direct",
+      "note": "Explicitly amends all January 27 references and replaces them with January 28."
+    },
+    "E6": {
+      "supports": [
+        "current",
+        "previous"
+      ],
+      "strength": "direct",
+      "note": "Explicitly states the January 28 extension and the January 27 previous expiration."
+    }
+  }
+}

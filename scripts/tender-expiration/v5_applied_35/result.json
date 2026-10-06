@@ -1,0 +1,35 @@
+{
+  "runId": "tender-expiration-v5-applied-extension-gemini35-20261006",
+  "accession": "0001193125-26-026154",
+  "model": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "technicalPass": true,
+  "semanticPass": true,
+  "current": "2026-01-28",
+  "previous": "2026-01-27",
+  "selectedRefs": [
+    "E1",
+    "E2",
+    "E5",
+    "E6"
+  ],
+  "directCurrentRefs": [
+    "E1",
+    "E2",
+    "E5",
+    "E6"
+  ],
+  "directPreviousRefs": [
+    "E1",
+    "E2",
+    "E5",
+    "E6"
+  ],
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "otherModelCalls": 0,
+  "otherFilingCalls": 0
+}

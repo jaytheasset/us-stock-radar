@@ -1,0 +1,45 @@
+{
+  "runId": "tender-expiration-v5-applied-extension-gemini35-20261006",
+  "model": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "cases": [
+    {
+      "runId": "tender-expiration-v5-applied-extension-gemini35-20261006",
+      "accession": "0001193125-26-026154",
+      "model": "gemini-3.5-flash",
+      "modelVersion": "gemini-3.5-flash",
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "finishReason": "STOP",
+      "latencyMs": 3035,
+      "usage": {
+        "promptTokenCount": 3271,
+        "candidatesTokenCount": 90,
+        "totalTokenCount": 3361,
+        "promptTokensDetails": [
+          {
+            "modality": "TEXT",
+            "tokenCount": 3271
+          }
+        ],
+        "serviceTier": "standard"
+      },
+      "validation": {
+        "providerSchema": {
+          "valid": true,
+          "errors": []
+        },
+        "local": {
+          "valid": true,
+          "errors": []
+        }
+      },
+      "provenanceValid": true,
+      "mappingHash": "66db959cae43e968b63a688534614ac7c6d2c2577223dc62db191954e656dd0b",
+      "technicalPass": true,
+      "semanticReview": "pending-direct-source-review"
+    }
+  ],
+  "stopped": true,
+  "otherFilingsExecuted": 0
+}
