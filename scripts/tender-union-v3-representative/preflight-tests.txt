@@ -1,0 +1,20 @@
+✔ 01 both representative packets derive exactly bare dollar notation (1.3144ms)
+✔ 02 Rumble baseline is valid under v3 contract (8.65ms)
+✔ 03 Xerox composite offer baseline emits status only, no offer_price (1.5522ms)
+✔ 04 source-derived currency enum rejects full price token and prose (5.2925ms)
+✔ 05 Rumble previous decisions are explicit null with empty previous refs (1.3187ms)
+✔ 06 Xerox dollar inventory does not force an offer_price object (0.9055ms)
+✔ 07 exact prior source/provider/map bytes remain frozen inputs (7.0593ms)
+✔ 08 provider source is unchanged and baseline never enters request metadata (1.4888ms)
+✔ 09 projectSource reproduces saved provider source and evidence map (0.5356ms)
+✔ 10 one-call mock still blocks repeated execution (20.6875ms)
+✔ 11 no retry on a failed transport (3.4432ms)
+✔ 12 paid budget is exactly two filings and one call each (0.1621ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 281.2304

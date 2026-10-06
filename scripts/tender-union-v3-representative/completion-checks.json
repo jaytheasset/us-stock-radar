@@ -1,0 +1,14 @@
+{
+  "base": "b6afb3f2571358ff1479a87fd78e3fbe2bc892a9",
+  "changedScope": "scripts/tender-union-v3-representative only",
+  "physicalCalls": 2,
+  "tests": "56/56 combined PASS",
+  "typecheck": "PASS",
+  "diffCheck": "PASS",
+  "sourceIdentity": "PASS; prior frozen bytes reused",
+  "expectedLeakage": "0",
+  "retryRepairFallback": "0/0/0",
+  "semanticCorrections": 0,
+  "mergePushDeploy": false,
+  "productChanges": false
+}

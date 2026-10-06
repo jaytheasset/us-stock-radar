@@ -1,0 +1,53 @@
+{
+  "runId": "tender-union-v3-representative-20261006-xerox-terminated-642c8b06-1e30-41f9-be5f-da748f796db7",
+  "accession": "0001193125-20-092896",
+  "name": "xerox-terminated",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "retries": 0,
+  "repairCalls": 0,
+  "fallbackCalls": 0,
+  "semanticCorrections": 0,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 2338,
+  "usage": {
+    "promptTokenCount": 2985,
+    "candidatesTokenCount": 77,
+    "totalTokenCount": 3062,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2985
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "currencyInventory": [
+    "$"
+  ],
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "canonicalValidation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "projectionPass": true,
+  "provenanceValid": true,
+  "technicalPass": true
+}

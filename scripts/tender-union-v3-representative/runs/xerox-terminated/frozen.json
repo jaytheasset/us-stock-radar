@@ -1,0 +1,20 @@
+{
+  "runId": "tender-union-v3-representative-20261006-xerox-terminated-642c8b06-1e30-41f9-be5f-da748f796db7",
+  "base": "b6afb3f2571358ff1479a87fd78e3fbe2bc892a9",
+  "model": "gemini-3.5-flash",
+  "accession": "0001193125-20-092896",
+  "maxPhysicalCalls": 1,
+  "frozenAt": "2026-10-06T13:25:12.709Z",
+  "files": {
+    "currency-inventory.json": "948035c24daf0f8f2f0e167d365dffb03541b76d5ba3999bbdf522e88d5849cb",
+    "evidence-map.json": "0e231f5dd84d1ca2f2ca90725aa524783b97b6558546f10339f32313907c5326",
+    "prompt.txt": "f3fe7f67b5ed33fd52d748e2dfe1f818fa0b892a1b257c64e04ae88a55c16b90",
+    "provider-schema.json": "f391d76ef9c141e47401b1000a5990d25acf5633510310c46e9084a2d91a3d4d",
+    "provider-source.json": "0e2dd7eb82a9ecaafd74e42d989d7e4757376d0ea1f54d8f272b338b7600ecda",
+    "request.json": "e87ea8c958a1640f0ddf61baaf85b53539fdb20bbabf1fc3890a49282baae2fa",
+    "source.json": "4528ed45b3c5a60ec98ccb060c5c5f8fc6cad5391b7f7d9f5a0acc1ba52e70cd"
+  },
+  "currencyInventory": [
+    "$"
+  ]
+}

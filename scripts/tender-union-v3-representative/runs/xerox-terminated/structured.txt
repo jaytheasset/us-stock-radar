@@ -1,0 +1,11 @@
+{
+  "expiration": null,
+  "offer_price": null,
+  "board_recommendation": null,
+  "offer_status": {
+    "current": "terminated",
+    "evidence_refs": ["E7"]
+  },
+  "final_results_observed": null,
+  "unresolved": []
+}

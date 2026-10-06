@@ -1,0 +1,10 @@
+{
+  "base": "b6afb3f2571358ff1479a87fd78e3fbe2bc892a9",
+  "model": "gemini-3.5-flash",
+  "maxPhysicalCalls": 2,
+  "cases": [
+    "rumble-active",
+    "xerox-terminated"
+  ],
+  "frozenAt": "2026-10-06T13:25:12.770Z"
+}

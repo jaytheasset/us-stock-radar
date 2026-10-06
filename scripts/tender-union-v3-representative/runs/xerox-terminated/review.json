@@ -1,0 +1,57 @@
+{
+  "pass": true,
+  "failureClass": null,
+  "reviewer": "GPT direct frozen SEC source review",
+  "semanticCorrections": 0,
+  "checks": [
+    {
+      "field": "expiration",
+      "expected": null,
+      "actual": null,
+      "pass": true
+    },
+    {
+      "field": "offer_price",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "support": "E1 is composite $18.40 cash + 0.149 Xerox shares, outside fixed all-cash per-share scope."
+    },
+    {
+      "field": "board_recommendation",
+      "expected": null,
+      "actual": null,
+      "pass": true
+    },
+    {
+      "field": "offer_status.current",
+      "expected": "terminated",
+      "actual": "terminated",
+      "pass": true,
+      "directRefs": [
+        "E7"
+      ]
+    },
+    {
+      "field": "final_results_observed",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "support": "Final-amendment results checkbox is unchecked and no explicit final-results narrative appears."
+    },
+    {
+      "field": "unresolved",
+      "expected": [],
+      "actual": [],
+      "pass": true
+    }
+  ],
+  "contamination": false,
+  "sourceNotes": [
+    "Filing fees, transaction valuation and $22.05 market price were not promoted to offer_price.",
+    "Composite tender consideration was correctly excluded from the fixed all-cash price contract.",
+    "Return of tendered shares after termination was not promoted to final_results_observed."
+  ],
+  "referenceReview": "E7 directly confirms the offer was terminated March 31, 2020. No foreign or fabricated refs.",
+  "decision": "PASS; planned two-case paid batch complete. No further paid calls in this stage."
+}

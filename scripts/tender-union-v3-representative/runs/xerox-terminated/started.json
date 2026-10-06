@@ -1,0 +1,13 @@
+{
+  "runId": "tender-union-v3-representative-20261006-xerox-terminated-642c8b06-1e30-41f9-be5f-da748f796db7",
+  "accession": "0001193125-20-092896",
+  "name": "xerox-terminated",
+  "model": "gemini-3.5-flash",
+  "physicalCallLimit": 1,
+  "startedAt": "2026-10-06T13:27:05.068Z",
+  "requestHash": "e87ea8c958a1640f0ddf61baaf85b53539fdb20bbabf1fc3890a49282baae2fa",
+  "mappingHash": "0e231f5dd84d1ca2f2ca90725aa524783b97b6558546f10339f32313907c5326",
+  "currencyInventory": [
+    "$"
+  ]
+}

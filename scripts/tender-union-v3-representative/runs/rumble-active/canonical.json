@@ -1,0 +1,37 @@
+{
+  "facts": [
+    {
+      "type": "expiration",
+      "current": "2025-02-04",
+      "evidence_refs": [
+        "E1",
+        "E2",
+        "E16"
+      ]
+    },
+    {
+      "type": "offer_price",
+      "current": {
+        "amount": 7.5,
+        "currency_text": "$",
+        "unit": "cash_per_share"
+      },
+      "evidence_refs": [
+        "E8",
+        "E9",
+        "E16"
+      ]
+    },
+    {
+      "type": "board_recommendation",
+      "current": "no_recommendation",
+      "evidence_refs": [
+        "E11",
+        "E12",
+        "E13",
+        "E15"
+      ]
+    }
+  ],
+  "unresolved": []
+}

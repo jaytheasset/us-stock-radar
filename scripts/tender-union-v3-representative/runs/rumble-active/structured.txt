@@ -1,0 +1,27 @@
+{
+  "expiration": {
+    "current": "2025-02-04",
+    "previous": null,
+    "current_evidence_refs": ["E1", "E2", "E16"],
+    "previous_evidence_refs": []
+  },
+  "offer_price": {
+    "current": {
+      "amount": 7.50,
+      "currency_text": "$",
+      "unit": "cash_per_share"
+    },
+    "previous": null,
+    "current_evidence_refs": ["E8", "E9", "E16"],
+    "previous_evidence_refs": []
+  },
+  "board_recommendation": {
+    "current": "no_recommendation",
+    "previous": null,
+    "current_evidence_refs": ["E11", "E12", "E13", "E15"],
+    "previous_evidence_refs": []
+  },
+  "offer_status": null,
+  "final_results_observed": null,
+  "unresolved": []
+}

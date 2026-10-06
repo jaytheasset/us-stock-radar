@@ -1,0 +1,53 @@
+{
+  "runId": "tender-union-v3-representative-20261006-rumble-active-72e70ca3-ae80-4154-b515-7906eaf4adfa",
+  "accession": "0001213900-25-000757",
+  "name": "rumble-active",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "retries": 0,
+  "repairCalls": 0,
+  "fallbackCalls": 0,
+  "semanticCorrections": 0,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 2967,
+  "usage": {
+    "promptTokenCount": 7357,
+    "candidatesTokenCount": 255,
+    "totalTokenCount": 7612,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 7357
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "currencyInventory": [
+    "$"
+  ],
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "canonicalValidation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "projectionPass": true,
+  "provenanceValid": true,
+  "technicalPass": true
+}

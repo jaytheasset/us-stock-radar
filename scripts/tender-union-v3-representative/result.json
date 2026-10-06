@@ -1,0 +1,18 @@
+{
+  "pass": true,
+  "stage": "v3 representative active/terminal",
+  "physicalCalls": 2,
+  "cases": {
+    "rumble-active": "PASS",
+    "xerox-terminated": "PASS"
+  },
+  "inputTokens": 10342,
+  "outputTokens": 332,
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "semanticCorrections": 0,
+  "generalizedV3PracticalPass": false,
+  "remainingGate": "positive final_results_observed under v3",
+  "nextCandidate": "carlyle-final"
+}

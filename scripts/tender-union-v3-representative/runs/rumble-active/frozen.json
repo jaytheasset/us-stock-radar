@@ -1,0 +1,20 @@
+{
+  "runId": "tender-union-v3-representative-20261006-rumble-active-72e70ca3-ae80-4154-b515-7906eaf4adfa",
+  "base": "b6afb3f2571358ff1479a87fd78e3fbe2bc892a9",
+  "model": "gemini-3.5-flash",
+  "accession": "0001213900-25-000757",
+  "maxPhysicalCalls": 1,
+  "frozenAt": "2026-10-06T13:25:12.687Z",
+  "files": {
+    "currency-inventory.json": "948035c24daf0f8f2f0e167d365dffb03541b76d5ba3999bbdf522e88d5849cb",
+    "evidence-map.json": "27bcb8b88ce982a71e8f22a241ceda7c79d63c825c6ddf8a8c8a455209c55136",
+    "prompt.txt": "f3fe7f67b5ed33fd52d748e2dfe1f818fa0b892a1b257c64e04ae88a55c16b90",
+    "provider-schema.json": "017ec825492f47d9d25c655c8bb26410465c03a052abd724d3605c5deba26cf6",
+    "provider-source.json": "1d9799364790eb8a5703dacc745b2ab93482c18635199a0f6d478807a2390502",
+    "request.json": "0197e129daee849513bd60fa8bc39d2ccc828973d298ee844e220b44065d17f5",
+    "source.json": "0cfaac8ced145c4476f99aa46aff1121fe37c36dde15285284cabca1676d2cc8"
+  },
+  "currencyInventory": [
+    "$"
+  ]
+}

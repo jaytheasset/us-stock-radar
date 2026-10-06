@@ -1,0 +1,20 @@
+{
+  "runId": "tender-union-v3-representative-20261006",
+  "base": "b6afb3f2571358ff1479a87fd78e3fbe2bc892a9",
+  "model": "gemini-3.5-flash",
+  "maxPhysicalCalls": 2,
+  "cases": [
+    {
+      "name": "rumble-active",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "prior": "../tender-union-single-call/runs/rumble-active"
+    },
+    {
+      "name": "xerox-terminated",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "prior": "../tender-union-single-call/runs/xerox-terminated"
+    }
+  ]
+}

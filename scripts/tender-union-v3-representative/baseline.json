@@ -1,0 +1,61 @@
+{
+  "rumble-active": {
+    "expected": {
+      "expiration": {
+        "current": "2025-02-04",
+        "previous": null
+      },
+      "offer_price": {
+        "current": {
+          "amount": 7.5,
+          "currency_text": "$",
+          "unit": "cash_per_share"
+        },
+        "previous": null
+      },
+      "board_recommendation": {
+        "current": "no_recommendation",
+        "previous": null
+      },
+      "offer_status": null,
+      "final_results_observed": null,
+      "unresolved": []
+    },
+    "directSupport": {
+      "expiration.current": [
+        "E1",
+        "E2",
+        "E16"
+      ],
+      "offer_price.current": [
+        "E8",
+        "E9",
+        "E16"
+      ],
+      "board_recommendation.current": [
+        "E12",
+        "E13",
+        "E15"
+      ]
+    },
+    "sourceReview": "Active own tender. $12.40 market and aggregate values are distractors; may terminate/holder withdrawal/future final-result language are not positive terminal/final FACTs."
+  },
+  "xerox-terminated": {
+    "expected": {
+      "expiration": null,
+      "offer_price": null,
+      "board_recommendation": null,
+      "offer_status": {
+        "current": "terminated"
+      },
+      "final_results_observed": null,
+      "unresolved": []
+    },
+    "directSupport": {
+      "offer_status.current": [
+        "E7"
+      ]
+    },
+    "sourceReview": "Offer was actually terminated March 31. Historical consideration is composite $18.40 cash + 0.149 Xerox shares, outside fixed-all-cash offer_price contract. Final amendment checkbox is unchecked; no final-results narrative or board recommendation; no active scheduled expiration."
+  }
+}

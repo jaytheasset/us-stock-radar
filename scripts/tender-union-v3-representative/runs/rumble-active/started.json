@@ -1,0 +1,13 @@
+{
+  "runId": "tender-union-v3-representative-20261006-rumble-active-72e70ca3-ae80-4154-b515-7906eaf4adfa",
+  "accession": "0001213900-25-000757",
+  "name": "rumble-active",
+  "model": "gemini-3.5-flash",
+  "physicalCallLimit": 1,
+  "startedAt": "2026-10-06T13:26:08.043Z",
+  "requestHash": "0197e129daee849513bd60fa8bc39d2ccc828973d298ee844e220b44065d17f5",
+  "mappingHash": "27bcb8b88ce982a71e8f22a241ceda7c79d63c825c6ddf8a8c8a455209c55136",
+  "currencyInventory": [
+    "$"
+  ]
+}

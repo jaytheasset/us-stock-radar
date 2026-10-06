@@ -1,0 +1,99 @@
+{
+  "pass": true,
+  "failureClass": null,
+  "reviewer": "GPT direct frozen SEC source review",
+  "semanticCorrections": 0,
+  "checks": [
+    {
+      "field": "expiration.current",
+      "expected": "2025-02-04",
+      "actual": "2025-02-04",
+      "pass": true,
+      "directRefs": [
+        "E1",
+        "E2",
+        "E16"
+      ]
+    },
+    {
+      "field": "expiration.previous",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "directRefs": []
+    },
+    {
+      "field": "offer_price.current",
+      "expected": {
+        "amount": 7.5,
+        "currency_text": "$",
+        "unit": "cash_per_share"
+      },
+      "actual": {
+        "amount": 7.5,
+        "currency_text": "$",
+        "unit": "cash_per_share"
+      },
+      "pass": true,
+      "directRefs": [
+        "E8",
+        "E9",
+        "E16"
+      ]
+    },
+    {
+      "field": "offer_price.previous",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "directRefs": []
+    },
+    {
+      "field": "board_recommendation.current",
+      "expected": "no_recommendation",
+      "actual": "no_recommendation",
+      "pass": true,
+      "directRefs": [
+        "E12",
+        "E13",
+        "E15"
+      ],
+      "corroboratingRefs": [
+        "E11"
+      ]
+    },
+    {
+      "field": "board_recommendation.previous",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "directRefs": []
+    },
+    {
+      "field": "offer_status",
+      "expected": null,
+      "actual": null,
+      "pass": true
+    },
+    {
+      "field": "final_results_observed",
+      "expected": null,
+      "actual": null,
+      "pass": true
+    },
+    {
+      "field": "unresolved",
+      "expected": [],
+      "actual": [],
+      "pass": true
+    }
+  ],
+  "contamination": false,
+  "sourceNotes": [
+    "$12.40 market price and aggregate amounts were not promoted to offer_price.",
+    "May terminate and holder withdrawal procedures were not promoted to offer_status.",
+    "Future preliminary/final proration language was not promoted to final_results_observed."
+  ],
+  "referenceReview": "All selected refs belong to the frozen filing; each emitted claim has direct support. E11 is corroborating rather than required direct support.",
+  "decision": "PASS; authorize second and final planned case Xerox only."
+}
