@@ -1,0 +1,23 @@
+{
+  "facts": [
+    {
+      "type": "expiration",
+      "current": "2026-01-21",
+      "evidence_refs": [
+        "E2"
+      ]
+    },
+    {
+      "type": "final_results_observed",
+      "observed": true,
+      "evidence_refs": [
+        "E2",
+        "E8",
+        "E9"
+      ]
+    }
+  ],
+  "unresolved": [
+    "FACT_AMBIGUOUS_OFFER_PRICE: The offer price is defined as the net asset value per share as of December 31, 2025, which was later determined to be $18.82, rather than a fixed all-cash consideration at commencement."
+  ]
+}

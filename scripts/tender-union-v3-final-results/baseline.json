@@ -1,0 +1,28 @@
+{
+  "accession": "0001702510-26-000009",
+  "expected": {
+    "expiration": null,
+    "offer_price": null,
+    "board_recommendation": null,
+    "offer_status": null,
+    "final_results_observed": {
+      "observed": true
+    },
+    "unresolved": []
+  },
+  "directSupport": {
+    "final_results_observed.observed": [
+      "E2",
+      "E8"
+    ]
+  },
+  "sourceReview": {
+    "expiration": "E2 states the offer expired January 21, 2026 in a final-results filing; no active scheduled expiration should be emitted.",
+    "offer_price": "E3 gives $18.82 NAV per Share after expiration and payment via non-interest-bearing promissory notes; not a fixed all-cash tender consideration within accepted scope.",
+    "final_results": "E2 says Company has received final results; E8 says this Amendment is filed to report final results.",
+    "status": "Expired/accepted shares are not withdrawn or terminated.",
+    "board": "No subject-board shareholder tender recommendation is supplied."
+  },
+  "reviewer": "GPT direct frozen SEC source review before provider call",
+  "providerInput": false
+}

@@ -1,0 +1,24 @@
+{
+  "expiration": {
+    "current": "2026-01-21",
+    "previous": null,
+    "current_evidence_refs": [
+      "E2"
+    ],
+    "previous_evidence_refs": []
+  },
+  "offer_price": null,
+  "board_recommendation": null,
+  "offer_status": null,
+  "final_results_observed": {
+    "observed": true,
+    "evidence_refs": [
+      "E2",
+      "E8",
+      "E9"
+    ]
+  },
+  "unresolved": [
+    "FACT_AMBIGUOUS_OFFER_PRICE: The offer price is defined as the net asset value per share as of December 31, 2025, which was later determined to be $18.82, rather than a fixed all-cash consideration at commencement."
+  ]
+}

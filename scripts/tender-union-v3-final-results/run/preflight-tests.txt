@@ -1,0 +1,18 @@
+✔ 01 Carlyle currency inventory is dollar despite offer_price being out of scope (0.9409ms)
+✔ 02 expected final-results-only transient output is valid (6.9352ms)
+✔ 03 dollar inventory does not force offer_price positive (2.1963ms)
+✔ 04 historical expired offer remains expiration null (1.1718ms)
+✔ 05 final_results_observed false is forbidden (1.7526ms)
+✔ 06 exact prior source/provider/map bytes are stable (8.0163ms)
+✔ 07 provider source and evidence map reconstruct exactly (0.3401ms)
+✔ 08 request contains unchanged provider source and no baseline leakage (0.6581ms)
+✔ 09 one physical mock call and durable reservation (13.4377ms)
+✔ 10 no retry on transport failure (2.7961ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 221.6314

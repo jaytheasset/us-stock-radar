@@ -1,0 +1,13 @@
+{
+  "runId": "tender-union-v3-carlyle-5a669202-58da-4085-90ff-4eb2b1f5a306",
+  "accession": "0001702510-26-000009",
+  "name": "carlyle-final",
+  "model": "gemini-3.5-flash",
+  "physicalCallLimit": 1,
+  "startedAt": "2026-10-06T13:36:21.684Z",
+  "requestHash": "1c4a09be22ea0f50f3948254c7542403b43b3a8c52d0390ca10b912ca7aa0369",
+  "mappingHash": "d9cc80a122fbbe4c7db4e017887d0330ccf5538fda1bea3ffc99d8bb0b35f7e1",
+  "currencyInventory": [
+    "$"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "runId": "tender-union-v3-carlyle-5a669202-58da-4085-90ff-4eb2b1f5a306",
+  "accession": "0001702510-26-000009",
+  "name": "carlyle-final",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "retries": 0,
+  "repairCalls": 0,
+  "fallbackCalls": 0,
+  "semanticCorrections": 0,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 2439,
+  "usage": {
+    "promptTokenCount": 2081,
+    "candidatesTokenCount": 215,
+    "totalTokenCount": 2296,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2081
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "currencyInventory": [
+    "$"
+  ],
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "canonicalValidation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "projectionPass": true,
+  "provenanceValid": true,
+  "technicalPass": true
+}

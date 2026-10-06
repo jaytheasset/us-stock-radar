@@ -1,0 +1,85 @@
+{
+  "pass": false,
+  "failureClass": "MODEL_ERROR",
+  "reviewer": "GPT direct comparison of frozen SEC Evidence and raw provider output",
+  "sourceCoverageSufficient": true,
+  "schemaRepresentationFailure": false,
+  "sourceAmbiguity": false,
+  "semanticCorrections": 0,
+  "checks": [
+    {
+      "field": "expiration",
+      "expected": null,
+      "actual": {
+        "current": "2026-01-21",
+        "previous": null
+      },
+      "pass": false,
+      "refs": [
+        "E2"
+      ],
+      "support": "E2 says the Offer 'expired' on January 21, 2026 in a final-results filing. This is historical terminal context, not an active scheduled expiration as of this filing.",
+      "classification": "MODEL_ERROR"
+    },
+    {
+      "field": "offer_price",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "support": "Price is tied to NAV per share and payment via non-interest-bearing promissory notes, outside the fixed all-cash per-share contract."
+    },
+    {
+      "field": "board_recommendation",
+      "expected": null,
+      "actual": null,
+      "pass": true
+    },
+    {
+      "field": "offer_status",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "support": "Expired/accepted shares do not establish withdrawn or terminated."
+    },
+    {
+      "field": "final_results_observed",
+      "expected": {
+        "observed": true
+      },
+      "actual": {
+        "observed": true
+      },
+      "pass": true,
+      "refs": [
+        "E2",
+        "E8",
+        "E9"
+      ],
+      "directRefs": [
+        "E2",
+        "E8"
+      ],
+      "corroboratingRefs": [
+        "E9"
+      ],
+      "support": "E2 says final results were received; E8 says this amendment reports final results. E9 final-amendment checkbox is corroborating only."
+    },
+    {
+      "field": "unresolved",
+      "expected": [],
+      "actual": [
+        "FACT_AMBIGUOUS_OFFER_PRICE: The offer price is defined as the net asset value per share as of December 31, 2025, which was later determined to be $18.82, rather than a fixed all-cash consideration at commencement."
+      ],
+      "pass": false,
+      "classification": "MODEL_ERROR_SECONDARY",
+      "support": "The price slot correctly abstained. The extra unresolved wording characterizes an out-of-scope NAV-based consideration as ambiguous; this is unnecessary under the frozen baseline and does not repair the primary expiration error."
+    }
+  ],
+  "referenceReview": {
+    "foreignFabricatedRefs": 0,
+    "finalResultsDirectSupport": true,
+    "expirationRefIdentityValidButSemanticRoleWrong": true
+  },
+  "decision": "single-call v3 Carlyle = FAIL; stop after the authorized one call; no retry/repair/source expansion/additional paid case",
+  "history": "DXL, Rumble and Xerox v3 observations passed. Carlyle exposes a distinct historical-expiration contamination failure in final-results context."
+}

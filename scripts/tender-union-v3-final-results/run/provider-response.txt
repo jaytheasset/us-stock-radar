@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"expiration\": {\n    \"current\": \"2026-01-21\",\n    \"previous\": null,\n    \"current_evidence_refs\": [\n      \"E2\"\n    ],\n    \"previous_evidence_refs\": []\n  },\n  \"offer_price\": null,\n  \"board_recommendation\": null,\n  \"offer_status\": null,\n  \"final_results_observed\": {\n    \"observed\": true,\n    \"evidence_refs\": [\n      \"E2\",\n      \"E8\",\n      \"E9\"\n    ]\n  },\n  \"unresolved\": [\n    \"FACT_AMBIGUOUS_OFFER_PRICE: The offer price is defined as the net asset value per share as of December 31, 2025, which was later determined to be $18.82, rather than a fixed all-cash consideration at commencement.\"\n  ]\n}",
+            "thoughtSignature": "EmgKZgFpFH0T4N/PFJzfiWnhT606OU3nxGuYedC4tU/26nMtNHwohjPuXt89v/iZJIoSIG7ILow4jD8Fq9EofrpXGonx6sL/kQcYMFH/1VSdecoDAxDrTUgsKCGnOEvOFmVGUec0s1hEpQ=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 2081,
+    "candidatesTokenCount": 215,
+    "totalTokenCount": 2296,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 2081
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "VvnEavzBD5-6vr0Pzvu5oAo"
+}

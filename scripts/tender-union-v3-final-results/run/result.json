@@ -1,0 +1,23 @@
+{
+  "pass": false,
+  "failureClass": "MODEL_ERROR",
+  "failedCase": "carlyle-final",
+  "physicalCalls": 1,
+  "retries": 0,
+  "repairCalls": 0,
+  "fallbackCalls": 0,
+  "semanticCorrections": 0,
+  "technicalPass": true,
+  "correct": {
+    "offer_price": null,
+    "board_recommendation": null,
+    "offer_status": null,
+    "final_results_observed": true
+  },
+  "errors": [
+    "Historical expired date 2026-01-21 incorrectly emitted as expiration.current",
+    "Unnecessary/incorrect unresolved characterization of out-of-scope NAV-based offer price"
+  ],
+  "generalizedV3PracticalPass": false,
+  "nextStep": "STOP; do not run more paid cases or product integration."
+}
