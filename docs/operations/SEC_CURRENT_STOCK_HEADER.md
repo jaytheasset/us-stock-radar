@@ -3,6 +3,10 @@
 Base: `357a70b15cd49763bbd848ac9568f70367a1f043`, detached eeb4.
 Date: 2026-10-07 Asia/Seoul. **Not a completed real-sample browser acceptance.**
 
+This is the original candidate record. Subsequent authorized live-source browser
+completion, one visual finding and remaining login gate are recorded in
+[`SEC_CURRENT_HEADER_LIVE_COMPLETION.md`](SEC_CURRENT_HEADER_LIVE_COMPLETION.md).
+
 ## Product change
 
 The existing normalized route and issuer-validated historical projection still

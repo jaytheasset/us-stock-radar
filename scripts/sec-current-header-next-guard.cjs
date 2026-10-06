@@ -19,7 +19,7 @@ globalThis.fetch = async (input, init) => {
   log({kind:'http',host:url.host,path:url.pathname,method,allowed});
   if(!allowed) return new Response('Excluded verification dependency',{status:503});
   const response=await nativeFetch(input,init);
-  if(url.href==='https://www.sec.gov/files/company_tickers.json'&&response.ok){
+  if(process.env.SEC_HEADER_SYNTHETIC_CIK&&url.href==='https://www.sec.gov/files/company_tickers.json'&&response.ok){
     const data=await response.json();
     // Separate, visibly synthetic edge-case ticker only. Real catalog rows and
     // all three real issuer bodies remain unchanged; no header/SQL result mocks.

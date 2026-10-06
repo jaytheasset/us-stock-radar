@@ -2,7 +2,7 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
-- **SEC Submissions explicit current confirmation** — immutable raw/current separation, explicit refresh, snapshot reader and isolated PostgreSQL verification: [`operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md`](operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md). Candidate stock-header connection and incomplete real-sample browser gate: [`operations/SEC_CURRENT_STOCK_HEADER.md`](operations/SEC_CURRENT_STOCK_HEADER.md).
+- **SEC Submissions explicit current confirmation** — immutable raw/current separation, explicit refresh, snapshot reader and isolated PostgreSQL verification: [`operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md`](operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md). Candidate stock-header connection: [`operations/SEC_CURRENT_STOCK_HEADER.md`](operations/SEC_CURRENT_STOCK_HEADER.md). Actual three-issuer browser verification, visual finding and login gate: [`operations/SEC_CURRENT_HEADER_LIVE_COMPLETION.md`](operations/SEC_CURRENT_HEADER_LIVE_COMPLETION.md).
 
 - **S-4/F-4 local MCP evidence candidate** — existing selector/index → MCP search/read, five-case 15-query stdio E2E, restored pre-MCP Primary retry/repair policy and metadata-only registration filing Monitor condition: [`MCP_EVIDENCE_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md). Earlier offline audit: [`EVIDENCE_RETRIEVAL_HANDOFF.md`](../lib/sources/sec/forms/s4-f4/EVIDENCE_RETRIEVAL_HANDOFF.md).
 

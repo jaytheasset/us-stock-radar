@@ -13,6 +13,7 @@ import { readStockHeaderSecIdentity } from '../lib/watchlist/stockHeaderSecIdent
 import { readSecCompanyCatalog, SEC_COMPANY_CATALOG_URL } from '../lib/sources/sec/tickerCatalog.ts';
 import { verifySubmissionsCurrent } from './sec-submissions-current-cases.mjs';
 import { verifyCurrentHeader } from './sec-current-header-verification.mjs';
+import { verifyLiveCurrentHeader } from './sec-current-header-live-verification.mjs';
 import { rawRaces, rawGuards } from './sec-submissions-conflict-cases.mjs';
 
 assert.ok(process.argv.includes('--run'), 'Explicit --run is required');
@@ -24,7 +25,8 @@ const adminUrl = new URL(process.env.SEC_VERIFY_ADMIN_DB_URL ?? '');
 assert.equal(adminUrl.hostname, '127.0.0.1'); assert.equal(adminUrl.port, '56322');
 assert.equal(adminUrl.pathname, '/postgres');
 const headerOnly = process.argv.includes('--header-only');
-const currentOnly = process.argv.includes('--current-only') || headerOnly;
+const headerLive = process.argv.includes('--header-live');
+const currentOnly = process.argv.includes('--current-only') || headerOnly || headerLive;
 if (!currentOnly) assert.ok(process.env.SEC_USER_AGENT, 'Existing SEC_USER_AGENT required; never invent a contact');
 const runId = randomUUID();
 const database = `sec_submissions_eeb4_${runId.replaceAll('-', '')}`;
@@ -214,7 +216,14 @@ try {
   await close(schemaClient);
 
   const conflictContext={connect,close,repository,snapshot,report};
-  if (currentOnly) {
+  if (headerLive) {
+    const currentSchema=await connect('postgres');
+    const migration='supabase/migrations/20261006140457_sec_submissions_current.sql';
+    const ddl=await readFile(migration,'utf8');
+    await currentSchema.query(ddl); report.currentSchema={migration,sha256:hash(ddl)};
+    await close(currentSchema);
+    await verifyLiveCurrentHeader(conflictContext,{connectionString:tempUrl.href,output});
+  } else if (currentOnly) {
     await verifySubmissionsCurrent(conflictContext);
     if (headerOnly) await verifyCurrentHeader(conflictContext,{connectionString:tempUrl.href,output});
   } else {
