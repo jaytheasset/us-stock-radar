@@ -1,0 +1,312 @@
+{
+  "accession": "0001213900-25-000757",
+  "form": "SC TO-I",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:df83f703e5f5551b80b7145afc057cd05098af49401e1617e8d7c4918231a0d4",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "07a66cf58e48b3422a5806714411b70325e3ddbfc6687f3fb6f9e61817c03676",
+      "location": {
+        "start": 33868,
+        "end": 35029,
+        "heading": "SUMMARY TERM SHEET",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Beneficial owners of shares that are subject to escrow under the Business Combination Agreement (as defined herein) will not, under the contractual terms thereof, be able to participate in the Offer with respect to such escrowed securities because the relevant vesting and earn-out conditions have not yet been satisfied. See Section 3.\n\nHow long do I have to tender my Shares and can the Offer be extended, amended or terminated?\n\nYou may tender your Shares until the Offer expires. The Offer will expire on February 4, 2025, at 5:00 p.m. New York City time unless we extend or terminate it (such date and time, as it may be extended or terminated, the “Expiration Time”). See Section 1. If brokers, dealers, commercial banks, trust companies or other nominees hold your Shares, it is likely that they will require you to meet an earlier deadline for tendering into the Offer. We recommend that beneficial owners holding Shares through nominees and wishing to participate in the Offer contact such nominees as soon as possible in order to determine the times by which such beneficial owners must take action in order to participate in the Offer. See Section 3."
+    },
+    {
+      "id": "tender:885c62531c420499f4e452b1fcc9985366d852e032fa9ad10f7a4cfef32d4144",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "0a5d975ef50d3cb3bfa3b964249a7228fb87d8127296e46bfd76364d1c7e70b8",
+      "location": {
+        "start": 34300,
+        "end": 35627,
+        "heading": "SUMMARY TERM SHEET",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "You may tender your Shares until the Offer expires. The Offer will expire on February 4, 2025, at 5:00 p.m. New York City time unless we extend or terminate it (such date and time, as it may be extended or terminated, the “Expiration Time”). See Section 1. If brokers, dealers, commercial banks, trust companies or other nominees hold your Shares, it is likely that they will require you to meet an earlier deadline for tendering into the Offer. We recommend that beneficial owners holding Shares through nominees and wishing to participate in the Offer contact such nominees as soon as possible in order to determine the times by which such beneficial owners must take action in order to participate in the Offer. See Section 3.\n\nWe may choose to extend the Offer at any time and for any reason, subject to applicable laws; provided, however, in no event will we extend the Offer until later than April 30, 2025. See Section 15. We cannot assure you that we will extend the Offer. If we extend the Offer, we will delay the acceptance for payment of any Shares that have been tendered, and any Shares that have been previously tendered may be withdrawn up until the Expiration Time, as so extended. We can also amend the Offer in our sole discretion or terminate the Offer under certain circumstances. See Sections 6 and 15.\n\n4"
+    },
+    {
+      "id": "tender:afb64b21896117f314674d602e86ead232698e99f4f8f4cd1b321bfc7658f4c4",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "46cf56eb5287f05122e9e5264bbce5abe7fc2cbdcab456e66b941c0dd8d33445",
+      "location": {
+        "start": 83461,
+        "end": 84495,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "(ii) the tendering stockholder must, before the Expiration Time, comply with the guaranteed delivery procedures we describe below.\n\nThe valid tender of Shares by you by one of the procedures described in this Section 3 will constitute a binding agreement between you and us on the terms of, and subject to the conditions to, the Offer, which agreement will be governed by, and construed in accordance with, the laws of the State of New York.\n\nStockholders holding their Shares in a brokerage account or otherwise through a broker, dealer, commercial bank, trust company or other nominee, must contact such nominee in order to tender their Shares. It is likely that the nominee will establish an earlier deadline for you to act to instruct the nominee to accept the Offer on your behalf. Stockholders who hold Shares through a nominee are urged to consult such nominees to determine their applicable deadline and whether transaction costs may apply if stockholders tender Shares through the nominees and not directly to the Depositary."
+    },
+    {
+      "id": "tender:214184f7b5db6b0f294fe3bab5239cb7c5d0b7b63f93a8e74c8771435db97dca",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "8700dae822c3c729e73bf3aae55584421b8754fe0e15fe0e58e59eeaa7907700",
+      "location": {
+        "start": 246,
+        "end": 1189,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Representing an Aggregate Purchase Price of Up to $525,000,000\n\n[TABLE]\n\n|\nTHE OFFER, PRORATION PERIOD AND WITHDRAWAL RIGHTS WILL EXPIRE AT 5:00 P.M., NEW YORK CITY TIME, ON FEBRUARY 4, 2025, UNLESS THE OFFER IS EXTENDED OR TERMINATED (SUCH TIME AND DATE, AS IT MAY BE EXTENDED OR TERMINATED, THE “EXPIRATION TIME”).\n|\n\n[/TABLE]\n\nRumble Inc., a Delaware corporation (the “Company”, “Rumble”, “we”, “our” or “us”), invites stockholders to tender shares of our Class A common stock, par value $0.0001 per share (the “Class A Common Stock” or the “Shares”), at a price of $7.50 per Share (the “Purchase Price”), less any applicable withholding taxes and without interest, upon the terms and subject to the conditions set forth in this Offer to Purchase and in the related Letter of Transmittal (which, as they may be amended or supplemented from time to time, together constitute the “Offer”). We are offering to purchase up to 70,000,000 Shares."
+    },
+    {
+      "id": "tender:b992e684a464e18b7618bddffcf681ff38b38399bfe45f0b1f549a36582a195e",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "86870aecec7bef63cc84208fc9a757b99ed124e7a4097848c01849318498e8fc",
+      "location": {
+        "start": 41624,
+        "end": 42668,
+        "heading": "SUMMARY TERM SHEET",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Yes. You may withdraw any Shares you have tendered at any time before 5:00 p.m., New York City time, on February 4, 2025, unless we extend the Offer, in which case you can withdraw your Shares until the expiration of the Offer as extended.\n\nHow do I withdraw Shares I previously tendered?\n\nTo withdraw tendered Shares, you must deliver a written notice of withdrawal with the required information to the Depositary while you still have the right to withdraw the Shares. Your notice of withdrawal must specify your name, the number of Shares to be withdrawn and the name of the registered holder of these Shares, if different from the name of the person who tendered the Shares. Some additional requirements apply if the Share certificates to be withdrawn have been delivered to the Depositary or if your Shares have been tendered under the procedure for book-entry transfer set forth in Section 3. If you have tendered your Shares by giving instructions to a nominee, you must instruct that nominee to arrange for the withdrawal of your Shares."
+    },
+    {
+      "id": "tender:8d973188710c5341da081041d92ad7cc01d71785a3c72abfc94706669f1b2471",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "0d0869dabd6c5cb3695fb8842542ba0a34e94c1c549a1b08061ea962c0ae4904",
+      "location": {
+        "start": 35648,
+        "end": 36316,
+        "heading": "SUMMARY TERM SHEET",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "How will I be notified if the Company extends the Offer, amends the terms of the Offer or terminates the Offer?\n\nIf we extend the Offer, we will issue a press release announcing the extension and the new expiration time by 9:00 a.m., New York City time, on the business day immediately following the last previously scheduled or announced Expiration Time. We will announce any amendment of the terms of the Offer or termination of the Offer by making a public announcement of the amendment or termination. See Section 15. If we extend the Offer, you may withdraw your Shares until the Expiration Time, as extended. See Section 4.\n\nWhat are the conditions to the Offer?"
+    },
+    {
+      "id": "tender:f5e469aa9c11927992fc3d8092f812cd058522fde128465c934f4e082b061242",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "5a0340e1382cabcb97f4130184e8cf70a10fb7956699150be35dfc05d23023e0",
+      "location": {
+        "start": 93984,
+        "end": 95128,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "• your tender is made by or through an “eligible institution;”\n\n• a properly completed and duly executed Notice of Guaranteed Delivery, in the form we have provided, is received by the Depositary, as provided below, prior to the Expiration Time; and\n\n• the Depositary receives, at one of its addresses set forth on the back cover of this Offer to Purchase and within the period of one trading day after the date of execution and delivery of that Notice of Guaranteed Delivery, either: (i) the certificates representing the Shares being tendered, in the proper form for transfer, together with (1) a Letter of Transmittal relating thereto, which has been properly completed and duly executed and includes all signature guarantees required thereon and (2) all other required documents; or (ii) confirmation of book-entry transfer of the Shares into the Depositary’s account at the book-entry transfer facility, together with (1) either a Letter of Transmittal relating thereto, which has been properly completed and duly executed and includes all signature guarantees required thereon, or an agent’s message, and (2) all other required documents."
+    },
+    {
+      "id": "tender:a264004acb9f9abd311d3c8d7fe8f815d8a5032b42880ac39f0729e2dd04f880",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "5aba8d0e1495481caaeb64b1346e98b52219ab847eed6cf654a73c8a6d75fa46",
+      "location": {
+        "start": 110702,
+        "end": 111205,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "4. Withdrawal Rights\n\nYou may withdraw Shares that you have previously tendered under the Offer at any time prior to the Expiration Time. You may also withdraw your previously tendered Shares at any time after 5:00 p.m., New York City time, on February 4, 2025, unless such Shares have already been accepted for payment by us as provided in the Offer. Except as this Section 4 otherwise provides, tenders of Shares are irrevocable.\n\nFor a withdrawal to be effective, a written notice of withdrawal must:"
+    },
+    {
+      "id": "tender:c9de9d778ab1dc31b944babca8ebfb5ed895d0acc2af5e79b7476352e8db73b6",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "93e0ea0dc7398237e09509abde83980a843ae90fb3bf6db4ec7bee5a10cffc87",
+      "location": {
+        "start": 115755,
+        "end": 116682,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "We will pay for Shares purchased by depositing the aggregate purchase price for the Shares with the Depositary, which will act as agent for tendering stockholders for the purpose of receiving payment from us and transmitting payment to tendering stockholders. We will be deemed to have purchased Shares under the Offer following the last to occur of (i) acceptance for payment, (ii) final determination of the Proration Factor and (iii) deposit of the aggregate purchase price for the Shares.\n\nIn the event of proration, we will determine the Proration Factor and pay for those tendered Shares accepted for payment promptly after the Expiration Time. However, we expect that we will not be able to announce the final results of any proration or commence payment for any Shares purchased pursuant to the Offer until after the expiration of the period for delivery of Shares tendered using the guaranteed delivery procedures.\n\n21"
+    },
+    {
+      "id": "tender:5429bbbac58c3547363943778e29446b4a160b0c8df0f97482b77ea25f257f6f",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "4a31e1d65f09c528cad39616ad79287b0fdb736d5ac0b04f8400b154eef882e1",
+      "location": {
+        "start": 13863,
+        "end": 15514,
+        "heading": "IMPORTANT",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "WE ARE NOT AWARE OF ANY JURISDICTION WHERE THE MAKING OF THE OFFER IS NOT IN COMPLIANCE WITH APPLICABLE LAW. IF WE BECOME AWARE OF ANY JURISDICTION WITHIN THE UNITED STATES WHERE THE MAKING OF THE OFFER OR THE ACCEPTANCE OF SHARES PURSUANT TO THE OFFER IS NOT IN COMPLIANCE WITH ANY APPLICABLE LAW, WE WILL MAKE A GOOD FAITH EFFORT TO COMPLY WITH THE APPLICABLE LAW. VALIDLY TENDERED SHARES WILL BE ACCEPTED FROM ALL HOLDERS, WHEREVER LOCATED.\n\nWE HAVE NOT AUTHORIZED ANY PERSON TO MAKE ANY RECOMMENDATION ON OUR BEHALF AS TO WHETHER YOU SHOULD TENDER OR REFRAIN FROM TENDERING YOUR SHARES OR AS TO HOW MANY SHARES TO TENDER IN THE OFFER. WE HAVE NOT AUTHORIZED ANYONE TO PROVIDE YOU WITH INFORMATION OR TO MAKE ANY REPRESENTATION IN CONNECTION WITH THE OFFER OTHER THAN THOSE CONTAINED IN THIS OFFER TO PURCHASE (INCLUDING THE INFORMATION INCORPORATED BY REFERENCE HEREIN), IN THE RELATED LETTER OF TRANSMITTAL OR IN THE OTHER OFFER MATERIALS. OUR DELIVERY OF THIS OFFER TO PURCHASE SHALL NOT UNDER ANY CIRCUMSTANCES CREATE ANY IMPLICATION THAT THE INFORMATION CONTAINED IN THIS OFFER TO PURCHASE IS CORRECT AS OF ANY TIME OTHER THAN THE DATE OF THIS OFFER TO PURCHASE OR THAT THERE HAVE BEEN NO CHANGES IN THE INFORMATION INCLUDED OR INCORPORATED BY REFERENCE HEREIN OR IN THE AFFAIRS OF THE COMPANY OR ANY OF ITS SUBSIDIARIES OR AFFILIATES SINCE THE DATE HEREOF. IF ANYONE MAKES ANY RECOMMENDATION OR GIVES ANY INFORMATION OR REPRESENTATION, YOU MUST NOT RELY UPON THAT RECOMMENDATION, INFORMATION OR REPRESENTATION AS HAVING BEEN AUTHORIZED BY THE COMPANY, OUR BOARD, THE DEALER MANAGER, THE DEPOSITARY OR THE INFORMATION AGENT.\n\nTable of Contents"
+    },
+    {
+      "id": "tender:c264e59c5f85a532d38cd7e37fe234a8b8cd44d78826d4b1a17d0893497665ae",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "af02f6d327c84b0d809c6224df4a23d4f33557530d2ba0a5c9c3a5143eb0ae98",
+      "location": {
+        "start": 202717,
+        "end": 203784,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The tax discussion set forth above is included for general information only and is not tax advice. You are urged to consult your tax advisor to determine the particular tax consequences to you of the Offer, including the applicability and effect of federal, state, local, foreign and other tax laws and treaties.\n\n15. Extension of the Offer; Termination; Amendment\n\nWe expressly reserve the right, in our sole discretion, subject to applicable law, at any time and from time to time, and regardless of whether or not any of the events set forth in Section 6 shall have occurred or shall be deemed by us to have occurred, to extend the period of time during which the Offer is open and thereby delay acceptance for payment of, and payment for, any Shares by giving oral or written notice of such extension to the Depositary and making a public announcement of such extension; provided, however, in no event will we extend the Offer beyond April 30, 2025. We also expressly reserve the right, in our sole discretion, to terminate the Offer and not accept for payment or"
+    },
+    {
+      "id": "tender:73d7902262674e2ea3f9f01886a4a703bd363495c8749975ebd9e6ae11aff8ab",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "document": {
+        "accession": "0001213900-25-000757",
+        "form": "SC TO-I",
+        "documentId": "sctoi_ex99a1arumble.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "fb4f1a40d7cc8ed059559dc416c56435b1627ba4f93c73e44a619a9219f1b40f",
+      "renderedHash": "5a7ebb87e1bd4bb13a0b9e67e2207db73b5677614cc7905b4c9bf5f8168f3f38",
+      "textHash": "83d4ef1d39a0999b75e7301ff232d362a8fb1dec4f8428df11bae2c3108cf505",
+      "location": {
+        "start": 61758,
+        "end": 62458,
+        "heading": "THE OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "1. Number of Shares; Purchase Price; Proration\n\nGeneral. Upon the terms and subject to the conditions of the Offer, we will purchase up to 70,000,000 Shares at a price of $7.50 per Share, less any applicable withholding taxes and without interest, which represents $525 million.\n\nThe term “Expiration Time” means 5:00 p.m., New York City time, on February 4, 2025, unless we extend or terminate the period of time during which the Offer will remain open, in which event the term “Expiration Time” shall refer to the latest time and date at which the Offer, as so extended or terminated by us, shall expire. See Section 15 for a description of our right to extend, delay, terminate or amend the Offer."
+    }
+  ]
+}

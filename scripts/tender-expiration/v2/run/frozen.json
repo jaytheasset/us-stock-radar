@@ -1,0 +1,35 @@
+{
+  "runId": "tender-expiration-v2-rumble-canary-20261006",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-2.5-flash",
+  "frozenAt": "2026-10-06T03:40:57.732Z",
+  "files": {
+    "PLAN.md": "9c80d29cc2a37385ee60342261b73fb2b5f89c6c6dc7437ee285a93ab54dc37f",
+    "contract.ts": "4600beea9e20c209421c503cde044ff7feb9b5d170f793d831153136326ed097",
+    "run.mjs": "3c2325db37de7fae3c5f6bc15cb6cbd9f5468a8f9c750b25f9c67014d2b33ebb",
+    "run.test.mjs": "d379039fb23fc57a243184088c02bfd36a95108837876346d8bd0f8640459814",
+    "run/source.json": "e0b0e4ccfeb212c0da48787fdd27a589c051e186a0674abd6f856db3c6af154d",
+    "run/request.json": "b8b536f55fc80cee42045d35ddc25ceac1f584102a9fb1aa96273cef7ff445e7",
+    "run/provider-schema.json": "8d3de51257b40e46a602b0fcafda64fa79b881c5aff930858d1c6741f74f724c",
+    "run/prompt.txt": "af749f0bda54733b8bf6da025950c16870c4c9a91a87a014fb13dc8b7bdb3478",
+    "run/prompt.diff": "c07622f44262a9d449b638d56d5e312b16c46d31fbea69af0ac6afaed0a180e7"
+  },
+  "v1Files": {
+    ".gitattributes": "6138236aa48a5c592bbf95de8ae98812509388a62cbc4091397889a6d033a9cc",
+    "contract.ts": "ed1b4e993fdfb4b628166bcebb4c8aaf26158759b2f9443624ded3a1cd3e60df",
+    "fixtures/inputs.json": "2be597c475af1a71f3c235d6c5e5508bf10e635532abe94f6c8c1758568a41e4",
+    "PLAN.md": "d3bec590f41f3b7897369cea84070052fcfe20a69f6a1a5fcdad62779d8ed6d7",
+    "prepare.mjs": "156bf0621d39aae2d85075337e42af5700fa2ff6fbd5cafdf2629c9c2af69230",
+    "REPORT.md": "ed79e46a26fe801f4a89338d965d3b894c677c50831c0bd119a5dfb570918571",
+    "results/initial/attempt.json": "483533c5e911ea7bc998aaf1ceaace8c8b5b97a0a924444215fc2e505dea6d5e",
+    "results/initial/audit.json": "0036e83fbd537b55ea556a59e8ac1a83af48b12c33b7325834e5eac30ff312c1",
+    "results/initial/provider-response.txt": "b3876c1b58de3f07dbd35556c4412a76c8e93f5fe02003757975fb2e4b818fe5",
+    "results/initial/request.json": "44da661417711f88a8e1103f4407aa55b6056d3e23d82aaf322e52e444aee0ff",
+    "results/initial/structured.txt": "0bcdaec33bf1c03e591f0d6ff887b249c4d3b95bcb8e63513af50b39fcd306d5",
+    "results/ledger.json": "19753533aa4f48437f6447b08dbc98ad706d217e2c65d45deb6d19985bd04593",
+    "results/started.json": "db8889a12776a89dae36283ecd5d5004ec4e7cee6b72a30817ffdf91f8c8e171",
+    "run.mjs": "10232fc124e7fabf3fb7f479a4a75a603834af667037affe48ec005ca968e431",
+    "run.test.mjs": "68050311158f5c1f223b2c6e5251e38079f0315cccf66f8fe4e8a4414fd14b74",
+    "verify-audit.mjs": "2f234859a29d80fe595e69ad7bf73151616d6b97fc689bad291d1dc258599148"
+  }
+}

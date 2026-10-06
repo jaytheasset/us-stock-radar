@@ -1,0 +1,29 @@
+{
+  "runId": "tender-expiration-v2-rumble-canary-20261006",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-2.5-flash",
+  "modelVersion": "gemini-2.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 2500,
+  "usage": {
+    "promptTokenCount": 8767,
+    "candidatesTokenCount": 265,
+    "totalTokenCount": 9032,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 8767
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "valid": false,
+    "errors": [
+      "facts.0.evidence_ids.3: Invalid string: must match pattern /^tender:[a-f0-9]{64}$/"
+    ]
+  },
+  "completed": false
+}

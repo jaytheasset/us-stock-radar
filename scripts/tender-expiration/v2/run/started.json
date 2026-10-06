@@ -1,0 +1,8 @@
+{
+  "runId": "tender-expiration-v2-rumble-canary-20261006",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-2.5-flash",
+  "startedAt": "2026-10-06T03:41:05.741Z",
+  "maxPhysicalCalls": 1,
+  "requestHash": "b8b536f55fc80cee42045d35ddc25ceac1f584102a9fb1aa96273cef7ff445e7"
+}
