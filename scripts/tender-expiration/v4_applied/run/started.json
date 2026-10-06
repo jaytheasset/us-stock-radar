@@ -1,0 +1,9 @@
+{
+  "runId": "tender-expiration-v4-applied-extension-20261006",
+  "accession": "0001193125-26-026154",
+  "model": "gemini-2.5-flash",
+  "startedAt": "2026-10-06T04:46:18.726Z",
+  "maxPhysicalCalls": 1,
+  "requestHash": "282bb90461029b9012521dededfaa05ed6fcaf6b2bbbd282b46bc5c0b271914f",
+  "mappingHash": "66db959cae43e968b63a688534614ac7c6d2c2577223dc62db191954e656dd0b"
+}

@@ -1,0 +1,14 @@
+{
+  "runId": "tender-expiration-v4-applied-extension-20261006",
+  "targetAccession": "0001193125-26-026154",
+  "physicalCalls": 1,
+  "httpStatus": 404,
+  "semanticTestReached": false,
+  "classification": "PROVIDER_MODEL_UNAVAILABLE",
+  "model": "gemini-2.5-flash",
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "otherModelCalls": 0,
+  "nextCaseCalls": 0
+}

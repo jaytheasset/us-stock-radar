@@ -1,0 +1,38 @@
+{
+  "runId": "tender-expiration-v4-applied-extension-20261006",
+  "model": "gemini-2.5-flash",
+  "physicalCalls": 1,
+  "cases": [
+    {
+      "runId": "tender-expiration-v4-applied-extension-20261006",
+      "accession": "0001193125-26-026154",
+      "model": "gemini-2.5-flash",
+      "modelVersion": null,
+      "physicalCalls": 1,
+      "httpStatus": 404,
+      "finishReason": null,
+      "latencyMs": 543,
+      "usage": null,
+      "validation": {
+        "providerSchema": {
+          "valid": false,
+          "errors": [
+            "invalid-json"
+          ]
+        },
+        "local": {
+          "valid": false,
+          "errors": [
+            "invalid-json"
+          ]
+        }
+      },
+      "provenanceValid": false,
+      "mappingHash": "66db959cae43e968b63a688534614ac7c6d2c2577223dc62db191954e656dd0b",
+      "technicalPass": false,
+      "semanticReview": "pending-direct-source-review"
+    }
+  ],
+  "stopped": true,
+  "otherFilingsExecuted": 0
+}

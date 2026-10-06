@@ -1,0 +1,237 @@
+{
+  "accession": "0001193125-26-026154",
+  "form": "SC TO-T/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:7c0c88395fc0f73d6e692a69e6bf6de72aca847a270965c33581559cdc875984",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "a79dc8291b397da48dcaced5bcfc2f8253a6a07dcb0cc9c455b87b03c8eefe89",
+      "location": {
+        "start": 5483,
+        "end": 6495,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "“On January 28, 2026, Purchaser announced an extension of the Expiration Time until one minute following 11:59 p.m., Eastern time, on January 28, 2026, unless the Offer is further extended or earlier terminated as permitted by the Merger Agreement. The Offer was previously scheduled to expire at one minute following 11:59 p.m., Eastern time, on January 27, 2026.\n\nEquiniti Trust Company, LLC, the depositary for the Offer, has advised Purchaser that, as of one minute following 11:59 p.m., Eastern time, on January 27, 2026, approximately 63,684,636 Shares (which include 3,735,684 shares subject to guaranteed delivery) have been validly tendered and not properly withdrawn pursuant to the Offer, representing approximately 41.29% of the outstanding Shares.\n\nParent and Purchaser expect the Offer will be consummated promptly following the expiration of the Offer (as hereby extended), subject to the satisfaction of the remaining conditions to the consummation of the Offer set forth in the Merger Agreement."
+    },
+    {
+      "id": "tender:939f82ace5ec58c8236160784881a16d0ca6f32dda631f33b3b44cf10069961d",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "e99f8dd0b946f91b2eaa627efe5795a31d82da3d255116e51c0376d6348cca3a",
+      "location": {
+        "start": 5224,
+        "end": 5847,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Items 1 through 9 and Item 11.\n\nThe Offer to Purchase and Items 1 through 9 and Item 11 of the Schedule TO, to the extent such Items incorporate by reference the information contained in the Offer to Purchase, are hereby amended and supplemented as follows:\n\n“On January 28, 2026, Purchaser announced an extension of the Expiration Time until one minute following 11:59 p.m., Eastern time, on January 28, 2026, unless the Offer is further extended or earlier terminated as permitted by the Merger Agreement. The Offer was previously scheduled to expire at one minute following 11:59 p.m., Eastern time, on January 27, 2026."
+    },
+    {
+      "id": "tender:06263389de185ea622badca62a0be70de46d63ea1bc61ba46c96de32d68dbd3b",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "e236efcbfbc95d8dcfb1c27284f1bd78611a34034a4e1bd8ec30882e15db95f3",
+      "location": {
+        "start": 6245,
+        "end": 6700,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Parent and Purchaser expect the Offer will be consummated promptly following the expiration of the Offer (as hereby extended), subject to the satisfaction of the remaining conditions to the consummation of the Offer set forth in the Merger Agreement.\n\nThe press release announcing the extension of the Offer is attached hereto as Exhibit (a)(5)(H) and incorporated herein by reference.”\n\nAmendments to the Offer to Purchase and Exhibits to the Schedule TO"
+    },
+    {
+      "id": "tender:1c8dbb05e0e40184857d70e7bdd6dfcc796c4b08dd84d2dda912cbf4e15fdfaf",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "236169faed6e978398f3a39fff30215760fbf5dc64a929f38df15793fa9de10b",
+      "location": {
+        "start": 2489,
+        "end": 5254,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "This Amendment No. 2 (this “Amendment”) amends and supplements the Tender Offer Statement on Schedule TO, filed on December 29, 2025 (together with any amendments and supplements hereto, including this Amendment, the “Schedule TO”), by AT2B, Inc., a Delaware corporation (“Purchaser”) and an indirect wholly owned subsidiary of Cycle Group Holdings Limited, a private limited company incorporated in England and Wales (“Parent”), relating to the offer by Purchaser to purchase all of the outstanding shares of common stock, par value, $0.0001 per share (the “Shares”) of Applied Therapeutics, Inc., a Delaware corporation (the “Company”), at a purchase price of (i) $0.088 per Share, net to the seller in cash, without interest (the “Closing Amount”) plus (ii) one non-tradeable contingent value right (each, a “CVR”), which represents the contractual right to receive up to four contingent cash payments up to an aggregate of (x) $0.40 per CVR plus (y) an amount equal to each CVR holder’s pro rata portion of any Closing Cash Payment (as defined in the CVR Agreement) upon the achievement of the specified milestones and existence of Closing Cash (as defined in the CVR Agreement) that exceeds $500,000 but is less than $1,500,000 at the Effective Time, in each case, in accordance with the terms and subject to the conditions of the contingent value rights agreement (the “CVR Agreement”) by and between Parent and Equiniti Trust Company, LLC (the “Rights Agent”), if any, at the times provided for in the CVR Agreement, net to the seller in cash, without interest (the Closing Amount plus one CVR, collectively, the “Offer Price”) and less any applicable tax withholding, upon the terms and subject to the conditions set forth in the Offer to Purchase dated December 29, 2025 (together with any amendments or supplements thereto, the “Offer to Purchase”), and in the related Letter of Transmittal, which are annexed to and filed with the Schedule TO as Exhibits (a)(1)(A) and (a)(1)(B), respectively.\n\nAll information contained in the Offer to Purchase (including Schedule I to the Offer to Purchase) is hereby expressly incorporated by reference herein in response to Items 1 through 9 and Item 11 of this Schedule TO and is supplemented by the information specifically provided in this Amendment, except as otherwise set forth below. Except to the extent specifically provided in this Amendment, the information set forth in Schedule TO remains unchanged. This Amendment is being filed to extend the expiration time of the tender offer This Amendment should be read together with the Schedule TO. Capitalized terms used and not otherwise defined in this Amendment have the meanings given to such terms in the Offer to Purchase.\n\nItems 1 through 9 and Item 11."
+    },
+    {
+      "id": "tender:5530ec5453ee6c9d45980928a7ac67d203b7d14fa2a0b8d83b73b0f79338b577",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "2de7d87f1f0ff51c0abf650a7ab0e81fce9a375a8d0c1260d07360a0c122af7b",
+      "location": {
+        "start": 6497,
+        "end": 7278,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The press release announcing the extension of the Offer is attached hereto as Exhibit (a)(5)(H) and incorporated herein by reference.”\n\nAmendments to the Offer to Purchase and Exhibits to the Schedule TO\n\nAll references to “one minute following 11:59 p.m., Eastern time, on January 27, 2026” set forth in the Offer to Purchase (Exhibit (a)(1)(A)), Letter of Transmittal (Exhibit (a)(1)(B)), Letter to Brokers, Dealers, Commercial Banks, Trust Companies and Other Nominees (Exhibit (a)(1)(C)), Letter to Clients for use by Brokers, Dealers, Commercial Banks, Trust Companies and Other Nominees (Exhibit (a)(1)(D)) and Form of Notice of Guaranteed Delivery (Exhibit (a)(1)(E)) are hereby amended and replaced with “one minute following 11:59 p.m., Eastern time, on January 28, 2026.”"
+    },
+    {
+      "id": "tender:ad7bed06565b0dc3b19031f18de4b341a5ed5af2d2b2478b205c7f5e99351e65",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "eb9a1fe564754bd0e26d84e2cfa3a8bdf3ce349947547075be01060d50ce622b",
+      "location": {
+        "start": 5256,
+        "end": 6243,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The Offer to Purchase and Items 1 through 9 and Item 11 of the Schedule TO, to the extent such Items incorporate by reference the information contained in the Offer to Purchase, are hereby amended and supplemented as follows:\n\n“On January 28, 2026, Purchaser announced an extension of the Expiration Time until one minute following 11:59 p.m., Eastern time, on January 28, 2026, unless the Offer is further extended or earlier terminated as permitted by the Merger Agreement. The Offer was previously scheduled to expire at one minute following 11:59 p.m., Eastern time, on January 27, 2026.\n\nEquiniti Trust Company, LLC, the depositary for the Offer, has advised Purchaser that, as of one minute following 11:59 p.m., Eastern time, on January 27, 2026, approximately 63,684,636 Shares (which include 3,735,684 shares subject to guaranteed delivery) have been validly tendered and not properly withdrawn pursuant to the Offer, representing approximately 41.29% of the outstanding Shares."
+    },
+    {
+      "id": "tender:a58804ec92d516e9d8828567a8f5e62612d9bdfcc987bb17735457a06c3b5538",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "06fe7632e78e291501fa279a43f88ecfd8fa3cfcbe08093ac478e3696273b7bb",
+      "location": {
+        "start": 1367,
+        "end": 1809,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|| || ||\n\n|Amount Previously Paid: $2,829.99| | | |Filing Party: AT2B, Inc.|\n\n|Form or Registration No.: Schedule TO-T (File No. 005-91017)| | | |Date Filed: December 29, 2025|\n\n[/TABLE]\n\n[TABLE]\n\n|☐ | |\nCheck the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.\n|\n\n[/TABLE]\n\nCheck the appropriate boxes below to designate any transactions to which the statement relates:"
+    },
+    {
+      "id": "tender:9545310b83215c503a4cc70ce62a9ae90d10fab8f99bc5db7527e4b4654d7553",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "f0cd9b427855f8b87f06722025c9744004ed184074ae535f4e198132bfb63792",
+      "location": {
+        "start": 1043,
+        "end": 1562,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Telephone: (212) 813-8800\n\n[TABLE]\n\n|☒ | |\nCheck the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the form or schedule and the date of its filing.\n|\n\n[/TABLE]\n\n[TABLE]\n\n|| || ||\n\n|Amount Previously Paid: $2,829.99| | | |Filing Party: AT2B, Inc.|\n\n|Form or Registration No.: Schedule TO-T (File No. 005-91017)| | | |Date Filed: December 29, 2025|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:10dd3be29f8296a1099ff5961ecb6feaf48395cafebd6c6ec5c9de0b4f812084",
+      "accession": "0001193125-26-026154",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-26-026154",
+        "form": "SC TO-T/A",
+        "documentId": "d805076dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1697532/000119312526026154/d805076dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "a39a08d158d3583464697a779c6316e3c6b3a3ebdad2782755484f9c58dbddb3",
+      "renderedHash": "d58091dbe436cc3c382f45898aeae4a3d51032abd56c106ad9303e80c4f0ccc0",
+      "textHash": "abed5f2933abf25d09433c67b3e9b1b0c1ef0904c70f776c632ff4c2fcf27d56",
+      "location": {
+        "start": 2328,
+        "end": 4493,
+        "heading": "CYCLE GROUP HOLDINGS LIMITED",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|☐ | |\nRule 13e-4(i) (Cross-Border Issuer Tender Offer)\n|\n\n[/TABLE]\n\n[TABLE]\n\n|☐ | |\nRule 14d-1(d) (Cross-Border Third-Party Tender Offer)\n|\n\n[/TABLE]\n\nThis Amendment No. 2 (this “Amendment”) amends and supplements the Tender Offer Statement on Schedule TO, filed on December 29, 2025 (together with any amendments and supplements hereto, including this Amendment, the “Schedule TO”), by AT2B, Inc., a Delaware corporation (“Purchaser”) and an indirect wholly owned subsidiary of Cycle Group Holdings Limited, a private limited company incorporated in England and Wales (“Parent”), relating to the offer by Purchaser to purchase all of the outstanding shares of common stock, par value, $0.0001 per share (the “Shares”) of Applied Therapeutics, Inc., a Delaware corporation (the “Company”), at a purchase price of (i) $0.088 per Share, net to the seller in cash, without interest (the “Closing Amount”) plus (ii) one non-tradeable contingent value right (each, a “CVR”), which represents the contractual right to receive up to four contingent cash payments up to an aggregate of (x) $0.40 per CVR plus (y) an amount equal to each CVR holder’s pro rata portion of any Closing Cash Payment (as defined in the CVR Agreement) upon the achievement of the specified milestones and existence of Closing Cash (as defined in the CVR Agreement) that exceeds $500,000 but is less than $1,500,000 at the Effective Time, in each case, in accordance with the terms and subject to the conditions of the contingent value rights agreement (the “CVR Agreement”) by and between Parent and Equiniti Trust Company, LLC (the “Rights Agent”), if any, at the times provided for in the CVR Agreement, net to the seller in cash, without interest (the Closing Amount plus one CVR, collectively, the “Offer Price”) and less any applicable tax withholding, upon the terms and subject to the conditions set forth in the Offer to Purchase dated December 29, 2025 (together with any amendments or supplements thereto, the “Offer to Purchase”), and in the related Letter of Transmittal, which are annexed to and filed with the Schedule TO as Exhibits (a)(1)(A) and (a)(1)(B), respectively."
+    }
+  ]
+}
