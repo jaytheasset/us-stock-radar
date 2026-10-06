@@ -1,0 +1,14 @@
+{
+  "runId": "tender-union-v1-xerox-terminated",
+  "accession": "0001193125-20-092896",
+  "model": "gemini-3.5-flash",
+  "frozenAt": "2026-10-06T11:58:16.935Z",
+  "files": {
+    "evidence-map.json": "0e231f5dd84d1ca2f2ca90725aa524783b97b6558546f10339f32313907c5326",
+    "prompt.txt": "4d584d2cfd853a7ef1ec5089b2d8d15869888dfbfff267cfa83f7ad567995c4d",
+    "provider-schema.json": "a7f07dc9301e92057576ae95a56ac4cc527d654b399693bfe456347add51ad50",
+    "provider-source.json": "0e2dd7eb82a9ecaafd74e42d989d7e4757376d0ea1f54d8f272b338b7600ecda",
+    "request.json": "14d6265068698d77c57660c4bbfbdbabdb4104545648e77dcd304cbbcbe02636",
+    "source.json": "4528ed45b3c5a60ec98ccb060c5c5f8fc6cad5391b7f7d9f5a0acc1ba52e70cd"
+  }
+}

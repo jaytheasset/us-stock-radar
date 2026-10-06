@@ -1,0 +1,37 @@
+{
+  "runId": "tender-union-v1-dxl-amendment",
+  "fact": "tender_five_fact_union",
+  "name": "dxl-amendment",
+  "accession": "0001193125-26-298540",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 2824,
+  "usage": {
+    "promptTokenCount": 6505,
+    "candidatesTokenCount": 226,
+    "totalTokenCount": 6731,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 6505
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "technicalPass": true,
+  "failureClass": null
+}

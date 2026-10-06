@@ -1,0 +1,14 @@
+{
+  "runId": "tender-union-v1-carlyle-final",
+  "accession": "0001702510-26-000009",
+  "model": "gemini-3.5-flash",
+  "frozenAt": "2026-10-06T11:58:16.922Z",
+  "files": {
+    "evidence-map.json": "d9cc80a122fbbe4c7db4e017887d0330ccf5538fda1bea3ffc99d8bb0b35f7e1",
+    "prompt.txt": "4d584d2cfd853a7ef1ec5089b2d8d15869888dfbfff267cfa83f7ad567995c4d",
+    "provider-schema.json": "a7f07dc9301e92057576ae95a56ac4cc527d654b399693bfe456347add51ad50",
+    "provider-source.json": "59be785ce3337dcc49a3a0d86c512abd30d4fbcf9f22ca985e489abd7bf1cc8d",
+    "request.json": "ad53a8e586a5ada92436ebdd9fd201dcfa59634de2c5c961a83e86a90961908d",
+    "source.json": "018e1d68a8651dc275574fdea31347f04e918893cd17b7c575f1502928c08689"
+  }
+}

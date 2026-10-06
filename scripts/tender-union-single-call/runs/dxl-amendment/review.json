@@ -1,0 +1,62 @@
+{
+  "reviewer": "Codex direct source review, not independent human signoff",
+  "reviewedAt": "2026-10-06T11:59:44.573Z",
+  "pass": false,
+  "outputHash": "ec1552712a715cd00034df7594d1a66c9c2ee89e38df984d1fb8563048fdd51f",
+  "missingTypes": [],
+  "extraTypes": [],
+  "valueErrors": [],
+  "previousErrors": [
+    {
+      "type": "expiration",
+      "field": "previous",
+      "expected": "2026-06-22",
+      "actual": "omitted",
+      "directRefs": [
+        "E4",
+        "E13"
+      ],
+      "classification": "MODEL_ERROR",
+      "reason": "E4 expressly states the earlier extended expiration June22. E13 directly links May27 extension to June22 and June23 extension to July24. Frozen baseline requires this explicit prior date. Optional JSON field is structurally legal to omit, but semantic baseline is not satisfied."
+    }
+  ],
+  "contamination": false,
+  "failureClass": "MODEL_ERROR",
+  "unresolvedReview": "Empty unresolved does not acknowledge the omitted explicit prior expiration.",
+  "facts": {
+    "expiration": {
+      "current": {
+        "E1": "DIRECT: current scheduled July24,2026"
+      },
+      "previous": "FAIL: missing explicit June22,2026 in E4/E13"
+    },
+    "offer_price": {
+      "current": {
+        "E8": "DIRECT: current $0.84 per share cash",
+        "E9": "DIRECT: same operative cash terms",
+        "E12": "DIRECT: increased $.82 to $.84",
+        "E13": "DIRECT: same explicit price amendment"
+      },
+      "previous": {
+        "E12": "DIRECT: earlier $.82 in same increase sentence",
+        "E13": "DIRECT: earlier $.82 in same increase sentence"
+      }
+    },
+    "board_recommendation": {
+      "current": {
+        "E11": "DIRECT: announced board recommend reject and not tender",
+        "E12": "DIRECT: board explicitly recommended rejection"
+      },
+      "previous": "correctly omitted; temporary company communication and separate FBB merger are not previous tender recommendations"
+    }
+  },
+  "crossFactChecks": [
+    "All three expected types emitted; no excess types",
+    "Interim count not promoted to final",
+    "Competing proposal $1.25 not previous price",
+    "FBB merger recommendation not previous tender board recommendation",
+    "No actual offer_status from conditions/holder withdrawals",
+    "Missing explicit expiration.previous is cross-FACT retention failure; cause of attention competition is not established"
+  ],
+  "action": "STOP entire paid batch after2calls; no retry/repair/query expansion/fallback/per-FACT call"
+}

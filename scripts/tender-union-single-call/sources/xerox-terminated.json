@@ -1,0 +1,187 @@
+{
+  "accession": "0001193125-20-092896",
+  "form": "SC TO-T/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:d3290a1e46406721d7100a1ff6283506448e6bc88da53562cc746842064f90c3",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-20-092896",
+        "form": "SC TO-T/A",
+        "documentId": "d909416dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+      "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+      "textHash": "3ed3a0db9ecf7537c4adb02b65a49b05bcae1d9ddf503fa02bec61b807be2b2b",
+      "location": {
+        "start": 3929,
+        "end": 5513,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n| | |\n☐\n| |\ngoing-private transaction subject to Rule 13e-3.\n|\n\n| | |\n☐\n| |\namendment to Schedule 13D under Rule 13d-2.\n|\n\n[/TABLE]\n\nCheck the following box if the filing is a final amendment reporting the results of the tender offer: ☐\n\nThis Amendment No. 1 to Schedule TO amends and supplements the Tender Offer Statement on Schedule TO (together with any amendments and supplements hereto, the “Schedule TO”) originally filed on March 2, 2020 by Xerox Holdings Corporation, a New York corporation (“Xerox”), and XHC Acquisition Corp., a Delaware corporation (“Purchaser”), and relates to the third-party tender offer by Purchaser to exchange each issued and outstanding share of common stock, par value $0.01 per share (including the associated rights to purchase preferred stock), of HP Inc., a Delaware corporation (such shares of common stock, including the associated rights to purchase preferred stock, being referred to as “HP common stock”), for $18.40 in cash and 0.149 shares of common stock, $1.00 par value per share, of Xerox, the Cash Election Consideration (as set forth on the cover page of the Offer to Exchange) or the Stock Election Consideration (as set forth on the cover page of the Offer to Exchange), subject in each case to the election and proration procedures described in (1) the Offer to Exchange, dated March 2, 2020 (the “Offer to Exchange”), and (2) the related Letter of Election and Transmittal (the offer reflected by such terms and conditions, as they may be amended, supplemented or extended from time to time, constitutes the “Offer”)."
+    },
+    {
+      "id": "tender:6d8530a98270750cc2d51817a48d3a57ba7fbe61b06a1eb8d82abd2053de20fc",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-20-092896",
+        "form": "SC TO-T/A",
+        "documentId": "d909416dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+      "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+      "textHash": "5fcfacf75fe6d234f0f7cac14ffafeeb1a7b8c1b5c19ddf2177003362dbab4b1",
+      "location": {
+        "start": 2961,
+        "end": 3690,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|\n☒\n| |\nCheck the box if any part of the fee is offset as provided by Rule 0- 11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.\n|\n\n[/TABLE]\n\n[TABLE]\n\n|[colspan=5]\nAmount Previously Paid:\n| | | |\n$4,264,235.19\n| |[colspan=3] | |\nFiling Party:\n| | | |\nXerox Holdings Corporation\n| | |\n\n|[colspan=5]\nForm or Registration No.\n| | | |\nForm S-4; Schedule TO\n| |[colspan=3] | |\nDate Filed:\n| | | |\nMarch 2, 2020\n| | |\n\n[/TABLE]\n\n[TABLE]\n\n|\n☐\n| |\nCheck the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:6a261ee42cef45141ab14c8f9be151d683ea85e643528bdbe36da34836bbc298",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-20-092896",
+        "form": "SC TO-T/A",
+        "documentId": "d909416dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+      "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+      "textHash": "17c78e330de8e285881f1974e0f82b9e4b7685909d3af60778279fc647771a40",
+      "location": {
+        "start": 2756,
+        "end": 3539,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|\n(2)\n| |\nComputed in accordance with Rule 0-11 under the Exchange Act to be $4,264,235.19, which is equal to 0.0001298 multiplied by the transaction valuation of $32,852,351,249.33.\n|\n\n[/TABLE]\n\n[TABLE]\n\n|\n☒\n| |\nCheck the box if any part of the fee is offset as provided by Rule 0- 11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.\n|\n\n[/TABLE]\n\n[TABLE]\n\n|[colspan=5]\nAmount Previously Paid:\n| | | |\n$4,264,235.19\n| |[colspan=3] | |\nFiling Party:\n| | | |\nXerox Holdings Corporation\n| | |\n\n|[colspan=5]\nForm or Registration No.\n| | | |\nForm S-4; Schedule TO\n| |[colspan=3] | |\nDate Filed:\n| | | |\nMarch 2, 2020\n| | |\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:3c3a5ab174f8553a80ebe69d59d2ad41bfbff9c85254b34db242f5fced03b6b2",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-20-092896",
+        "form": "SC TO-T/A",
+        "documentId": "d909416dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+      "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+      "textHash": "b440e3718d6f0bbb80f89e15f2d293ba11243942e2f1c1770b3b46e54876c72c",
+      "location": {
+        "start": 1498,
+        "end": 3258,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|\n(1)\n| |\nPursuant to Rule 0-11 under the Securities Exchange Act of 1934, as amended, which we refer to as the Exchange Act, and solely for the purpose of calculating the filing fee, the market value of the securities to be received was calculated as the product of (1) 1,490,240,474 shares of common stock, par value $0.01 per share, of HP Inc., which we refer to as HP and which common stock we refer to as HP common stock (being the sum of (i) 1,453,187,484 shares of HP common stock outstanding (as reported in HP’s Annual Report on Form 10-K for the year ended October 31, 2019), (ii) 7,093,000 shares of HP common stock issuable upon the exercise of outstanding options (as reported in HP’s Annual Report on Form 10-K for the year ended October 31, 2019) and (iii) 29,960,000 shares of HP common stock subject to restricted stock units (as reported in HP’s Annual Report on Form 10-K for the year ended October 31, 2019), less ten shares of HP common stock in which Xerox has an ownership interest (which will not be tendered in the offer and will be cancelled in any merger with HP) and (2) the average of the high and low sale prices of HP common stock as reported on the New York Stock Exchange on February 27, 2020 ($22.05).\n|\n\n[/TABLE]\n\n[TABLE]\n\n|\n(2)\n| |\nComputed in accordance with Rule 0-11 under the Exchange Act to be $4,264,235.19, which is equal to 0.0001298 multiplied by the transaction valuation of $32,852,351,249.33.\n|\n\n[/TABLE]\n\n[TABLE]\n\n|\n☒\n| |\nCheck the box if any part of the fee is offset as provided by Rule 0- 11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form or Schedule and the date of its filing.\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:3bb41431b72c7887e553109cb96da5f6993f3d4891e91123f19d5c553b2996d0",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-20-092896",
+        "form": "SC TO-T/A",
+        "documentId": "d909416dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+      "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+      "textHash": "25f14be252389d2d120a6d612eea78bced86d38b692b2e3833b06ba196912156",
+      "location": {
+        "start": 330,
+        "end": 430,
+        "heading": "XHC ACQUISITION CORP.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "XHC ACQUISITION CORP.\n\n(Names of Filing Persons (Offerors))\n\nCommon Stock, $0.01 par value per share"
+    },
+    {
+      "id": "tender:9a42b263f5cacba51f34086f3867e946f65594a7a455d5aa5868209fbbf4f0f8",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-20-092896",
+        "form": "SC TO-T/A",
+        "documentId": "d909416dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+      "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+      "textHash": "5cf242566d502b92e053fdf7310e7357d68d5c9c813d4d59c5a33e1c4b91d936",
+      "location": {
+        "start": 112,
+        "end": 156,
+        "heading": "AMENDMENT NO. 1",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "SCHEDULE TO\n\nAMENDMENT NO. 1\n\n(Rule 14d-100)"
+    },
+    {
+      "id": "tender:7808bec749564d57edf13dfc6fb1b2eb4adc77d4db0a13210cbc5f892ad6964a",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001193125-20-092896",
+        "form": "SC TO-T/A",
+        "documentId": "d909416dsctota.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+      "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+      "textHash": "a24d4e6d34adf2ee679b529bec641f318c4d73eb9126b8e8e7ac59a315cada08",
+      "location": {
+        "start": 3260,
+        "end": 3787,
+        "heading": "CALCULATION OF FILING FEE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "[TABLE]\n\n|[colspan=5]\nAmount Previously Paid:\n| | | |\n$4,264,235.19\n| |[colspan=3] | |\nFiling Party:\n| | | |\nXerox Holdings Corporation\n| | |\n\n|[colspan=5]\nForm or Registration No.\n| | | |\nForm S-4; Schedule TO\n| |[colspan=3] | |\nDate Filed:\n| | | |\nMarch 2, 2020\n| | |\n\n[/TABLE]\n\n[TABLE]\n\n|\n☐\n| |\nCheck the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.\n|\n\n[/TABLE]\n\nCheck the appropriate boxes below to designate any transactions to which the statement relates:"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "practicalPass": false,
+  "status": "FAIL; stopped after2 of4 planned cases",
+  "failureClass": "MODEL_ERROR",
+  "failedCase": "dxl-amendment",
+  "reason": "Explicit prior expiration2026-06-22 omitted versus frozen SEC-text baseline",
+  "physicalCalls": 2,
+  "plannedFilings": 4,
+  "executedFilings": 2,
+  "maxPhysicalCalls": 4,
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "recall": 0,
+  "unexecuted": [
+    "carlyle-final",
+    "xerox-terminated"
+  ],
+  "existingIndependentFactPasses": "unchanged",
+  "nextStep": "Await user decision; no more paid calls or product work",
+  "independentHumanSignoff": false
+}

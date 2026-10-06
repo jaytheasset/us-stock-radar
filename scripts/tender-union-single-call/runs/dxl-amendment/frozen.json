@@ -1,0 +1,14 @@
+{
+  "runId": "tender-union-v1-dxl-amendment",
+  "accession": "0001193125-26-298540",
+  "model": "gemini-3.5-flash",
+  "frozenAt": "2026-10-06T11:58:16.911Z",
+  "files": {
+    "evidence-map.json": "c5ad97f31410e373d87c94b3bad134c8a89b8ba786f8732ffa4869d47455631d",
+    "prompt.txt": "4d584d2cfd853a7ef1ec5089b2d8d15869888dfbfff267cfa83f7ad567995c4d",
+    "provider-schema.json": "230bcaf9b7cda34fd06acbd57d8ff998489c20098ccd9b731cc0338e4c3d7648",
+    "provider-source.json": "41060db95865df2bf38991910b40c8fc2817f6303b0d567bdfdf80f901033145",
+    "request.json": "f249c3c9d5773d6187ac4bcad0d69685ef197a196ebe849e2954157ea560e31c",
+    "source.json": "6682b450b32e9c3ec10116cf5619065118de3728941b66c16768539018caff90"
+  }
+}

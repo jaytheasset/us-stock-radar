@@ -1,0 +1,487 @@
+{
+  "accession": "0001193125-26-298540",
+  "form": "SC 14D9/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:5707abce0dde8acb8afc617a2ebe9f85e67fcc5f73637b9cee344c45993cfa90",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "dc95d911484c63be13f8866a6c3a46ceda9661873bf52f21f3d50bc74ad91c03",
+      "location": {
+        "start": 3745,
+        "end": 4128,
+        "heading": "Item 2. Identity and Background of Filing Person.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The third paragraph of the section entitled “(b) Tender Offer” in Item 2 of the Statement is hereby amended and restated in its entirety as follows:\n\nAccording to the Schedule TO, the Offer is currently scheduled to expire at 5:00 p.m., Eastern Time, on July 24, 2026, unless extended in accordance with its terms (the “Expiration Time”).\n\nItem 4. The Solicitation or Recommendation."
+    },
+    {
+      "id": "tender:52098dcdf50a1dd346d5cee273ff3c84e291ab9134b9e4a948c2fac9fc1ed1bd",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "e8379b22e005d0fddd7c26b99c5e4014301f7ee4d700d21d4566d7c956553bde",
+      "location": {
+        "start": 3895,
+        "end": 4361,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "According to the Schedule TO, the Offer is currently scheduled to expire at 5:00 p.m., Eastern Time, on July 24, 2026, unless extended in accordance with its terms (the “Expiration Time”).\n\nItem 4. The Solicitation or Recommendation.\n\nThe subsection entitled “Background of the Offer” under the section entitled “(b) Background and Reasons for the Board’s Recommendation” in Item 4 of the Statement is hereby amended and supplemented by adding the following thereto:"
+    },
+    {
+      "id": "tender:5bfe65ebffb61c946332d0a4fb6c4c47d4be46c4f913d7e8a815bd5bda606c17",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "c4fb25825b573d1605b7ebdb998868c6161a9466435594cbd0d721acb7d82106",
+      "location": {
+        "start": 11846,
+        "end": 12783,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "•\nRegulatory Approvals Condition: (i) The waiting period (including any extensions thereof and any timing agreement entered into with any governmental entity to delay or not consummate the Offer and the proposed merger) applicable to the consummation of the Offer and the proposed merger under the HSR Act, shall have expired or been earlier terminated or not be applicable; and (ii) all other waiting periods (or extensions thereof or any timing agreements entered into with any governmental entity to delay or not consummate the Offer and the proposed merger) any applicable antitrust or competition laws and regulations (other than the HSR Act) shall have expired or been earlier terminated and all other approvals, permits, authorizations, extensions, actions or non-actions, waivers and consents of any governmental entity required in connection with the consummation of the Offer or the proposed merger shall have been obtained.\n\n•"
+    },
+    {
+      "id": "tender:e9b1f7d8712fb06c2b26a172a8109284681ef8c5ed26d9a2000b763df858ad5f",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "41324519459685eb24a16e17cac34d729f4671e7c58bfee54d847d73c5cffdb9",
+      "location": {
+        "start": 4085,
+        "end": 4497,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Item 4. The Solicitation or Recommendation.\n\nThe subsection entitled “Background of the Offer” under the section entitled “(b) Background and Reasons for the Board’s Recommendation” in Item 4 of the Statement is hereby amended and supplemented by adding the following thereto:\n\nOn May 27, 2026, Offeror amended the Offer to extend the expiration date of the Offer until 5:00 p.m., Eastern Time, on June 22, 2026."
+    },
+    {
+      "id": "tender:158c7a8ac7da8fb5138807251c1924c54d6721caa0c0819e466e7d4ac3748c9f",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "b385296a04109806a4fcd7cdd653a43325ba9ec1b2863c8d96f853fc1ec9f9ce",
+      "location": {
+        "start": 10869,
+        "end": 11262,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "•\nMinimum Tender Condition: Company stockholders shall have validly tendered and not validly withdrawn prior to the expiration of the Offer that number of shares of Common Stock that, when added to the shares of Common Stock then owned by Offeror, would represent one share of Common Stock more than one half of all shares of Common Stock then outstanding as of the expiration of the Offer.\n\n•"
+    },
+    {
+      "id": "tender:f127109d9d8e47a89d3ebf74b12a6048820a73d5f242ec2ebbd59fa6533e26ce",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "decdc3dcc958fd7c138254fb4e5a6a53cce76d40ec6cab6c6070dac1a38c5998",
+      "location": {
+        "start": 8958,
+        "end": 9741,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "(iii) The Offer Is Highly Opportunistic\n\nThe Board believes the Offer is deliberately timed to exploit a period of market dislocation and is designed to acquire the Company at a depressed price. The Board further notes that the Offeror previously submitted a proposal in January 2026 to acquire the Company at $1.25 per share—materially higher than the current Offer Price of $0.84 per share—and has now reduced its proposed price by approximately 33% without the benefit of any due diligence into the Company’s business, financial condition or prospects. The Offer represents an opportunistic effort to capture, at a price below fair market value—value that rightfully belongs to the Company’s stockholders.\n\n(iv) The Offer is Highly Conditional, Creating Significant Execution Risk"
+    },
+    {
+      "id": "tender:c01e8118488daa855f6c09ad0c7a44483fc1095e38565299cbacf3ef65f0796b",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "c0ea6a854310e8a06230780b9bc334239592ac56f7c863b0b46ede93da9f4ee7",
+      "location": {
+        "start": 7238,
+        "end": 8029,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "(i) The Offer Price Undervalues the Company Relative to the Company’s Standalone Value\n\nThe Board believes the Offer Price of $0.84 per share fails to reflect the intrinsic value of the Company’s business as a standalone enterprise, including its brand strength, loyal customer relationships, exclusive rights to Size Stream technology platform until 2030 and long-term growth opportunities. The Board notes that the Company’s current share price has been temporarily pressured by broader macroeconomic headwinds affecting the big + tall sector and does not reflect the Company’s underlying value or the strength of its go-forward strategy.\n\n(ii) The Offer neither constitutes nor is reasonably likely to lead to a DXL Superior Proposal under the Company’s existing Merger Agreement with FBB"
+    },
+    {
+      "id": "tender:f229c85470f3d2f501eb9ddbecadb0c3d3686f4bee7705ccc486ba0dfa5ee685",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "da1d6397228a74ce324cd3e4b88170d0e6905c871b90947d5901ea34f0d390b2",
+      "location": {
+        "start": 2818,
+        "end": 3743,
+        "heading": "Item 2. Identity and Background of Filing Person.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Item 2. Identity and Background of Filing Person.\n\nThe first paragraph of the section entitled “(b) Tender Offer” in Item 2 of the Statement is hereby amended and restated in its entirety as follows:\n\nThis Schedule 14D-9 relates to the tender offer by Zodiac Partners II, LLC, a Delaware limited liability company (“Offeror”), and an acquisition entity of Camac Fund, LP, a Delaware limited partnership (“Camac Fund”), to purchase all of the outstanding shares of the Common Stock of the Company at a price of $0.84 per share in cash, without interest and less any applicable withholding taxes (the “Offer Price”), upon the terms and subject to the conditions set forth in the Offer to Purchase dated May 12, 2026 (as amended or supplemented from time to time, the “Offer to Purchase”) and in the related Letter of Transmittal (which, together with any amendments or supplements thereto, collectively constitute the “Offer”)."
+    },
+    {
+      "id": "tender:9c741db2691420e1a5edca224ce27d147074fb12aafe337ed437151770857bb5",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "f00da36714ec01123bee17f26c2c83fc1c596353d771e64a4c508112f8bbc2e1",
+      "location": {
+        "start": 1086,
+        "end": 2424,
+        "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Introduction\n\nThis Amendment No. 3 to Schedule 14D-9 (this “Amendment”) amends and supplements the Solicitation/Recommendation Statement on Schedule 14D-9 (as amended and supplemented from time to time, the “Statement”) originally filed by Destination XL Group, Inc., a Delaware corporation (“Company”), with the Securities and Exchange Commission on May 26, 2026. The Statement relates to the unsolicited tender offer by Zodiac Partners II, LLC, a Delaware limited liability company (“Offeror”), and an acquisition entity of Camac Fund, LP, a Delaware limited partnership (“Camac Fund”), to purchase all of the issued and outstanding shares of the Company’s common stock, par value $0.01 per share (the “Common Stock”), at a price of $0.84 per share in cash, without interest and less any required withholding taxes (the “Offer Price”), upon the terms and subject to the conditions set forth in the Offer to Purchase, dated May 12, 2026 (as amended or supplemented from time to time, the “Offer to Purchase”), and in the related Letter of Transmittal that accompanies the Offer to Purchase (which, together with any amendments or supplements thereto, collectively constitute the “Offer”). Except as otherwise set forth in this Amendment, the information set forth in the Statement remains unchanged.\n\nItem 1. Subject Company Information."
+    },
+    {
+      "id": "tender:b0ba7f30b988fdd2790152140261877b5221804426c44b0467963572e7c1a1ee",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "05514144be0233257d4ad61a78b8d92acb25875b445fd4bc22a81b985abfaf2c",
+      "location": {
+        "start": 27859,
+        "end": 30413,
+        "heading": "Item 8. Additional Information.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The following table provides estimates of single trigger and double trigger CIC payments to the named executive officers. The “CIC Payment” is a single trigger payment that will be made on the CIC and is an estimate based on the same assumptions used in connection with the FBB Merger. The amounts shown below assume the following (in addition to the assumptions noted in the preceding paragraph): (i) the consummation of the Offer occurs on July 31, 2026; (ii) a stock price of $0.84 per share, which is the per share consideration being offered to stockholders of the Company in connection with the Offer; (iii) performance through the CIC as described herein; and (iv) continued employment through the CIC unless otherwise noted. All amounts are estimates. The calculations in the table do not include amounts that the named executive officers were already vested in as of the date hereof. As a result of the foregoing assumptions, which may or may not actually occur or be accurate on the relevant date, including the assumptions described in the footnotes to the table, the actual amounts, if any, to be received by a named executive officer may materially differ from the amounts set forth below.\n\nFor purposes of this disclosure, “single trigger” refers to payments and benefits that arise solely as a result of the consummation of the Offer, based on the same assumptions used in connection with the FBB Merger, and “double trigger” refers to payments and benefits that require two conditions, which are the consummation of the Offer and a termination of employment without “justifiable cause” or for “good reason” (each, a “Qualifying Termination”).\n\n[TABLE]\n\n|| || || || || || || || || || || || || || || || ||\n\n|\nName\n| |\n\n| |[colspan=2]\nCash ($)(1)\n| |\n\n| |\n\n| |[colspan=2]\nEquity ($)(2)\n| |\n\n| |\n\n| |[colspan=2]\nPerquisites/\n\nBenefits ($)(3)\n| |\n\n| |\n\n| |[colspan=2]\nTotal ($)\n| |\n\n|\n\n|\nHarvey S. Kanter (4)\n| |\n\n| |\n$\n| |\n4,662,885\n| |\n\n| |\n\n| |\n$\n| |\n96,176\n| |\n\n| |\n\n| |\n$\n| |\n30,416\n| |\n\n| |\n\n| |\n$\n| |\n4,789,477\n| |\n\n|\n\n|\nPeter H. Stratton, Jr.\n| |\n\n| |\n$\n| |\n807,775\n| |\n\n| |\n\n| |\n$\n| |\n24,764\n| |\n\n| |\n\n| |\n\n| |\n-\n| |\n\n| |\n\n| |\n$\n| |\n832,539\n| |\n\n|\n\n|\nAnthony J. Gaeta\n| |\n\n| |\n$\n| |\n656,052\n| |\n\n| |\n\n| |\n$\n| |\n18,302\n| |\n\n| |\n\n| |\n\n| |\n-\n| |\n\n| |\n\n| |\n$\n| |\n674,354\n| |\n\n|\n\n|\nRobert S. Molloy\n| |\n\n| |\n$\n| |\n636,257\n| |\n\n| |\n\n| |\n$\n| |\n18,267\n| |\n\n| |\n\n| |\n\n| |\n-\n| |\n\n| |\n\n| |\n$\n| |\n654,524\n| |\n\n|\n\n|\nAllison Surette\n| |\n\n| |\n$\n| |\n617,032\n| |\n\n| |\n\n| |\n$\n| |\n17,537\n| |\n\n| |\n\n| |\n\n| |\n-\n| |\n\n| |\n\n| |\n$\n| |\n634,569\n| |\n\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:f641174b55ffbd595440de56224bcdc7b8d599426dc5db1870a789b6201dec7d",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "d5b4754a8423fa43b0b163cdc4017c765f54575a36faa29d886bb0123771f6ac",
+      "location": {
+        "start": 6433,
+        "end": 7008,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "On July 8, 2026, the Company filed Amendment No. 3 to this Statement and issued a press release announcing the Board’s recommendation that shareholders reject the Offer and not tender their shares of Common Stock pursuant to the Offer, together with the reasons for such recommendation.\n\nThe subsection entitled “Reasons for the Recommendation of the Board” under the section entitled “(b) Background and Reasons for the Board’s Recommendation” in Item 4 of the Statement is hereby amended and restated in its entirety as follows:\n\nReasons for the Recommendation of the Board"
+    },
+    {
+      "id": "tender:775ff2291f95e4e5ee53a8e3654f1289857c338b81a23a51d9ed2e0d46dd5008",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "27c0166b0d48e9b2769f6924d4068166015343535f9a771c7a6ddb16a67f148a",
+      "location": {
+        "start": 4593,
+        "end": 6719,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "On June 23, 2026, Offeror amended the Offer to increase the Offer Price from $0.82 to $0.84 and to extend the expiration date of the Offer until 5:00 p.m., Eastern Time, on July 24, 2026. Offeror also announced that it has increased its committed equity financing for the transaction. Offeror disclosed that as of June 22, 2026, approximately 8,978,000 shares, representing more than 16% of the Company’s outstanding shares, had been validly tendered and not withdrawn. That same day, the Company issued a press release advising stockholders to take no action with respect to the Offer, and that the Company’s Board would evaluate the Offer and issue a recommendation.\n\nOn July 2, 2026, the Board held a meeting via means of remote communication, which included senior management of the Company and representatives of its advisors, including Guggenheim Securities and Greenberg Traurig. The Board discussed the status of the Offer, including the timeline for the Company’s response and the legal requirements relating to the Schedule 14D-9. Representatives of Greenberg Traurig reviewed fiduciary duty considerations applicable to the Board in evaluating the Offer, as well as the Company’s continuing obligations under the Merger Agreement. In connection with the Board’s evaluation of the Offer, the Board, together with its advisors, revisited and discussed the previously prepared Management Projections, as well as the financial analyses previously prepared by Guggenheim Securities, each of which were also discussed by the Board at the May 25, 2026 and May 26, 2026 Board meetings. Following discussion, the Board (i) determined that the Offer is not in the best interests of the Company and its stockholders and (ii) recommended that stockholders reject the Offer and not tender their shares of Common Stock pursuant to the Offer.\n\nOn July 8, 2026, the Company filed Amendment No. 3 to this Statement and issued a press release announcing the Board’s recommendation that shareholders reject the Offer and not tender their shares of Common Stock pursuant to the Offer, together with the reasons for such recommendation."
+    },
+    {
+      "id": "tender:0522dc8d9b70050a519609d0f3ca4e8666f0602a916e7b23bd960ac8718ef820",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "58b7226fe9de95607a70a67cf94e3fa09d0f5ce5f1974ccccf9a9f5e49842131",
+      "location": {
+        "start": 4363,
+        "end": 5261,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "On May 27, 2026, Offeror amended the Offer to extend the expiration date of the Offer until 5:00 p.m., Eastern Time, on June 22, 2026.\n\nOn June 12, 2026, Offeror issued a press release reaffirming its previously announced Offer.\n\nOn June 23, 2026, Offeror amended the Offer to increase the Offer Price from $0.82 to $0.84 and to extend the expiration date of the Offer until 5:00 p.m., Eastern Time, on July 24, 2026. Offeror also announced that it has increased its committed equity financing for the transaction. Offeror disclosed that as of June 22, 2026, approximately 8,978,000 shares, representing more than 16% of the Company’s outstanding shares, had been validly tendered and not withdrawn. That same day, the Company issued a press release advising stockholders to take no action with respect to the Offer, and that the Company’s Board would evaluate the Offer and issue a recommendation."
+    },
+    {
+      "id": "tender:a6845b9573e350f87f17a484f617a1d253e06f6bd4022719e4c19ae1522e0b86",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "25a8309f22b65246f4b3e79746830ea7625dec441dbe061dc442ebdf89413ca7",
+      "location": {
+        "start": 169,
+        "end": 288,
+        "heading": "SOLICITATION/RECOMMENDATION STATEMENT",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "SOLICITATION/RECOMMENDATION STATEMENT\n\nUNDER SECTION 14(d)(4) OF THE SECURITIES EXCHANGE ACT OF 1934\n\n(Amendment No. 3)"
+    },
+    {
+      "id": "tender:dff3ccc30d6ba601943a6f6efda2764baef2bbefed708c5ca04a58c834c9a32e",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "d5bf7f310f106456e0a155f0c63e94cb877084e32aeff0a3d9542c399ef9471d",
+      "location": {
+        "start": 7880,
+        "end": 8956,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "(ii) The Offer neither constitutes nor is reasonably likely to lead to a DXL Superior Proposal under the Company’s existing Merger Agreement with FBB\n\nWhile the Board has, after careful consideration and with the assistance of its external financial and legal advisors, withdrawn its prior recommendation in favor of the Merger, the Company is still party to the Merger Agreement and bound by the contractual obligations set forth therein. The Board determined that the Offer neither constitutes nor is reasonably likely to lead to a DXL Superior Proposal as defined in the Merger Agreement. In reaching this determination, the Board concluded that the Offer would not permit DXL stockholders to participate in any potential long-term value creation opportunities expected from ownership in the combined company with FBB. Under the transactions contemplated by the Merger Agreement (the “FBB Merger”), the Company’s stockholders\n\nwould own approximately 45% of the combined company following completion of the all-stock transaction, with the Company remaining publicly traded."
+    },
+    {
+      "id": "tender:df57dfb496a11eee1a5c1484938f8c4cb26c94735d6c2e87d9b1159572b76333",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "56ce96126692a6ca077943f5d461188428e0010063e7d1bd9a135a9631d4fa37",
+      "location": {
+        "start": 946,
+        "end": 1098,
+        "heading": "COMMON STOCK, PAR VALUE $0.01 PER SHARE",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "(602) 445-8322\n\n☐ Check the box if the filing relates solely to preliminary communications made before the commencement of a tender offer.\n\nIntroduction"
+    },
+    {
+      "id": "tender:8d09d4cee6284f6b1c289727400bed1687b07d5931d1fa6a1620e58690e30de1",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "02fab9b91038dd95c6b5fd9b28cf626bb16bac34227bef74582ce2f03bf203fc",
+      "location": {
+        "start": 7326,
+        "end": 8808,
+        "heading": "Item 4. The Solicitation or Recommendation.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The Board believes the Offer Price of $0.84 per share fails to reflect the intrinsic value of the Company’s business as a standalone enterprise, including its brand strength, loyal customer relationships, exclusive rights to Size Stream technology platform until 2030 and long-term growth opportunities. The Board notes that the Company’s current share price has been temporarily pressured by broader macroeconomic headwinds affecting the big + tall sector and does not reflect the Company’s underlying value or the strength of its go-forward strategy.\n\n(ii) The Offer neither constitutes nor is reasonably likely to lead to a DXL Superior Proposal under the Company’s existing Merger Agreement with FBB\n\nWhile the Board has, after careful consideration and with the assistance of its external financial and legal advisors, withdrawn its prior recommendation in favor of the Merger, the Company is still party to the Merger Agreement and bound by the contractual obligations set forth therein. The Board determined that the Offer neither constitutes nor is reasonably likely to lead to a DXL Superior Proposal as defined in the Merger Agreement. In reaching this determination, the Board concluded that the Offer would not permit DXL stockholders to participate in any potential long-term value creation opportunities expected from ownership in the combined company with FBB. Under the transactions contemplated by the Merger Agreement (the “FBB Merger”), the Company’s stockholders"
+    },
+    {
+      "id": "tender:456b6069b81e487ee2e0ef0dad964b480e14d23bfddd158f1131528fb8911d2a",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "18984a7cdee6348251f379afd73de4f47500c311469aebc8a8a59798d6ed0392",
+      "location": {
+        "start": 27314,
+        "end": 29517,
+        "heading": "Item 8. Additional Information.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "The information set forth in the table below is intended to comply with Item 402(t) of Regulation S-K, which requires disclosure of information about certain compensation for each of the Company’s named executive officers that is based on or otherwise relates to the Offer and assumes, among other things, that the Offer is consummated, that the Offer constitutes a change in control (“CIC”) of the Company and that the named executive officers will incur a qualifying termination of employment immediately following consummation of the Offer.\n\nThe following table provides estimates of single trigger and double trigger CIC payments to the named executive officers. The “CIC Payment” is a single trigger payment that will be made on the CIC and is an estimate based on the same assumptions used in connection with the FBB Merger. The amounts shown below assume the following (in addition to the assumptions noted in the preceding paragraph): (i) the consummation of the Offer occurs on July 31, 2026; (ii) a stock price of $0.84 per share, which is the per share consideration being offered to stockholders of the Company in connection with the Offer; (iii) performance through the CIC as described herein; and (iv) continued employment through the CIC unless otherwise noted. All amounts are estimates. The calculations in the table do not include amounts that the named executive officers were already vested in as of the date hereof. As a result of the foregoing assumptions, which may or may not actually occur or be accurate on the relevant date, including the assumptions described in the footnotes to the table, the actual amounts, if any, to be received by a named executive officer may materially differ from the amounts set forth below.\n\nFor purposes of this disclosure, “single trigger” refers to payments and benefits that arise solely as a result of the consummation of the Offer, based on the same assumptions used in connection with the FBB Merger, and “double trigger” refers to payments and benefits that require two conditions, which are the consummation of the Offer and a termination of employment without “justifiable cause” or for “good reason” (each, a “Qualifying Termination”)."
+    },
+    {
+      "id": "tender:b80d4c7c5ef427b9c980b508e8a18b9190ecd360bcccffd867c4bb42b2e04e1b",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "document": {
+        "accession": "0001193125-26-298540",
+        "form": "SC 14D9/A",
+        "documentId": "sch14d9_amendment_3_july.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "1445dda411b3ee7a467048fdc362a9f3759235a347f3e2bf2a9409c4817d536c",
+      "renderedHash": "9e1b14c211ad8cece2cfafcb7e91077ace09a3adaa70622fa3a7c69fd26890ec",
+      "textHash": "cf43b1ad2230e2a0b6b3d7a20786bb012832d03414c76df9b173de21dfcfbe1d",
+      "location": {
+        "start": 26537,
+        "end": 29061,
+        "heading": "Item 8. Additional Information.",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "In considering the recommendation of the Board as set forth in “Item 4. The Solicitation or Recommendation” above, stockholders should be aware that certain of the Company’s directors and executive officers may have interests in the Offer and the transactions contemplated thereby that may differ from, or be in addition to, the interests of the Company’s stockholders generally. The Board was aware of and considered these interests, among other matters, in evaluating and making its recommendation with respect to the Offer. The following sets forth the compensation and benefits that each of the Company’s named executive officers could receive in connection with the Offer, as further described in “Item 3. Past Contacts, Transactions, Negotiations and Agreements” above.\n\nThe information set forth in the table below is intended to comply with Item 402(t) of Regulation S-K, which requires disclosure of information about certain compensation for each of the Company’s named executive officers that is based on or otherwise relates to the Offer and assumes, among other things, that the Offer is consummated, that the Offer constitutes a change in control (“CIC”) of the Company and that the named executive officers will incur a qualifying termination of employment immediately following consummation of the Offer.\n\nThe following table provides estimates of single trigger and double trigger CIC payments to the named executive officers. The “CIC Payment” is a single trigger payment that will be made on the CIC and is an estimate based on the same assumptions used in connection with the FBB Merger. The amounts shown below assume the following (in addition to the assumptions noted in the preceding paragraph): (i) the consummation of the Offer occurs on July 31, 2026; (ii) a stock price of $0.84 per share, which is the per share consideration being offered to stockholders of the Company in connection with the Offer; (iii) performance through the CIC as described herein; and (iv) continued employment through the CIC unless otherwise noted. All amounts are estimates. The calculations in the table do not include amounts that the named executive officers were already vested in as of the date hereof. As a result of the foregoing assumptions, which may or may not actually occur or be accurate on the relevant date, including the assumptions described in the footnotes to the table, the actual amounts, if any, to be received by a named executive officer may materially differ from the amounts set forth below."
+    }
+  ]
+}

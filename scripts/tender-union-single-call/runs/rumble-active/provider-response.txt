@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [\n    {\n      \"type\": \"expiration\",\n      \"current\": \"2025-02-04\",\n      \"evidence_refs\": [\n        \"E1\",\n        \"E2\",\n        \"E16\"\n      ]\n    },\n    {\n      \"type\": \"offer_price\",\n      \"current\": {\n        \"amount\": 7.5,\n        \"currency_text\": \"$\",\n        \"unit\": \"cash_per_share\"\n      },\n      \"evidence_refs\": [\n        \"E8\",\n        \"E9\",\n        \"E16\"\n      ]\n    },\n    {\n      \"type\": \"board_recommendation\",\n      \"current\": \"no_recommendation\",\n      \"evidence_refs\": [\n        \"E12\",\n        \"E13\",\n        \"E15\"\n      ]\n    }\n  ],\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0TLO5GIBUoJl+WSZtu6OOoxMmQE4uo3j6ipRfReBfCYOiDY+7sY2c/lkhbf/gKehcEsMZxdc8/T5iLLH5HL8ouVRzNVJkqVY2PAsPBqgxPPivQyAVmTKPhUDV1U/ak8OyFRA=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 7866,
+    "candidatesTokenCount": 226,
+    "totalTokenCount": 8092,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 7866
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "ZeLEatb6BaP_2roPia3X2QE"
+}

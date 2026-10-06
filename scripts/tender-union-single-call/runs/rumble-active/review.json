@@ -1,0 +1,46 @@
+{
+  "reviewer": "Codex direct source review, not independent human signoff",
+  "reviewedAt": "2026-10-06T11:58:45.787Z",
+  "pass": true,
+  "outputHash": "21dff25b0d0bd3beefa2c91eee12b6b2a366c92d84017b9a2dc3fe4b9f299cee",
+  "missingTypes": [],
+  "extraTypes": [],
+  "valueErrors": [],
+  "previousErrors": [],
+  "contamination": false,
+  "failureClass": null,
+  "unresolvedReview": "Empty is correct: all requested active claims established; two terminal types normally absent.",
+  "facts": {
+    "expiration": {
+      "current": {
+        "E1": "DIRECT: Offer will expire February4,2025",
+        "E2": "DIRECT: same scheduled expiration; April30 extension limit distinct",
+        "E16": "DIRECT: headline February4 expiry"
+      },
+      "previous": "correctly omitted"
+    },
+    "offer_price": {
+      "current": {
+        "E8": "DIRECT: $7.50 per Share and cash payment",
+        "E9": "DIRECT: $7.50 per Share in cash",
+        "E16": "DIRECT: same $7.50 per-share Purchase Price; cash corroborated by E8/E9"
+      },
+      "previous": "correctly omitted"
+    },
+    "board_recommendation": {
+      "current": {
+        "E12": "DIRECT: board expressly makes no recommendation despite offer approval",
+        "E13": "DIRECT: same board no-recommendation statement",
+        "E15": "DIRECT: same explicit no-recommendation"
+      },
+      "previous": "correctly omitted"
+    }
+  },
+  "crossFactChecks": [
+    "unless terminated not promoted to actual offer_status",
+    "holder withdrawal not promoted",
+    "future proration/final results not observed",
+    "market $12.40 and aggregate amounts excluded",
+    "all three positives emitted together"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-06T12:04:00.178Z",
+  "base": "0e020ecb090bf41dedcc9b4dd75bf5e56420ccaa",
+  "workspace": "C:/Users/PC/.codex/worktrees/87db/US-Stock Radar",
+  "headState": "detached",
+  "tests": {
+    "passed": 8,
+    "failed": 0
+  },
+  "typecheck": "PASS",
+  "credentialScan": "PASS; exact key and known credential patterns; key not saved/printed",
+  "scope": "new scripts/tender-union-single-call directory only",
+  "priorFiles": "unchanged; frozen disk hashes and git diff PASS",
+  "paidCalls": 2,
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "singleCallPracticalPass": false,
+  "stoppedReason": "MODEL_ERROR: DXL missing expiration.previous",
+  "remainingTwoFilings": "frozen but not called",
+  "productWork": "not started",
+  "mergePushDeploy": "not performed",
+  "independentHumanSignoff": false
+}

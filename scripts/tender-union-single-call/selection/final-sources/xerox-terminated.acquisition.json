@@ -1,0 +1,722 @@
+{
+  "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+  "httpStatus": 200,
+  "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+  "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+  "renderedChars": 8943,
+  "queries": [
+    "What is the currently stated offer expiration deadline and explicitly previous expiration?",
+    "What is the current and previous fixed cash per share offer price and currency?",
+    "What is the board recommendation to shareholders to accept, reject or make no recommendation, and any previous recommendation?",
+    "Was the tender offer explicitly withdrawn or terminated?",
+    "Does this filing announce actual final results of the tender offer?"
+  ],
+  "searches": [
+    {
+      "status": "hits",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d909416dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": [
+        {
+          "id": "tender:d3290a1e46406721d7100a1ff6283506448e6bc88da53562cc746842064f90c3",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "3ed3a0db9ecf7537c4adb02b65a49b05bcae1d9ddf503fa02bec61b807be2b2b",
+          "location": {
+            "start": 3929,
+            "end": 5513,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1584,
+          "score": 3.342631352324378,
+          "matchedTerms": [],
+          "expandedTerms": [
+            "extended"
+          ]
+        },
+        {
+          "id": "tender:6d8530a98270750cc2d51817a48d3a57ba7fbe61b06a1eb8d82abd2053de20fc",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "5fcfacf75fe6d234f0f7cac14ffafeeb1a7b8c1b5c19ddf2177003362dbab4b1",
+          "location": {
+            "start": 2961,
+            "end": 3690,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 729,
+          "score": 3.2,
+          "matchedTerms": [
+            "previous"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:6a261ee42cef45141ab14c8f9be151d683ea85e643528bdbe36da34836bbc298",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "17c78e330de8e285881f1974e0f82b9e4b7685909d3af60778279fc647771a40",
+          "location": {
+            "start": 2756,
+            "end": 3539,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 783,
+          "score": 3.079201435678004,
+          "matchedTerms": [
+            "previous"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:3c3a5ab174f8553a80ebe69d59d2ad41bfbff9c85254b34db242f5fced03b6b2",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "b440e3718d6f0bbb80f89e15f2d293ba11243942e2f1c1770b3b46e54876c72c",
+          "location": {
+            "start": 1498,
+            "end": 3258,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1760,
+          "score": 2.511059282297378,
+          "matchedTerms": [
+            "previous"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d909416dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 2,
+      "hits": [
+        {
+          "id": "tender:d3290a1e46406721d7100a1ff6283506448e6bc88da53562cc746842064f90c3",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "3ed3a0db9ecf7537c4adb02b65a49b05bcae1d9ddf503fa02bec61b807be2b2b",
+          "location": {
+            "start": 3929,
+            "end": 5513,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1584,
+          "score": 8.022315245578508,
+          "matchedTerms": [
+            "cash",
+            "per",
+            "share"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:3c3a5ab174f8553a80ebe69d59d2ad41bfbff9c85254b34db242f5fced03b6b2",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "b440e3718d6f0bbb80f89e15f2d293ba11243942e2f1c1770b3b46e54876c72c",
+          "location": {
+            "start": 1498,
+            "end": 3258,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1760,
+          "score": 7.5331778468921335,
+          "matchedTerms": [
+            "previous",
+            "per",
+            "share"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:3bb41431b72c7887e553109cb96da5f6993f3d4891e91123f19d5c553b2996d0",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "25f14be252389d2d120a6d612eea78bced86d38b692b2e3833b06ba196912156",
+          "location": {
+            "start": 330,
+            "end": 430,
+            "heading": "XHC ACQUISITION CORP.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 100,
+          "score": 7.380249664231081,
+          "matchedTerms": [
+            "per",
+            "share"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:6d8530a98270750cc2d51817a48d3a57ba7fbe61b06a1eb8d82abd2053de20fc",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "5fcfacf75fe6d234f0f7cac14ffafeeb1a7b8c1b5c19ddf2177003362dbab4b1",
+          "location": {
+            "start": 2961,
+            "end": 3690,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 729,
+          "score": 3.2,
+          "matchedTerms": [
+            "previous"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:6a261ee42cef45141ab14c8f9be151d683ea85e643528bdbe36da34836bbc298",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "17c78e330de8e285881f1974e0f82b9e4b7685909d3af60778279fc647771a40",
+          "location": {
+            "start": 2756,
+            "end": 3539,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 783,
+          "score": 3.079201435678004,
+          "matchedTerms": [
+            "previous"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d909416dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 4,
+      "hits": [
+        {
+          "id": "tender:6d8530a98270750cc2d51817a48d3a57ba7fbe61b06a1eb8d82abd2053de20fc",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "5fcfacf75fe6d234f0f7cac14ffafeeb1a7b8c1b5c19ddf2177003362dbab4b1",
+          "location": {
+            "start": 2961,
+            "end": 3690,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 729,
+          "score": 9.6,
+          "matchedTerms": [
+            "no",
+            "any",
+            "previous"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:6a261ee42cef45141ab14c8f9be151d683ea85e643528bdbe36da34836bbc298",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "17c78e330de8e285881f1974e0f82b9e4b7685909d3af60778279fc647771a40",
+          "location": {
+            "start": 2756,
+            "end": 3539,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 783,
+          "score": 9.237604307034012,
+          "matchedTerms": [
+            "no",
+            "any",
+            "previous"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:d3290a1e46406721d7100a1ff6283506448e6bc88da53562cc746842064f90c3",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "3ed3a0db9ecf7537c4adb02b65a49b05bcae1d9ddf503fa02bec61b807be2b2b",
+          "location": {
+            "start": 3929,
+            "end": 5513,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1584,
+          "score": 5.3482101637190045,
+          "matchedTerms": [
+            "no",
+            "any"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:3c3a5ab174f8553a80ebe69d59d2ad41bfbff9c85254b34db242f5fced03b6b2",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "b440e3718d6f0bbb80f89e15f2d293ba11243942e2f1c1770b3b46e54876c72c",
+          "location": {
+            "start": 1498,
+            "end": 3258,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1760,
+          "score": 5.022118564594756,
+          "matchedTerms": [
+            "any",
+            "previous"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:9a42b263f5cacba51f34086f3867e946f65594a7a455d5aa5868209fbbf4f0f8",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "5cf242566d502b92e053fdf7310e7357d68d5c9c813d4d59c5a33e1c4b91d936",
+          "location": {
+            "start": 112,
+            "end": 156,
+            "heading": "AMENDMENT NO. 1",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 44,
+          "score": 3.857942577363297,
+          "matchedTerms": [
+            "no"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d909416dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 0,
+      "hits": [
+        {
+          "id": "tender:c3c8f0728d8b5e10d1f2f55d5a7e0bc5e0444aa15373f08eaf40a12a3f2c200a",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "8f1ca2b37185d19143b0f7b3fa3b38d1343d17140ecc20f5e73e8eb121385b66",
+          "location": {
+            "start": 5848,
+            "end": 6219,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 371,
+          "score": 3.3958108798240714,
+          "matchedTerms": [
+            "terminated"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    },
+    {
+      "status": "hits",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "unavailable": [],
+      "partialDocuments": [],
+      "indexedDocuments": [
+        "d909416dsctota.htm"
+      ],
+      "interpretation": "unassessed-source-only",
+      "externalReferences": "not-resolved",
+      "remainingMatches": 3,
+      "hits": [
+        {
+          "id": "tender:d3290a1e46406721d7100a1ff6283506448e6bc88da53562cc746842064f90c3",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "3ed3a0db9ecf7537c4adb02b65a49b05bcae1d9ddf503fa02bec61b807be2b2b",
+          "location": {
+            "start": 3929,
+            "end": 5513,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 1584,
+          "score": 10.696420327438009,
+          "matchedTerms": [
+            "this",
+            "filing",
+            "final",
+            "results"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:3bb41431b72c7887e553109cb96da5f6993f3d4891e91123f19d5c553b2996d0",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "25f14be252389d2d120a6d612eea78bced86d38b692b2e3833b06ba196912156",
+          "location": {
+            "start": 330,
+            "end": 430,
+            "heading": "XHC ACQUISITION CORP.",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 100,
+          "score": 3.6901248321155404,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:7808bec749564d57edf13dfc6fb1b2eb4adc77d4db0a13210cbc5f892ad6964a",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "a24d4e6d34adf2ee679b529bec641f318c4d73eb9126b8e8e7ac59a315cada08",
+          "location": {
+            "start": 3260,
+            "end": 3787,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 527,
+          "score": 3.3218191941495987,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:4072276349077847ed9f48ab08dd2388284f8a84a256b353f5828bb87b478540",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "c7c0b1b7e0fca373e4c1ef1a189978990be2c5720f486bc67c26f09e5ad3f012",
+          "location": {
+            "start": 6209,
+            "end": 6974,
+            "heading": "SIGNATURES",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 765,
+          "score": 3.3075929223788925,
+          "matchedTerms": [
+            "this"
+          ],
+          "expandedTerms": []
+        },
+        {
+          "id": "tender:6a261ee42cef45141ab14c8f9be151d683ea85e643528bdbe36da34836bbc298",
+          "accession": "0001193125-20-092896",
+          "form": "SC TO-T/A",
+          "document": {
+            "accession": "0001193125-20-092896",
+            "form": "SC TO-T/A",
+            "documentId": "d909416dsctota.htm",
+            "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm",
+            "role": "primary",
+            "format": "html",
+            "completeness": "complete"
+          },
+          "sourceHash": "0fc3aa0ee2370b297461de492e929ce5adeca9c3a12d7a008978805aaf8dae60",
+          "renderedHash": "79f2e0b7e1ceff29feaa02ef324f0290602175275a3d4fed0236314d86177586",
+          "textHash": "17c78e330de8e285881f1974e0f82b9e4b7685909d3af60778279fc647771a40",
+          "location": {
+            "start": 2756,
+            "end": 3539,
+            "heading": "CALCULATION OF FILING FEE",
+            "representation": "tender-render-v1",
+            "offsets": "UTF-16-half-open"
+          },
+          "chars": 783,
+          "score": 3.079201435678004,
+          "matchedTerms": [
+            "filing"
+          ],
+          "expandedTerms": []
+        }
+      ]
+    }
+  ],
+  "rawHits": 20,
+  "uniqueIds": 9,
+  "selectedIds": [
+    "tender:d3290a1e46406721d7100a1ff6283506448e6bc88da53562cc746842064f90c3",
+    "tender:6d8530a98270750cc2d51817a48d3a57ba7fbe61b06a1eb8d82abd2053de20fc",
+    "tender:6a261ee42cef45141ab14c8f9be151d683ea85e643528bdbe36da34836bbc298",
+    "tender:3c3a5ab174f8553a80ebe69d59d2ad41bfbff9c85254b34db242f5fced03b6b2",
+    "tender:3bb41431b72c7887e553109cb96da5f6993f3d4891e91123f19d5c553b2996d0",
+    "tender:9a42b263f5cacba51f34086f3867e946f65594a7a455d5aa5868209fbbf4f0f8",
+    "tender:c3c8f0728d8b5e10d1f2f55d5a7e0bc5e0444aa15373f08eaf40a12a3f2c200a",
+    "tender:7808bec749564d57edf13dfc6fb1b2eb4adc77d4db0a13210cbc5f892ad6964a",
+    "tender:4072276349077847ed9f48ab08dd2388284f8a84a256b353f5828bb87b478540"
+  ],
+  "dedupe": "exact id then wholly contained same-document/same-revision source ranges; no text edits, stitching or semantic filter",
+  "indexBuilds": 1,
+  "readCalls": 1,
+  "selectedChars": 6663
+}

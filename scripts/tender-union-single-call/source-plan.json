@@ -1,0 +1,34 @@
+{
+  "queries": [
+    "What is the currently stated offer expiration deadline and explicitly previous expiration?",
+    "What is the current and previous fixed cash per share offer price and currency?",
+    "What is the board recommendation to shareholders to accept, reject or make no recommendation, and any previous recommendation?",
+    "Does the filing report actual offer withdrawal or termination, final results, or only rights, preliminary or interim results?"
+  ],
+  "cases": [
+    {
+      "name": "rumble-active",
+      "form": "SC TO-I",
+      "role": "attachment",
+      "url": "https://www.sec.gov/Archives/edgar/data/1830081/000121390025000757/sctoi_ex99a1arumble.htm"
+    },
+    {
+      "name": "dxl-amendment",
+      "form": "SC 14D9/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/813298/000119312526298540/sch14d9_amendment_3_july.htm"
+    },
+    {
+      "name": "carlyle-final",
+      "form": "SC TO-I/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm"
+    },
+    {
+      "name": "xerox-terminated",
+      "form": "SC TO-T/A",
+      "role": "primary",
+      "url": "https://www.sec.gov/Archives/edgar/data/47217/000119312520092896/d909416dsctota.htm"
+    }
+  ]
+}

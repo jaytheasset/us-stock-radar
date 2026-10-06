@@ -1,0 +1,94 @@
+{
+  "runId": "tender-union-v1",
+  "model": "gemini-3.5-flash",
+  "maxPhysicalCalls": 4,
+  "maxCallsPerFiling": 1,
+  "cases": [
+    {
+      "name": "rumble-active",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "sourceFile": "selection/final-sources/rumble-active.json",
+      "expected": [
+        {
+          "type": "expiration",
+          "current": "2025-02-04"
+        },
+        {
+          "type": "offer_price",
+          "current": {
+            "amount": 7.5,
+            "currency_text": "$",
+            "unit": "cash_per_share"
+          }
+        },
+        {
+          "type": "board_recommendation",
+          "current": "no_recommendation"
+        }
+      ],
+      "purpose": "All24 slices read. E1/E2 explicit Feb4 scheduled expiration; E16 repeats headline. E2 April30 outside limit is not current expiration. E8/E9 explicit cash $7.50, E6/E7/E10 market $12.40 and E15 aggregate250m are distractors. E12/E13/E15 explicit board no recommendation despite approval of making offer. E3 tender mechanics; E4 possible extensions/termination, E5/E17-E19 holder withdrawal mechanics; E20-E23 future preliminary/final/proration results; E24 operating risks. No actual terminal event or actual final results. No explicit previous for any active FACT.",
+      "stop": "One physical unified call; stop entire batch on technical/semantic/contract failure; never repeat"
+    },
+    {
+      "name": "dxl-amendment",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "sourceFile": "selection/final-sources/dxl-amendment.json",
+      "expected": [
+        {
+          "type": "expiration",
+          "current": "2026-07-24",
+          "previous": "2026-06-22"
+        },
+        {
+          "type": "offer_price",
+          "current": {
+            "amount": 0.84,
+            "currency_text": "$",
+            "unit": "cash_per_share"
+          },
+          "previous": {
+            "amount": 0.82,
+            "currency_text": "$",
+            "unit": "cash_per_share"
+          }
+        },
+        {
+          "type": "board_recommendation",
+          "current": "reject"
+        }
+      ],
+      "purpose": "All18 slices re-read; current July24 expressly stated E1/E2 and amendment E12/E13. Previous June22 is an expiration explicitly in E4/E13, not inferred merely from as-of count. Price E12/E13 explicitly increased .82 to .84, E8/E9 cash terms. E6 $1.25 separate January acquisition proposal is not previous tender price. E11/E12 current board reject; temporary June23 take-no-action is not previous board recommendation. E15 withdrawal of competing FBB merger recommendation is not offer_status or previous tender recommendation. E3 HSR terminated waiting periods and E5 conditions are not actual tender termination. E10/E17/E18 CIC compensation and July31 assumed consummation not tender price/expiration. E16 shares outstanding and E12/E13 interim June22 tendered count not final. E14 heading. No terminal/final facts.",
+      "stop": "One physical unified call; stop entire batch on technical/semantic/contract failure; never repeat"
+    },
+    {
+      "name": "carlyle-final",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "sourceFile": "selection/final-sources/carlyle-final.json",
+      "expected": [
+        {
+          "type": "final_results_observed",
+          "observed": true
+        }
+      ],
+      "purpose": "All9 slices read. E2 explicitly received final results of Offer expired Jan21 and shares accepted; E8 explicitly final-results report. Do not create active expiration. E3/E4 show price tied to NAV per share and purchase payment through nontransferable promissory notes; $18.82 is NAV valuation/result with aggregate payment, not fixed all-cash offer terms within accepted price scope. No board shareholder recommendation is supplied. E1/E6 fees, E5 identity/par value, E7 amendment caption, E9 final checkbox corroboration. Completion/accepted shares not actual withdrawn/terminated.",
+      "stop": "One physical unified call; stop entire batch on technical/semantic/contract failure; never repeat"
+    },
+    {
+      "name": "xerox-terminated",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "sourceFile": "selection/final-sources/xerox-terminated.json",
+      "expected": [
+        {
+          "type": "offer_status",
+          "current": "terminated"
+        }
+      ],
+      "purpose": "All9 slices read. E7 explicit Offer terminated March31; no shares purchased and return instructions. E1 historical $18.40 cash plus .149 Xerox shares with election/proration: composite offer out of fixed-all-cash contract. E2-E4/E8 fee/payment/transaction calculations and $22.05 market price are not tender price; historical filed March2 and terminated March31 not scheduled expiration. E5 identity/par value and E6/E9 heading/signatures. No shareholder recommendation supplied. E1 final-amendment reporting-results checkbox is unchecked; no actual final-results announcement. Return of shares is not final_results_observed.",
+      "stop": "One physical unified call; stop entire batch on technical/semantic/contract failure; never repeat"
+    }
+  ]
+}

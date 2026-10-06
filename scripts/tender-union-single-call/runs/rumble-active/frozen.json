@@ -1,0 +1,14 @@
+{
+  "runId": "tender-union-v1-rumble-active",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-3.5-flash",
+  "frozenAt": "2026-10-06T11:58:16.897Z",
+  "files": {
+    "evidence-map.json": "27bcb8b88ce982a71e8f22a241ceda7c79d63c825c6ddf8a8c8a455209c55136",
+    "prompt.txt": "4d584d2cfd853a7ef1ec5089b2d8d15869888dfbfff267cfa83f7ad567995c4d",
+    "provider-schema.json": "32346a0c9afb5889e692a4ca812700b8a8cf9874ce0b1de022faab79bd361639",
+    "provider-source.json": "1d9799364790eb8a5703dacc745b2ab93482c18635199a0f6d478807a2390502",
+    "request.json": "3423b2c8c55e8aabf665283a77ce3b097fbefb36818a244b5ac6ef5ea7b89da5",
+    "source.json": "0cfaac8ced145c4476f99aa46aff1121fe37c36dde15285284cabca1676d2cc8"
+  }
+}

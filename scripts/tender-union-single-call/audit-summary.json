@@ -1,0 +1,287 @@
+{
+  "checkedAt": "2026-10-06T12:00:49.350Z",
+  "model": "gemini-3.5-flash",
+  "plannedFilings": 4,
+  "executedFilings": 2,
+  "physicalCalls": 2,
+  "averageInputTokens": 7185.5,
+  "inputTokens": 14371,
+  "outputTokens": 452,
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "recall": 0,
+  "practicalPass": false,
+  "rows": [
+    {
+      "name": "rumble-active",
+      "accession": "0001213900-25-000757",
+      "form": "SC TO-I",
+      "evidenceCount": 24,
+      "selectedSourceChars": 31063,
+      "providerInputChars": 31912,
+      "requestChars": 49359,
+      "expected": [
+        {
+          "type": "expiration",
+          "current": "2025-02-04"
+        },
+        {
+          "type": "offer_price",
+          "current": {
+            "amount": 7.5,
+            "currency_text": "$",
+            "unit": "cash_per_share"
+          }
+        },
+        {
+          "type": "board_recommendation",
+          "current": "no_recommendation"
+        }
+      ],
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "modelVersion": "gemini-3.5-flash",
+      "promptTokens": 7866,
+      "outputTokens": 226,
+      "totalTokens": 8092,
+      "latencyMs": 3208,
+      "outputTypes": [
+        "expiration",
+        "offer_price",
+        "board_recommendation"
+      ],
+      "schema": true,
+      "local": true,
+      "provenance": true,
+      "status": "PASS",
+      "failureClass": null,
+      "missingTypes": [],
+      "extraTypes": [],
+      "previousErrors": [],
+      "contamination": false
+    },
+    {
+      "name": "dxl-amendment",
+      "accession": "0001193125-26-298540",
+      "form": "SC 14D9/A",
+      "evidenceCount": 18,
+      "selectedSourceChars": 18641,
+      "providerInputChars": 19742,
+      "requestChars": 36605,
+      "expected": [
+        {
+          "type": "expiration",
+          "current": "2026-07-24",
+          "previous": "2026-06-22"
+        },
+        {
+          "type": "offer_price",
+          "current": {
+            "amount": 0.84,
+            "currency_text": "$",
+            "unit": "cash_per_share"
+          },
+          "previous": {
+            "amount": 0.82,
+            "currency_text": "$",
+            "unit": "cash_per_share"
+          }
+        },
+        {
+          "type": "board_recommendation",
+          "current": "reject"
+        }
+      ],
+      "physicalCalls": 1,
+      "httpStatus": 200,
+      "modelVersion": "gemini-3.5-flash",
+      "promptTokens": 6505,
+      "outputTokens": 226,
+      "totalTokens": 6731,
+      "latencyMs": 2824,
+      "outputTypes": [
+        "expiration",
+        "offer_price",
+        "board_recommendation"
+      ],
+      "schema": true,
+      "local": true,
+      "provenance": true,
+      "status": "FAIL",
+      "failureClass": "MODEL_ERROR",
+      "missingTypes": [],
+      "extraTypes": [],
+      "previousErrors": [
+        {
+          "type": "expiration",
+          "field": "previous",
+          "expected": "2026-06-22",
+          "actual": "omitted",
+          "directRefs": [
+            "E4",
+            "E13"
+          ],
+          "classification": "MODEL_ERROR",
+          "reason": "E4 expressly states the earlier extended expiration June22. E13 directly links May27 extension to June22 and June23 extension to July24. Frozen baseline requires this explicit prior date. Optional JSON field is structurally legal to omit, but semantic baseline is not satisfied."
+        }
+      ],
+      "contamination": false
+    },
+    {
+      "name": "carlyle-final",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "evidenceCount": 9,
+      "selectedSourceChars": 4714,
+      "providerInputChars": 5175,
+      "requestChars": 20147,
+      "expected": [
+        {
+          "type": "final_results_observed",
+          "observed": true
+        }
+      ],
+      "physicalCalls": 0,
+      "status": "NOT_RUN; stopped after DXL failure",
+      "promptTokens": null,
+      "outputTokens": null
+    },
+    {
+      "name": "xerox-terminated",
+      "accession": "0001193125-20-092896",
+      "form": "SC TO-T/A",
+      "evidenceCount": 9,
+      "selectedSourceChars": 6663,
+      "providerInputChars": 7290,
+      "requestChars": 22428,
+      "expected": [
+        {
+          "type": "offer_status",
+          "current": "terminated"
+        }
+      ],
+      "physicalCalls": 0,
+      "status": "NOT_RUN; stopped after DXL failure",
+      "promptTokens": null,
+      "outputTokens": null
+    }
+  ],
+  "historical": [
+    {
+      "name": "rumble-active",
+      "entries": [
+        {
+          "path": "scripts/tender-fact-batches/offer_price/runs/initial-competing/audit.json",
+          "fact": "offer_price",
+          "inputTokens": 5117,
+          "outputTokens": 110
+        },
+        {
+          "path": "scripts/tender-fact-batches/board_recommendation/runs/rumble-no-recommendation/audit.json",
+          "fact": "board_recommendation",
+          "inputTokens": 3933,
+          "outputTokens": 76
+        },
+        {
+          "path": "scripts/tender-terminal-facts/offer_status/runs/rumble-right-only/audit.json",
+          "fact": "offer_status",
+          "inputTokens": 3731,
+          "outputTokens": 16
+        },
+        {
+          "path": "scripts/tender-terminal-facts/final_results_observed/runs/rumble-active/audit.json",
+          "fact": "final_results_observed",
+          "inputTokens": 3818,
+          "outputTokens": 16
+        }
+      ],
+      "oldCalls": 4,
+      "newCalls": 1,
+      "oldInput": 16599,
+      "newInput": 7866,
+      "inputReductionPercent": 52.61160310862101,
+      "limitation": "Existing independent experiments have different selected packets/prompts; incomplete five-FACT baseline, not controlled five-call token comparison. DXL failed meaning check, so cheaper does not qualify for production."
+    },
+    {
+      "name": "dxl-amendment",
+      "entries": [
+        {
+          "path": "scripts/tender-fact-batches/offer_price/runs/dxl-revised/audit.json",
+          "fact": "offer_price",
+          "inputTokens": 4400,
+          "outputTokens": 152
+        },
+        {
+          "path": "scripts/tender-fact-batches/board_recommendation/runs/dxl-amendment/audit.json",
+          "fact": "board_recommendation",
+          "inputTokens": 2896,
+          "outputTokens": 79
+        },
+        {
+          "path": "scripts/tender-terminal-facts/final_results_observed/runs/dxl-interim/audit.json",
+          "fact": "final_results_observed",
+          "inputTokens": 5896,
+          "outputTokens": 16
+        }
+      ],
+      "oldCalls": 3,
+      "newCalls": 1,
+      "oldInput": 13192,
+      "newInput": 6505,
+      "inputReductionPercent": 50.68981200727713,
+      "limitation": "Existing independent experiments have different selected packets/prompts; incomplete five-FACT baseline, not controlled five-call token comparison. DXL failed meaning check, so cheaper does not qualify for production."
+    }
+  ],
+  "counterfactual": [
+    {
+      "name": "rumble-active",
+      "sourceJsonCharsOnce": 31912,
+      "sourceJsonCharsRepeatedFiveTimes": 159560,
+      "sourceRepetitionReductionPercent": 80,
+      "independentPromptChars": 13361,
+      "independentSchemaChars": 3639,
+      "unionPromptChars": 6215,
+      "unionSchemaChars": 2863,
+      "measurement": "Local character lengths only, not tokens, billed money or five paid calls"
+    },
+    {
+      "name": "dxl-amendment",
+      "sourceJsonCharsOnce": 19742,
+      "sourceJsonCharsRepeatedFiveTimes": 98710,
+      "sourceRepetitionReductionPercent": 80,
+      "independentPromptChars": 13361,
+      "independentSchemaChars": 3459,
+      "unionPromptChars": 6215,
+      "unionSchemaChars": 2683,
+      "measurement": "Local character lengths only, not tokens, billed money or five paid calls"
+    },
+    {
+      "name": "carlyle-final",
+      "sourceJsonCharsOnce": 5175,
+      "sourceJsonCharsRepeatedFiveTimes": 25875,
+      "sourceRepetitionReductionPercent": 80,
+      "independentPromptChars": 13361,
+      "independentSchemaChars": 3189,
+      "unionPromptChars": 6215,
+      "unionSchemaChars": 2413,
+      "measurement": "Local character lengths only, not tokens, billed money or five paid calls"
+    },
+    {
+      "name": "xerox-terminated",
+      "sourceJsonCharsOnce": 7290,
+      "sourceJsonCharsRepeatedFiveTimes": 36450,
+      "sourceRepetitionReductionPercent": 80,
+      "independentPromptChars": 13361,
+      "independentSchemaChars": 3189,
+      "unionPromptChars": 6215,
+      "unionSchemaChars": 2413,
+      "measurement": "Local character lengths only, not tokens, billed money or five paid calls"
+    }
+  ],
+  "protectedFilesUnchanged": true,
+  "frozenRequestAndMapping": true,
+  "rawResponseByteIntegrity": true,
+  "everyEmittedRefReviewed": true,
+  "independentHumanSignoff": false
+}

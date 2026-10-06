@@ -1,0 +1,11 @@
+{
+  "runId": "tender-union-v1-dxl-amendment",
+  "fact": "tender_five_fact_union",
+  "name": "dxl-amendment",
+  "accession": "0001193125-26-298540",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T11:58:46.578Z",
+  "physicalCallLimit": 1,
+  "requestHash": "f249c3c9d5773d6187ac4bcad0d69685ef197a196ebe849e2954157ea560e31c",
+  "mappingHash": "c5ad97f31410e373d87c94b3bad134c8a89b8ba786f8732ffa4869d47455631d"
+}

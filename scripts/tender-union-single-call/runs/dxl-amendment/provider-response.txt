@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [\n    {\n      \"type\": \"expiration\",\n      \"current\": \"2026-07-24\",\n      \"evidence_refs\": [\"E1\"]\n    },\n    {\n      \"type\": \"offer_price\",\n      \"current\": {\n        \"amount\": 0.84,\n        \"currency_text\": \"$\",\n        \"unit\": \"cash_per_share\"\n      },\n      \"previous\": {\n        \"amount\": 0.82,\n        \"currency_text\": \"$\",\n        \"unit\": \"cash_per_share\"\n      },\n      \"evidence_refs\": [\"E8\", \"E9\", \"E12\", \"E13\"]\n    },\n    {\n      \"type\": \"board_recommendation\",\n      \"current\": \"reject\",\n      \"evidence_refs\": [\"E11\", \"E12\"]\n    }\n  ],\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0TEkLwdPE9BLzEuJ7y7kmoaWMeVTiJkvPrBF702nrUzcxqrPp/IR55RtTzawlg9+wAL+/IvT6Oyb/xSKMT0ITyjt3YN8y78q7QHcM9fLG2Bh7DJ2hT8ziO0cV7LANJhxzEwQ=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6505,
+    "candidatesTokenCount": 226,
+    "totalTokenCount": 6731,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 6505
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "eOLEarqiAteavr0P6cKjmQc"
+}
