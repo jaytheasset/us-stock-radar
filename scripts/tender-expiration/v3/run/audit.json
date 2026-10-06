@@ -1,0 +1,36 @@
+{
+  "runId": "tender-expiration-v3-rumble-canary-20261006",
+  "accession": "0001213900-25-000757",
+  "model": "gemini-2.5-flash",
+  "modelVersion": "gemini-2.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 1710,
+  "usage": {
+    "promptTokenCount": 3474,
+    "candidatesTokenCount": 48,
+    "totalTokenCount": 3522,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3474
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "provenanceValid": true,
+  "mappingHash": "ec8d99cfce121d41ca2b290ee27f0817dda2448618f279010e4fa99d546c6959",
+  "technicalPass": true,
+  "semanticReview": "pending-direct-source-review"
+}

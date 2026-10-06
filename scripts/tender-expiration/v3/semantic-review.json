@@ -1,0 +1,28 @@
+{
+  "runId": "tender-expiration-v3-rumble-canary-20261006",
+  "reviewer": "Codex direct selected-SEC-source review; independent human review not performed",
+  "providerSchema": "PASS",
+  "localStrict": "PASS",
+  "provenanceMapping": "PASS",
+  "dateMeaning": "PASS",
+  "directEvidenceSupport": "FAIL",
+  "secMeaningOverall": "FAIL",
+  "canary": "FAIL",
+  "failureClass": "MODEL_ERROR",
+  "current": "2025-02-04",
+  "previousAbsent": true,
+  "unresolvedEmpty": true,
+  "sourceCoverageSufficient": true,
+  "referenceReview": [
+    { "ref": "E1", "direct": true, "reason": "Offer will expire on February 4, 2025 at 5pm New York City time, unless extended or terminated." },
+    { "ref": "E2", "direct": true, "reason": "Explicit current expiration alongside the separate April 30 maximum-extension bound." },
+    { "ref": "E4", "direct": true, "reason": "Cover explicitly states offer expiration February 4, 2025 at 5pm New York City time." },
+    { "ref": "E5", "direct": false, "reason": "Describes withdrawal rights before February 4 and upon extension; does not independently state the current offer expiration." },
+    { "ref": "E8", "direct": false, "reason": "Withdrawal Rights clause describes withdrawal after February 4 subject to acceptance; not a direct expiration definition." },
+    { "ref": "E12", "direct": true, "reason": "Explicit Expiration Time definition gives February 4, 2025 at 5pm New York City time." }
+  ],
+  "interpretation": "The numeric date and exact identity lookup passed. Under the user's explicit FAIL condition for refs that are not direct expiration evidence, the selected E5/E8 produce a semantic citation failure. Mere count/redundancy of direct citations is not treated as failure.",
+  "responseModified": false,
+  "referencesDroppedOrReplaced": false,
+  "nextAppliedCallExecuted": false
+}

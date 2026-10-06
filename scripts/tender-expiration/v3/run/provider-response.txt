@@ -1,0 +1,30 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"facts\":[{\"type\":\"expiration\",\"current\":\"2025-02-04\",\"evidence_refs\":[\"E1\",\"E2\",\"E4\",\"E5\",\"E8\",\"E12\"]}],\"unresolved\":[]}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 3474,
+    "candidatesTokenCount": 48,
+    "totalTokenCount": 3522,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3474
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "1XfEauWOAYSj9tMP7LTo4Qo"
+}
