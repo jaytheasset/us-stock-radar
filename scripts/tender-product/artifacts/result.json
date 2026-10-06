@@ -1,0 +1,17 @@
+{
+  "pass": true,
+  "failureClass": null,
+  "physicalCalls": 1,
+  "additionalProviderCalls": 0,
+  "aiRuns": 1,
+  "aiOutputs": 1,
+  "reader": "available",
+  "matcher": "match",
+  "alertRows": 1,
+  "deliveredChannels": [],
+  "sentAt": null,
+  "duplicateEnqueue": "duplicate",
+  "replayWorkflow": "completed",
+  "canonicalHash": "de5a6de1b0c0695627ed750acc7bb2e383e64a53895192d2603ca0b82d50b35d",
+  "existingRowDigestsUnchanged": true
+}

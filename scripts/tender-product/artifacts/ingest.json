@@ -1,0 +1,51 @@
+{
+  "ok": false,
+  "partial": false,
+  "stage": "complete",
+  "runId": "5808574f-6c68-46b5-a111-003683b255e7",
+  "stats": {
+    "checked_count": 1,
+    "raw_upserted_count": 0,
+    "skipped_count": 1,
+    "excluded_count": 1,
+    "failed_count": 1,
+    "documents_requested": 0,
+    "documents_fetched": 0,
+    "documents_failed": 0,
+    "sc13_xml_available_count": 0,
+    "sc13_xml_replayed_count": 0,
+    "sc13_xml_failed_count": 0,
+    "sc13_xml_state_recording_failed_count": 0,
+    "section16_xml_available_count": 0,
+    "section16_xml_replayed_count": 0,
+    "section16_xml_failed_count": 0,
+    "section16_xml_state_recording_failed_count": 0,
+    "sec_cover_observation_available_count": 0,
+    "sec_cover_observation_replayed_count": 0,
+    "sec_cover_observation_failed_count": 0,
+    "sec_cover_observation_state_recording_failed_count": 0,
+    "sc13_monitor_completed_count": 0,
+    "sc13_monitor_failed_count": 0,
+    "sc13_monitor_state_recording_failed_count": 0,
+    "form25_delisting_completed_count": 0,
+    "form25_delisting_unavailable_count": 0,
+    "form25_delisting_failed_count": 0,
+    "form25_listing_observation_inserted_count": 0,
+    "form25_listing_observation_replayed_count": 0,
+    "form25_listing_observation_unavailable_count": 0,
+    "form25_listing_observation_failed_count": 0
+  },
+  "items": [
+    {
+      "ok": false,
+      "source_unique_id": "0001702510-26-000009",
+      "title": "Carlyle Credit Solutions, Inc. SC TO-I/A",
+      "error": "insert or update on table \"events\" violates foreign key constraint \"events_event_type_fkey\""
+    }
+  ],
+  "diagnostics": {
+    "documentsRequested": 0,
+    "documentsFetched": 0,
+    "documentsFailed": 0
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "partial": false,
+  "stage": "complete",
+  "runId": "fd689225-a7ce-4b17-b343-885873eedc28",
+  "stats": {
+    "checked_count": 1,
+    "raw_upserted_count": 0,
+    "skipped_count": 1,
+    "excluded_count": 1,
+    "failed_count": 0,
+    "documents_requested": 0,
+    "documents_fetched": 0,
+    "documents_failed": 0,
+    "sc13_xml_available_count": 0,
+    "sc13_xml_replayed_count": 0,
+    "sc13_xml_failed_count": 0,
+    "sc13_xml_state_recording_failed_count": 0,
+    "section16_xml_available_count": 0,
+    "section16_xml_replayed_count": 0,
+    "section16_xml_failed_count": 0,
+    "section16_xml_state_recording_failed_count": 0,
+    "sec_cover_observation_available_count": 0,
+    "sec_cover_observation_replayed_count": 0,
+    "sec_cover_observation_failed_count": 0,
+    "sec_cover_observation_state_recording_failed_count": 0,
+    "sc13_monitor_completed_count": 0,
+    "sc13_monitor_failed_count": 0,
+    "sc13_monitor_state_recording_failed_count": 0,
+    "form25_delisting_completed_count": 0,
+    "form25_delisting_unavailable_count": 0,
+    "form25_delisting_failed_count": 0,
+    "form25_listing_observation_inserted_count": 0,
+    "form25_listing_observation_replayed_count": 0,
+    "form25_listing_observation_unavailable_count": 0,
+    "form25_listing_observation_failed_count": 0
+  },
+  "items": [
+    {
+      "ok": true,
+      "skipped": true,
+      "is_excluded": true,
+      "reason": "excluded_from_primary_tender_source_retained",
+      "skip_gate": "sec_investable_universe",
+      "skip_reason": "No tradable ticker was identified for this SEC filing, so it is excluded from user-facing filing events.",
+      "skip_evidence": [
+        "Form SC TO-I/A has no resolved tradable ticker in raw/parser output.",
+        "Issuer/company name: Carlyle Credit Solutions, Inc.",
+        "SEC title: Carlyle Credit Solutions, Inc. SC TO-I/A.",
+        "No usable ticker candidate was present in ticker, primary_ticker, or tickers."
+      ],
+      "source_unique_id": "0001702510-26-000009",
+      "title": "Carlyle Credit Solutions, Inc. SC TO-I/A",
+      "form_type": "SC TO-I/A",
+      "ticker": null,
+      "raw_item_id": "a30c2929-0466-4d94-9338-a1ba8d86628e",
+      "tender_structured": {
+        "status": "enqueued",
+        "executionId": "d4b666ae-a1d7-5527-a916-4cc0e9fc632c",
+        "workflowRunId": "wrun_01M48WDKZ1DFMNXSZYZRNKK0WG"
+      }
+    }
+  ],
+  "diagnostics": {
+    "documentsRequested": 0,
+    "documentsFetched": 0,
+    "documentsFailed": 0
+  }
+}

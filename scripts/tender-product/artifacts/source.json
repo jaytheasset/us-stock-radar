@@ -1,0 +1,350 @@
+{
+  "accession": "0001702510-26-000009",
+  "form": "SC TO-I/A",
+  "coverage": {
+    "unavailable": [],
+    "partialDocuments": [],
+    "externalReferences": "not-resolved",
+    "selection": "deterministic-tender-evidence-v1"
+  },
+  "evidence": [
+    {
+      "ref": "E1",
+      "evidenceId": "tender:b4db676c67bc80bd026eea31a15372452bfd07bd631eb5838002bdc63ca59eb9",
+      "text": "Carlyle Credit Solutions, Inc.\n\n(Name of Filing Person (Offeror and Issuer))\n\nCommon Stock, $0.01 par value per share",
+      "textHash": "a18a3fdb40b2840f54938b5047b3d4a29e60349e234348e9d957ffc060023a57",
+      "sourceHash": "180ed2796c675aa7118264926602a66fd0e3044cf6e37595847d9d3f31755f56",
+      "renderedHash": "908757a02cf4afefc500c430be067941b8f05d4ba91d295330ea8531a7d6c9ee",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "cars_2026130xsctoa.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 478,
+        "end": 595,
+        "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E2",
+      "evidenceId": "tender:463525b00fff533eacb442f421ff78a4ad2114792acc42837164e0028e1d636d",
+      "text": "[TABLE]\n\n|\nOffering Note\n| | |\n\n[/TABLE]\n\n[TABLE]\n\n|\n1\n| |[colspan=7] Calculated as the aggregate maximum purchase price for shares of common stock, par value $0.01 per share, of Carlyle Credit Solutions, Inc. (\"Shares\"), based upon the net asset value per Share as of November 30, 2025, of $18.84. This amount is based upon the offer to purchase up to 4,180,330 Shares. |\n\n|[colspan=7]\n\n|\n\n[/TABLE]\n\n[TABLE]\n\n| Table 2: Fee Offset Claims and Sources | | ☑Not Applicable |\n\n[/TABLE]",
+      "textHash": "1bb32b629ee65c5f129be652c069743816f0410da02fefa21ee60c65aab843cb",
+      "sourceHash": "c1791ca77ba0c713bf86a04d6ed5c5c372a3db4f12b796ffacf1da3838022f41",
+      "renderedHash": "75e84c22a72c9c89c1cc160c948de222da4e767619a8b63c8568e5621ba93a3a",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "filingfees.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/filingfees.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 719,
+        "end": 1201,
+        "heading": "EX-FILING FEES",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E3",
+      "evidenceId": "tender:9c0f8d6e315fbe45b2483f8513f31e0dd348597d43535f8c56cce090c85afdd4",
+      "text": "    <ffd:NetFeeAmt contextRef=\"rc\" decimals=\"2\" id=\"ixv-189\" unitRef=\"USD\">0.00</ffd:NetFeeAmt>\n    <ffd:OfferingNote contextRef=\"offrl_1\" id=\"ixv-190\">Calculated as the aggregate maximum purchase price for shares of common stock, par value $0.01 per share, of Carlyle Credit Solutions, Inc. (\"Shares\"), based upon the net asset value per Share as of November 30, 2025, of $18.84. This amount is based upon the offer to purchase up to 4,180,330 Shares.</ffd:OfferingNote>\n</xbrl>",
+      "textHash": "b633976b0a5e3eb8320b45c8f82cc56403485d22b8cbe116016815947433a5a7",
+      "sourceHash": "2fb0b7e317109a755275af96852ae6880c9052606c3e0d00ad7407abc6406d93",
+      "renderedHash": "2fb0b7e317109a755275af96852ae6880c9052606c3e0d00ad7407abc6406d93",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "filingfees_htm.xml",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/filingfees_htm.xml",
+        "role": "attachment",
+        "format": "text",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 2810,
+        "end": 3289,
+        "heading": "<XML>",
+        "representation": "prepared-text-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E4",
+      "evidenceId": "tender:58758fa81d6ac776fb42400ffff48aa96e51c65c02a2f04296fb4a564c4271e5",
+      "text": "- Payment of the purchase price for the Shares was made in the form of non-interest bearing, non-transferrable promissory notes issued to the Stockholders whose tenders were accepted for purchase by the Company in accordance with the terms of the Offer; and\n\n- On January 29, 2026, the Company determined that as of December 31, 2025, the net asset value per Share was $18.82 per Share, resulting in an aggregate purchase price of approximately $78,673,802 for approximately 4,180,330 Shares validly tendered and not withdrawn, which amount will be paid by the Company pursuant to the terms of the promissory notes.\n\n1",
+      "textHash": "0902335f37aa5a0d43c4258c6cdb72b3ebcf7f16491947823310f83c74d009e9",
+      "sourceHash": "180ed2796c675aa7118264926602a66fd0e3044cf6e37595847d9d3f31755f56",
+      "renderedHash": "908757a02cf4afefc500c430be067941b8f05d4ba91d295330ea8531a7d6c9ee",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "cars_2026130xsctoa.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 4269,
+        "end": 4887,
+        "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E5",
+      "evidenceId": "tender:c6f5164e8d7c990a07c062b712af7c092836a61b9362662c558163b4644a0f38",
+      "text": "[TABLE]\n\n||||||\n\n|[colspan=3]|\n\n[/TABLE]\n\nFINAL AMENDMENT TO TENDER OFFER STATEMENT\n\nThis Amendment No. 2 (this “Amendment”) amends and supplements the Tender Offer Statement on Schedule TO filed by Carlyle Credit Solutions, Inc., a Maryland corporation (the “Company”), with the U.S. Securities and Exchange Commission (the “SEC”) on December 22, 2025 (together with Amendment No. 1 thereto filed by the Company with the SEC on January 26, 2026, the “Schedule TO”). The Schedule TO relates to the offer by the Company to purchase up to 2,709,108 shares of its common stock, par value $0.01 per share (the “Shares”), at a purchase price equal to the net asset value per Share as of December 31, 2025, upon the terms and subject to the conditions set forth in the Offer to Purchase, dated December 22, 2025 (together with any amendments or supplements thereto, the “Offer to Purchase”), and in the accompanying Letter of Transmittal (together with any amendments or supplements thereto and with the Offer to Purchase, the “Offer”), filed with the Schedule TO as Exhibits (a)(1)(ii) and (a)(1)(iii), respectively.",
+      "textHash": "ea0543da119ab5b211dc87080b5cda3b2b165f1810528702cc66bc08282d83c0",
+      "sourceHash": "180ed2796c675aa7118264926602a66fd0e3044cf6e37595847d9d3f31755f56",
+      "renderedHash": "908757a02cf4afefc500c430be067941b8f05d4ba91d295330ea8531a7d6c9ee",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "cars_2026130xsctoa.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 2266,
+        "end": 3377,
+        "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E6",
+      "evidenceId": "tender:afdc352e5ec1ce9f17f8fe34b2342c4d1b5f4af9cd8375e8d781ead1b6abf7bd",
+      "text": "v3.25.4\n[TABLE]\n\n|[colspan=1 rowspan=1]\nOfferings - Offering: 1\n\n| |\nJan. 29, 2026\n\nUSD ($)\n|\n\n|Offering:| | |\n\n|Fee Previously Paid| |true |\n\n|Rule 0-11| |true |\n\n|Transaction Valuation| |$ 78,757,417.20 |\n\n|Amount of Registration Fee| |$ 10,876.40 |\n\n|Offering Note| |Calculated as the aggregate maximum purchase price for shares of common stock, par value $0.01 per share, of Carlyle Credit Solutions, Inc. (\"Shares\"), based upon the net asset value per Share as of November 30, 2025, of $18.84. This amount is based upon the offer to purchase up to 4,180,330 Shares. |\n\n[/TABLE]\n\n[TABLE]\n\n|X|\n\n|\n- References\n\nNo definition available.\n\n+ Details\n\n[TABLE]\n\n| Name:| |ffd_FeeAmt|\n\n| Namespace Prefix:| |ffd_|\n\n| Data Type:| |ffd:nonNegative1TMonetary2ItemType|\n\n| Balance Type:| |na|\n\n| Period Type:| |duration|\n\n[/TABLE]\n\n|\n\n[/TABLE]",
+      "textHash": "9e40ee696aec6a21faa049ce5c7785093c58a3b123734020937aba59b37b5f89",
+      "sourceHash": "bfbcc1a0cea8dabb86b3a4a0c20fb3e0f4665cc0c0690932680e6412a140813e",
+      "renderedHash": "8e6d26c645d061154ea009f7cbe3ce5a3afd20324757f779ad8290813f6c9d68",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "R2.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/R2.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 0,
+        "end": 836,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E7",
+      "evidenceId": "tender:f46fb8d663ecd1dc8b9af7df95467e6cd60bd27f90f031e9cf706883234714a6",
+      "text": "[TABLE]\n\n||||||||||||\n\n|[colspan=3]Amount Previously Paid:||[colspan=3]Filing Parties:|\n\n|[colspan=3]Form or Registration No.:||[colspan=3]Date Filed:|\n\n[/TABLE]\n\n☐ Check the box if the filing relates solely to preliminary communications made before commencement of a tender offer.\n\nCheck the appropriate boxes below to designate any transactions to which the statement relates:",
+      "textHash": "2311f0058edb97073af0b0f1b27fcefbb5581b8fe769e01161d0fe5a201396d8",
+      "sourceHash": "180ed2796c675aa7118264926602a66fd0e3044cf6e37595847d9d3f31755f56",
+      "renderedHash": "908757a02cf4afefc500c430be067941b8f05d4ba91d295330ea8531a7d6c9ee",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "cars_2026130xsctoa.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 1585,
+        "end": 1963,
+        "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E8",
+      "evidenceId": "tender:3391d473b620591f5e2759da66dc03fe4f38cc2219c54321c109c83954b1ff86",
+      "text": "[TABLE]\n\n||||||\n\n|[colspan=3]\n\n|\n\n[/TABLE]\n\n☐ Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form of Schedule and the date of its filing.\n\n[TABLE]\n\n||||||||||||\n\n|[colspan=3]Amount Previously Paid:||[colspan=3]Filing Parties:|\n\n|[colspan=3]Form or Registration No.:||[colspan=3]Date Filed:|\n\n[/TABLE]",
+      "textHash": "1f1a2ebde3bc54036aa800153c7ddac156c197f22847c0ddd8ab9d2dd055893c",
+      "sourceHash": "180ed2796c675aa7118264926602a66fd0e3044cf6e37595847d9d3f31755f56",
+      "renderedHash": "908757a02cf4afefc500c430be067941b8f05d4ba91d295330ea8531a7d6c9ee",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "cars_2026130xsctoa.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 1270,
+        "end": 1746,
+        "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E9",
+      "evidenceId": "tender:cb595aacfde0cf5c568cf19e8b8fdecbb539dc4c4b066ca3aa4a7719042edd1b",
+      "text": "// Edgar(tm) Renderer was created by staff of the U.S. Securities and Exchange Commission.  Data and content created by government employees within the scope of their employment are not subject to domestic copyright protection. 17 U.S.C. 105.\nvar Show={};Show.LastAR=null,Show.showAR=function(a,r,w){if(Show.LastAR)Show.hideAR();var e=a;while(e&&e.nodeName!='TABLE')e=e.nextSibling;if(!e||e.nodeName!='TABLE'){var ref=((window)?w.document:document).getElementById(r);if(ref){e=ref.cloneNode(!0);",
+      "textHash": "f23aebb675f84c8d8e49bd5ffa99eeb60322d781eed9e1c90e2ef5500aadd7e4",
+      "sourceHash": "27c7269045a14fe3b54c79ba7305bdd22e76f300fdf66f154f280243cb186024",
+      "renderedHash": "27c7269045a14fe3b54c79ba7305bdd22e76f300fdf66f154f280243cb186024",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "Show.js",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/Show.js",
+        "role": "attachment",
+        "format": "text",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 0,
+        "end": 495,
+        "heading": null,
+        "representation": "prepared-text-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E10",
+      "evidenceId": "tender:3407c299978eb1dce9fe909574ed069a6a252e8eb8ff6d208662605ba4b017aa",
+      "text": "FINAL AMENDMENT TO TENDER OFFER STATEMENT\n\nThis Amendment No. 2 (this “Amendment”) amends and supplements the Tender Offer Statement on Schedule TO filed by Carlyle Credit Solutions, Inc., a Maryland corporation (the “Company”), with the U.S. Securities and Exchange Commission (the “SEC”) on December 22, 2025 (together with Amendment No. 1 thereto filed by the Company with the SEC on January 26, 2026, the “Schedule TO”). The Schedule TO relates to the offer by the Company to purchase up to 2,709,108 shares of its common stock, par value $0.01 per share (the “Shares”), at a purchase price equal to the net asset value per Share as of December 31, 2025, upon the terms and subject to the conditions set forth in the Offer to Purchase, dated December 22, 2025 (together with any amendments or supplements thereto, the “Offer to Purchase”), and in the accompanying Letter of Transmittal (together with any amendments or supplements thereto and with the Offer to Purchase, the “Offer”), filed with the Schedule TO as Exhibits (a)(1)(ii) and (a)(1)(iii), respectively.\n\nThis Amendment is being filed by the Company to report the final results of the Offer. Capitalized terms used but not defined herein have the meanings ascribed to them in the Schedule TO.",
+      "textHash": "5e71ec9142e896470e587c9033dd94d55a4fc46dc812fdb302e64f85e9d8618c",
+      "sourceHash": "180ed2796c675aa7118264926602a66fd0e3044cf6e37595847d9d3f31755f56",
+      "renderedHash": "908757a02cf4afefc500c430be067941b8f05d4ba91d295330ea8531a7d6c9ee",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "cars_2026130xsctoa.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 2308,
+        "end": 3566,
+        "heading": "FINAL AMENDMENT TO TENDER OFFER STATEMENT",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E11",
+      "evidenceId": "tender:7aca24c55b307814f7b3a6d6baecdd158dfda285142efb0227a12ea7e8258ac3",
+      "text": "☐ Check the box if any part of the fee is offset as provided by Rule 0-11(a)(2) and identify the filing with which the offsetting fee was previously paid. Identify the previous filing by registration statement number, or the Form of Schedule and the date of its filing.\n\n[TABLE]\n\n||||||||||||\n\n|[colspan=3]Amount Previously Paid:||[colspan=3]Filing Parties:|\n\n|[colspan=3]Form or Registration No.:||[colspan=3]Date Filed:|\n\n[/TABLE]\n\n☐ Check the box if the filing relates solely to preliminary communications made before commencement of a tender offer.",
+      "textHash": "f8f9b17776b3827b4fe1a6eebc4e9ca61b17dba436dec65d22c4c8dbda58b354",
+      "sourceHash": "180ed2796c675aa7118264926602a66fd0e3044cf6e37595847d9d3f31755f56",
+      "renderedHash": "908757a02cf4afefc500c430be067941b8f05d4ba91d295330ea8531a7d6c9ee",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "cars_2026130xsctoa.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/cars_2026130xsctoa.htm",
+        "role": "primary",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 1314,
+        "end": 1866,
+        "heading": "OF THE SECURITIES EXCHANGE ACT OF 1934",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E12",
+      "evidenceId": "tender:16a54bf6706b63fe11ab3525ec6c39ad6528a0b2b190709a55b5047a3976e3ed",
+      "text": "[TABLE]\n\n| | | | |\nTransaction Valuation\n| |\nFee Rate\n| |\nAmount of Filing Fee\n|\n\n| Fees to be Paid | | | | | | | | |\n\n| Fees Previously Paid | | 1 | | $ 78,757,417.20 | | | | $ 10,876.40 |\n\n| | |\nTotal Transaction Valuation:\n| |\n$ 78,757,417.20\n| | | | |\n\n| | |\nTotal Fees Due for Filing:\n| | | | | |\n$ 10,876.40\n|\n\n| | |\nTotal Fees Previously Paid:\n| | | | | |\n$ 10,876.40\n|\n\n| | |\nTotal Fee Offsets:\n| | | | | |\n$ 0.00\n|\n\n| | |\nNet Fee Due:\n| | | | | |\n$ 0.00\n|\n\n[/TABLE]\n\n[TABLE]\n\n|\nOffering Note\n| | |\n\n[/TABLE]\n\n[TABLE]\n\n|\n1\n| |[colspan=7] Calculated as the aggregate maximum purchase price for shares of common stock, par value $0.01 per share, of Carlyle Credit Solutions, Inc. (\"Shares\"), based upon the net asset value per Share as of November 30, 2025, of $18.84. This amount is based upon the offer to purchase up to 4,180,330 Shares. |\n\n|[colspan=7]\n\n|\n\n[/TABLE]",
+      "textHash": "d5db93f41a1c37ac22ed7d5a3101302e85a371a69dbccf54599da059ab939a85",
+      "sourceHash": "c1791ca77ba0c713bf86a04d6ed5c5c372a3db4f12b796ffacf1da3838022f41",
+      "renderedHash": "75e84c22a72c9c89c1cc160c948de222da4e767619a8b63c8568e5621ba93a3a",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "filingfees.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/filingfees.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 243,
+        "end": 1118,
+        "heading": "EX-FILING FEES",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    },
+    {
+      "ref": "E13",
+      "evidenceId": "tender:169baac240ed4316f05f41c674c3d63b74207f00e1ee97919d0b190a9f094486",
+      "text": "[TABLE]\n\n|X|\n\n|\n- Definition\n\nA unique 10-digit SEC-issued value to identify entities that have filed disclosures with the SEC. It is commonly abbreviated as CIK.\n\n+ References\n\nReference 1: http://www.xbrl.org/2003/role/presentationRef\n\n-Publisher SEC\n\n-Name Exchange Act\n\n-Number 240\n\n-Section 12\n\n-Subsection b-2\n\n+ Details\n\n[TABLE]\n\n| Name:| |dei_EntityCentralIndexKey|\n\n| Namespace Prefix:| |dei_|\n\n| Data Type:| |dei:centralIndexKeyItemType|\n\n| Balance Type:| |na|\n\n| Period Type:| |duration|\n\n[/TABLE]\n\n|\n\n[/TABLE]\n\n[TABLE]\n\n|X|\n\n|\n- Definition\n\nThe exact name of the entity filing the report as specified in its charter, which is required by forms filed with the SEC.\n\n+ References\n\nReference 1: http://www.xbrl.org/2003/role/presentationRef\n\n-Publisher SEC\n\n-Name Exchange Act\n\n-Number 240\n\n-Section 12\n\n-Subsection b-2\n\n+ Details\n\n[TABLE]\n\n| Name:| |dei_EntityRegistrantName|\n\n| Namespace Prefix:| |dei_|\n\n| Data Type:| |xbrli:normalizedStringItemType|\n\n| Balance Type:| |na|\n\n| Period Type:| |duration|\n\n[/TABLE]\n\n|\n\n[/TABLE]\n\n[TABLE]\n\n|X|\n\n|\n- References\n\nNo definition available.\n\n+ Details\n\n[TABLE]\n\n| Name:| |ffd_FeeExhibitTp|\n\n| Namespace Prefix:| |ffd_|\n\n| Data Type:| |ffd:feeExhibitTypeItemType|\n\n| Balance Type:| |na|\n\n| Period Type:| |duration|\n\n[/TABLE]\n\n|\n\n[/TABLE]",
+      "textHash": "70e51bae29b6b0e0982f173f5ce214b2b645b2454251b58df95bf51957a51b0d",
+      "sourceHash": "0cd15b2a0660e080b728ff1d410ce79201026c4f8f345d731db481065974b7ee",
+      "renderedHash": "f12bdb5bcc08286ad417491d892a34a29b2ccad94943acdb667fe4f002757391",
+      "accession": "0001702510-26-000009",
+      "form": "SC TO-I/A",
+      "document": {
+        "accession": "0001702510-26-000009",
+        "form": "SC TO-I/A",
+        "documentId": "R1.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1702510/000170251026000009/R1.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "location": {
+        "start": 347,
+        "end": 1635,
+        "heading": null,
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "pass": true,
+  "at": "2026-10-06T15:12:01.816Z",
+  "tests": 163,
+  "typecheck": "PASS",
+  "migration": "apply/reapply PASS",
+  "dbInvariants": "PASS (mock provider only)",
+  "workflowValidation": "PASS",
+  "workflowManifestAndRoutes": "generated; flow400/step405 on GET (compiled)",
+  "sourceCoverage": "directly reviewed E4 NAV/promissory notes; E10 actual final results",
+  "expectedLeakage": false,
+  "physicalCalls": 0,
+  "requestHash": "25622f5c1de77aa3aabdc1236c450663dd7da231c9eac1989456356fe84c5a58",
+  "code": {
+    "lib/sec-tender/analyzer.ts": "ccb3a06815d4ba63e970fb84dafbc6541e8b641f0ca9a1a7269a0905d659b854",
+    "lib/sec-tender/contract.ts": "614375c712a4fad6189cb9d0fd0702d9d6cafda3c1f1461b51ab61596319da4a",
+    "lib/sec-tender/persistence.ts": "0ae9497f3e72b2f7ed61a40d7ab04ba815c604bf8b670e831f6b564a0b305975",
+    "lib/sec-tender/runtime.ts": "5d2a2c65d08a2ed412148b5a9e48b4713242313b4d720d65fec2bbbfdb2d6d1b",
+    "lib/sec-tender/source.ts": "e437a517685dd1a53bda3d9d692ec69b8d576f34385ad53a17013fce8546398b",
+    "workflows/tender-structured.ts": "b7dac8984a051ab99f984d9031d08c7d54514c43fa11b80b98bd231b6ae5ee5f",
+    "lib/secIngest.ts": "5f27a6ddb08df5e665119eed4f57046e33a57678f3ca5aeb600f133011e970c4",
+    "lib/listingMonitorMatcher.ts": "35bb1b52f00af265211b23988d37ea537f80783db1cba75ce07770e5a41df114",
+    "lib/monitor/tenderStructuredFacts.ts": "c5a127311f148ea2b6e530899165fe314f007ce15bdf0399e8b0b0d4a2c87ca8",
+    "lib/monitor/listingMonitorAlertConsumer.ts": "66feb8a496628a424c77c1ba5c7dc77dd463aeed0b1b00399f8a0fd709b452ae",
+    "lib/monitor/conditionRegistry.ts": "c00285d8dde39183cfbf96875dde85f937e824566d410af91e445678aac2aa2e"
+  }
+}

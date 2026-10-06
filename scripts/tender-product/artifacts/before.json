@@ -1,0 +1,30 @@
+{
+  "raw_items": {
+    "n": 54,
+    "digest": "340d53e62a282e7f8d80fb0f4f9c8ad6"
+  },
+  "listing_monitors": {
+    "n": 7,
+    "digest": "0d81907ac035d8fda0cc3c33d18df744"
+  },
+  "auth.users": {
+    "n": 8,
+    "digest": "f90326145e9d512fb293c8b5823eec45"
+  },
+  "events": {
+    "n": 27,
+    "digest": "04e63222968db98a7bff58bbe17601d3"
+  },
+  "ai_runs": {
+    "n": 70,
+    "digest": "c75e7af54314db1bece1187109341b56"
+  },
+  "ai_outputs": {
+    "n": 68,
+    "digest": "83691eede3496bf54c15179297ae39e3"
+  },
+  "user_alert_deliveries": {
+    "n": 2,
+    "digest": "0cf3f73d446fedf039124d2f3059a987"
+  }
+}

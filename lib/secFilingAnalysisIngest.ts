@@ -30,6 +30,8 @@ import {
 import { prepareSecAmendmentMonitorFanout } from "@/lib/sec-amendments/secAmendmentMonitorBridge";
 import { persistOwnershipOneCallContext } from "@/lib/monitor/ownershipStructuredContextAnalyzer";
 import { OWNERSHIP_ONE_CALL_PROMPT_KEY } from "@/lib/ai/ownershipOneCall";
+import { consumeTenderAlertsForRaw, enqueueTenderStructured } from "@/lib/sec-tender/runtime";
+import { isTenderStructuredForm } from "@/lib/sec-tender/source";
 import { consumeProxyAlertsForRaw } from "@/lib/sec-proxy/runtime";
 import { enqueueProxyStructured } from "@/lib/sec-proxy/starter";
 import { isProxyForm, record as proxyRecord } from "@/lib/sec-proxy/source";
@@ -357,6 +359,15 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       })
     : null;
 
+  const tenderStructuredExecution = isTenderStructuredForm(proxyRecord(rawResult.rawItem.raw_payload).form_type)
+    ? await (async () => {
+        const rawItemId = stringValue(rawResult.rawItem?.id);
+        const execution = await enqueueTenderStructured(rawItemId);
+        const alerts = options.suppressAlerts ? [] : await consumeTenderAlertsForRaw(rawItemId);
+        return { execution, alerts };
+      })().catch(error => ({ status: "failed", reason: String(error) }))
+    : null;
+
   const proxyStructuredExecution = isProxyForm(proxyRecord(rawResult.rawItem.raw_payload).form_type)
     ? await (async () => {
         const rawItemId = stringValue(rawResult.rawItem?.id);
@@ -388,6 +399,7 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     effectMonitorExecution,
     offeringMonitorRegistryExecution,
     filingMonitorExecution,
+    tenderStructuredExecution,
     proxyStructuredExecution,
     validationRepairTrace,
   };

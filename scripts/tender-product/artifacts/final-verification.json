@@ -1,0 +1,21 @@
+{
+  "pass": true,
+  "preCallTests": 163,
+  "finalTests": 139,
+  "typecheck": {
+    "command": "npx tsc --noEmit --incremental false",
+    "exitCode": 0
+  },
+  "workflowValidation": {
+    "command": "npm run verify:workflows",
+    "exitCode": 0
+  },
+  "gitDiffCheck": "PASS",
+  "secretPatternScan": {
+    "files": 61,
+    "matches": 0
+  },
+  "candidateServer3117": "stopped",
+  "nextEnvRestored": true,
+  "base": "acf8c181a6af3c15896c6d363a53930f357c008e"
+}

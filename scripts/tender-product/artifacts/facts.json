@@ -1,0 +1,13 @@
+{
+  "status": "available",
+  "eventId": "d635af3b-f7c6-410a-8e58-6bf762c831e7",
+  "rawItemId": "a30c2929-0466-4d94-9338-a1ba8d86628e",
+  "sourceExecutionId": "d4b666ae-a1d7-5527-a916-4cc0e9fc632c",
+  "persistedAt": "2026-10-06T15:13:30.953009+00:00",
+  "filedAt": "2026-01-30T00:00:00+00:00",
+  "facts": {
+    "board_recommendation": null,
+    "offer_status": null,
+    "final_results_observed": true
+  }
+}

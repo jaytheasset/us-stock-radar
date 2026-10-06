@@ -1,0 +1,16 @@
+{
+  "accession": "0001702510-26-000009",
+  "model": "gemini-3.5-flash",
+  "requestHash": "25622f5c1de77aa3aabdc1236c450663dd7da231c9eac1989456356fe84c5a58",
+  "sourceHash": "a279622e7167768c991d71ac7142516591444154ed6e2c45cbbe2a615e7028f7",
+  "queries": [
+    "What are the current and previous fixed cash per share tender consideration and currency?",
+    "What is the subject company's board recommendation to shareholders on this tender and any prior recommendation?",
+    "Does this filing report an actual tender withdrawal or termination, or actual final tender results rather than preliminary or interim results?"
+  ],
+  "evidenceCount": 13,
+  "evidenceChars": 8965,
+  "providerChars": 9814,
+  "promptChars": 2014,
+  "schemaChars": 2297
+}

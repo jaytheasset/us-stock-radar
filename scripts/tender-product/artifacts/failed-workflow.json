@@ -1,0 +1,38 @@
+{
+  "status": "failed",
+  "executionId": "d4b666ae-a1d7-5527-a916-4cc0e9fc632c",
+  "workflowRunId": "wrun_01M48WDKZ1DFMNXSZYZRNKK0WG",
+  "failureClass": "TEST_HARNESS_ERROR",
+  "failure": {
+    "version": "listing_monitor_alert_consumer_v1",
+    "status": "partial_failure",
+    "eventId": "d635af3b-f7c6-410a-8e58-6bf762c831e7",
+    "readerStatus": "not_ready",
+    "readerReason": "reader_not_requested",
+    "corporateActionReaderStatus": "not_ready",
+    "corporateActionReaderReason": "reader_not_requested",
+    "ownershipReaderStatus": "not_ready",
+    "ownershipReaderReason": "reader_not_requested",
+    "evaluationDate": "2026-10-06",
+    "monitorCount": 1,
+    "diagnostics": [],
+    "evaluations": [
+      {
+        "monitorId": "ed9c0bde-48fd-45e1-a969-5668e4696c3d",
+        "status": "match",
+        "reasonCode": "all_conditions_match"
+      }
+    ],
+    "writes": [
+      {
+        "status": "failed",
+        "monitorId": "ed9c0bde-48fd-45e1-a969-5668e4696c3d",
+        "error": "insert or update on table \"user_alert_deliveries\" violates foreign key constraint \"user_alert_deliveries_user_id_fkey\""
+      }
+    ],
+    "evaluationHistoryWrites": [],
+    "createdCount": 0,
+    "existingCount": 0,
+    "failedCount": 1
+  }
+}

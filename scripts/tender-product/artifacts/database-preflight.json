@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "local": true,
+  "actualProviderCalls": 0,
+  "reports": [
+    "migration apply/reapply PASS",
+    "checkpoint_replay PASS (mock provider)",
+    "started PASS (mock provider)",
+    "source_stale PASS (mock provider)",
+    "response_write_failure PASS (mock provider)"
+  ]
+}

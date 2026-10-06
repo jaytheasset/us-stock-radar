@@ -1,0 +1,5 @@
+{
+  "maxCalls": 1,
+  "purpose": "Carlyle four-slot source-only durable Workflow E2E",
+  "stop": "After this response; semantic error => STOP; downstream recovery uses checkpoint only"
+}

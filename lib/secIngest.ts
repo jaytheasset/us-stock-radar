@@ -38,6 +38,8 @@ import { isS8Form } from "@/lib/sec-s8/directFacts";
 import { persistS8Registration } from "@/lib/sec-s8/persistence";
 import { enqueueS8Structured } from "@/lib/sec-s8/structuredRuntime";
 import { enqueueProxyStructured } from "@/lib/sec-proxy/starter";
+import { enqueueTenderStructured } from "@/lib/sec-tender/runtime";
+import { isTenderStructuredForm } from "@/lib/sec-tender/source";
 import { isProxyForm } from "@/lib/sec-proxy/source";
 
 type SecRawIngestOptions = {
@@ -68,6 +70,7 @@ type SecRawIngestDependencies = {
   persistForm25ListingStatus?: typeof persistForm25ListingStatusAutomatically;
   persistS8Registration?: typeof persistS8Registration;
   enqueueS8Structured?: typeof enqueueS8Structured;
+  enqueueTenderStructured?: typeof enqueueTenderStructured;
   enqueueProxyStructured?: typeof enqueueProxyStructured;
 };
 
@@ -89,6 +92,7 @@ export async function runSecRawIngest(
     persistForm25ListingStatus: dependencies.persistForm25ListingStatus ?? persistForm25ListingStatusAutomatically,
     persistS8Registration: dependencies.persistS8Registration ?? persistS8Registration,
     enqueueS8Structured: dependencies.enqueueS8Structured ?? enqueueS8Structured,
+    enqueueTenderStructured: dependencies.enqueueTenderStructured ?? enqueueTenderStructured,
     enqueueProxyStructured: dependencies.enqueueProxyStructured ?? enqueueProxyStructured,
   };
   const dryRun = Boolean(options.dryRun);
@@ -101,6 +105,11 @@ export async function runSecRawIngest(
   const form25ListingStatusRecords: Form25ListingPersistenceRecord[] = [];
   const s8RegistrationRecords: Array<Record<string, unknown>> = [];
   const items: Array<Record<string, unknown>> = [];
+  async function tenderAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
+    if (dryRun || !isTenderStructuredForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
+    try { return await runtime.enqueueTenderStructured(rawItemId); }
+    catch (error) { return { status: "failed", reason: String(error) }; }
+  }
   async function proxyAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
     if (!isProxyForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
     try { return await runtime.enqueueProxyStructured(rawItemId); }
@@ -289,7 +298,15 @@ export async function runSecRawIngest(
         if (exclusion) {
           stats.skipped_count += 1;
           stats.excluded_count += 1;
-          items.push(buildExcludedRawItem(rawItem, exclusion));
+          // Tender source evidence is useful without a tradable ticker. Retain the
+          // exclusion for Primary/user events while letting its raw-only sidecar run.
+          if (isTenderStructuredForm(rawItem.raw_payload.form_type)) {
+            const existing = await runtime.findExistingRawItem(rawItem);
+            const persisted = existing ?? await runtime.saveRawItem(rawItem, runId, null);
+            if (!existing) stats.raw_upserted_count += 1;
+            items.push({...buildExcludedRawItem(rawItem, exclusion), reason:"excluded_from_primary_tender_source_retained", raw_item_id: persisted.id,
+              tender_structured: await tenderAfterRawSave(rawItem, stringValue(persisted.id))});
+          } else items.push(buildExcludedRawItem(rawItem, exclusion));
           continue;
         }
 
@@ -327,6 +344,7 @@ export async function runSecRawIngest(
             sc13_xml_persistence: sc13XmlPersistence,
             section16_xml_persistence: section16XmlPersistence,
             s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(existing.id)),
+            tender_structured: await tenderAfterRawSave(rawItem, stringValue(existing.id)),
             proxy_structured: await proxyAfterRawSave(rawItem, stringValue(existing.id)),
             sec_cover_observation_persistence: secCoverObservationPersistence,
             form25_delisting: form25Delisting,
@@ -368,6 +386,7 @@ export async function runSecRawIngest(
           sc13_xml_persistence: sc13XmlPersistence,
           section16_xml_persistence: section16XmlPersistence,
           s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(persisted.id)),
+          tender_structured: await tenderAfterRawSave(rawItem, stringValue(persisted.id)),
           proxy_structured: await proxyAfterRawSave(rawItem, stringValue(persisted.id)),
           sec_cover_observation_persistence: secCoverObservationPersistence,
           form25_delisting: form25Delisting,

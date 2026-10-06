@@ -97,7 +97,7 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "effect";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -112,6 +112,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_event_nt_lifecycle"
       | "read_s8_structured"
       | "read_current_proxy_structured"
+      | "read_current_tender_structured"
       | "read_event_filing_metadata"
       | "read_effect_registration"
       | "read_sc13_issuer_current_state"
@@ -197,6 +198,38 @@ const registry = [
     source: { subject: "event", reader: "read_current_proxy_structured", jsonPath: [field] },
     qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
   } as const)),
+  {
+    key: "tender.board_recommendation", valueType: "text", allowedOperators: ["eq", "in"],
+    enumValues: ["accept", "reject", "no_recommendation"],
+    enumValueDescriptions: {accept:"Board explicitly recommends tendering.",reject:"Board explicitly recommends not tendering.",no_recommendation:"Board explicitly declines to recommend either choice."},
+    family: "tender", domain: "tender", monitorDomains: ["listing"],
+    description: "Explicit subject-company board recommendation on this tender. Null is unknown, not a negative fact.",
+    display: { label: "Tender board recommendation", enumValueLabels: {
+      accept: "Accept / tender", reject: "Reject / do not tender", no_recommendation: "No recommendation",
+    } },
+    source: { subject: "event", reader: "read_current_tender_structured", jsonPath: ["board_recommendation"] },
+    qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
+  },
+  {
+    key: "tender.offer_status", valueType: "text", allowedOperators: ["eq", "in"],
+    enumValues: ["withdrawn", "terminated"],
+    enumValueDescriptions: {withdrawn:"Actual tender withdrawal explicitly confirmed.",terminated:"Actual tender termination explicitly confirmed."},
+    family: "tender", domain: "tender", monitorDomains: ["listing"],
+    description: "Explicitly occurred tender withdrawal or termination. Expiration or silence does not qualify.",
+    display: { label: "Tender offer status", enumValueLabels: { withdrawn: "Withdrawn", terminated: "Terminated" } },
+    source: { subject: "event", reader: "read_current_tender_structured", jsonPath: ["offer_status"] },
+    qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
+  },
+  {
+    key: "tender.final_results_observed", valueType: "boolean", allowedOperators: ["eq"],
+    family: "tender", domain: "tender", monitorDomains: ["listing"],
+    description: "True only when actual final tender results are explicitly observed. Null is unknown, never false.",
+    display: { label: "Tender final results observed", booleanValueLabels: {
+      true: "Final results observed", false: "Unsupported: absence is unknown",
+    } },
+    source: { subject: "event", reader: "read_current_tender_structured", jsonPath: ["final_results_observed"] },
+    qualityCapability: ["derived"], eligibility: { requiredReaderStatus: "available" }, status: "READY",
+  },
   {
     key: "s8.filing_kind", valueType: "text", allowedOperators: ["eq", "in"],
     enumValues: ["registration", "amendment", "deregistration", "reoffer", "other", "unclear"],
@@ -1220,6 +1253,7 @@ function validConditionScalar(definition: MonitorConditionDefinition, value: unk
   if (definition.valueType === "decimal") {
     return typeof value === "string" && /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value);
   }
+  if (definition.key === "tender.final_results_observed") return value === true;
   if (definition.valueType === "boolean") return typeof value === "boolean";
   if (definition.valueType === "date") return monitorDateOnlyUtcDay(value) !== null;
   if (definition.valueType === "timestamp") {

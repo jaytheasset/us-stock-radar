@@ -1,0 +1,13 @@
+{
+  "before": {
+    "n": 10,
+    "digest": "8d437715acd9a94c5b545f1b8987a678"
+  },
+  "after": {
+    "n": 10,
+    "digest": "8d437715acd9a94c5b545f1b8987a678"
+  },
+  "syntheticUserId": "b4aff412-a2c2-47e6-af2d-c58efcfdd2ae",
+  "productChanges": 0,
+  "providerCalls": 0
+}

@@ -1,0 +1,12 @@
+{
+  "version": "tender_structured_v1",
+  "facts": [
+    {
+      "type": "final_results_observed",
+      "observed": true,
+      "evidence_refs": [
+        "E10"
+      ]
+    }
+  ]
+}

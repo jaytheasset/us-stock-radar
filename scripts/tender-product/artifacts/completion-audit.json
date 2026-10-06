@@ -1,0 +1,24 @@
+{
+  "pass": true,
+  "migrationReapply": "PASS twice; finished history unchanged",
+  "permissions": "invoker RPCs: service_role only",
+  "physicalCalls": 1,
+  "secondRequestGuard": "EEXIST before native fetch",
+  "guardNativeCalls": 0,
+  "checkpointMatchesDurableProviderResponse": true,
+  "providerInputUnchanged": true,
+  "canonicalHash": "de5a6de1b0c0695627ed750acc7bb2e383e64a53895192d2603ca0b82d50b35d",
+  "alertRows": 1,
+  "otherUsersAlertRows": 0,
+  "profileDigestsUnchanged": true,
+  "recoveredFailures": [
+    {
+      "class": "TEST_HARNESS_ERROR",
+      "detail": "synthetic event used unregistered tender_offer; corrected to registered other before call"
+    },
+    {
+      "class": "TEST_HARNESS_ERROR",
+      "detail": "synthetic auth user lacked public.user_profiles FK row; added only synthetic profile, then replayed real Workflow"
+    }
+  ]
+}

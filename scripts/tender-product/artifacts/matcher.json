@@ -1,0 +1,22 @@
+{
+  "version": "listing_monitor_matcher_v1",
+  "eventId": "d635af3b-f7c6-410a-8e58-6bf762c831e7",
+  "evaluationDate": "2026-10-07",
+  "evaluations": [
+    {
+      "id": "ed9c0bde-48fd-45e1-a969-5668e4696c3d",
+      "result": {
+        "version": "listing_monitor_matcher_v1",
+        "status": "match",
+        "reasonCode": "all_conditions_match",
+        "conditions": [
+          {
+            "key": "tender.final_results_observed",
+            "status": "match",
+            "reasonCode": "all_conditions_match"
+          }
+        ]
+      }
+    }
+  ]
+}
