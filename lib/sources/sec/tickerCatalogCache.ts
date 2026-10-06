@@ -1,14 +1,8 @@
-import type { SecTickerSelectionRow } from "./sourceTickerSelection.ts";
-
 // Product cache policy, not a statement about SEC publication frequency.
 export const SEC_TICKER_CATALOG_TTL_MS = 15 * 60 * 1_000;
-type Catalog = Map<string, SecTickerSelectionRow[]>;
-const copy = (value: Catalog): Catalog => new Map(
-  [...value].map(([cik, rows]) => [cik, rows.map((row) => ({ ...row }))]),
-);
 
 /** Process-local single-flight cache. The loader must fully validate before resolving. */
-export function createTickerCatalogCache(load: () => Promise<Catalog>, now: () => number = () => Date.now()) {
+export function createTickerCatalogCache<Catalog>(load: () => Promise<Catalog>, now: () => number = () => Date.now()) {
   let snapshot: { value: Catalog; checkedAt: number } | null = null;
   let inFlight: Promise<Catalog> | null = null;
   let refreshFailed = false;
@@ -18,7 +12,7 @@ export function createTickerCatalogCache(load: () => Promise<Catalog>, now: () =
       // Even ordinary reads wait for an already-requested refresh.
       if (!inFlight && (fresh || refreshFailed || !snapshot || now() - snapshot.checkedAt >= SEC_TICKER_CATALOG_TTL_MS)) {
         inFlight = Promise.resolve().then(load).then((value) => {
-          snapshot = { value: copy(value), checkedAt: now() };
+          snapshot = { value: structuredClone(value), checkedAt: now() };
           refreshFailed = false;
           return snapshot.value;
         }).catch((error: unknown) => {
@@ -27,7 +21,7 @@ export function createTickerCatalogCache(load: () => Promise<Catalog>, now: () =
           throw error;
         }).finally(() => { inFlight = null; });
       }
-      return copy(inFlight ? await inFlight : snapshot!.value);
+      return structuredClone(inFlight ? await inFlight : snapshot!.value);
     },
     // Scalar diagnostic state only; never exposes the shared Map or its row arrays.
     state() {

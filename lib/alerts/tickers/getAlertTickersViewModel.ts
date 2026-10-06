@@ -201,7 +201,7 @@ function mapEventTickerCatalogRow(row: unknown): TickerSearchResult | null {
 }
 
 async function searchSecTickerCatalog(query: string): Promise<TickerSearchResult[]> {
-  const result = await fetchSecCompanyTickers(query);
+  const result = await fetchSecCompanyTickers(query, { fresh: false });
   if (!result.ok || !Array.isArray(result.data)) return [];
   return result.data.flatMap((value) => {
     const row = value as SecTickerRow;

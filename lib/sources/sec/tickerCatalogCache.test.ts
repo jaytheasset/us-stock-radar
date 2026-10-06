@@ -4,7 +4,7 @@ import { createTickerCatalogCache, SEC_TICKER_CATALOG_TTL_MS as TTL } from "./ti
 
 // All company names, tickers and identities in this file are synthetic.
 const catalog = (ticker: string) => new Map([["1234567", [{ cik: "1234567", ticker, exchange: "Nasdaq", name: "Synthetic Cache Company" }]]]);
-const symbol = (value: Awaited<ReturnType<ReturnType<typeof createTickerCatalogCache>["get"]>>) => value.get("1234567")?.[0].ticker;
+const symbol = (value: ReturnType<typeof catalog>) => value.get("1234567")?.[0].ticker;
 function deferred<T>() { let resolve!: (v: T) => void; let reject!: (e: Error) => void;
   const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 
