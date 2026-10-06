@@ -139,6 +139,14 @@
   margin-top: var(--sr-space-1);
 }
 
+.stockHeader[data-company-identity-state="not-confirmed"] .stockIdentity p,
+.stockHeader[data-company-identity-state="unavailable"] .stockIdentity p {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .stockQuote {
   flex-wrap: wrap;
   gap: var(--sr-space-1) var(--sr-space-2);

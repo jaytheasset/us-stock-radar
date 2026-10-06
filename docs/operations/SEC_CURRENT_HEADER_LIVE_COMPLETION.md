@@ -4,6 +4,10 @@
 `aee477a71dda272a29e78d88f04a1adc88b5ce1c`, detached eeb4.
 No product code, authentication, schema, environment file or dependency changed.
 
+Follow-up: the status-message clipping recorded below was subsequently reproduced
+and fixed with scoped CSS. Non-interfering hydration/capture checks are documented
+in [`SEC_HEADER_STATUS_READABILITY.md`](SEC_HEADER_STATUS_READABILITY.md).
+
 ## Result and limits
 
 **Same-live-source connection PASS:** main Submissions → explicit refresh → owned
