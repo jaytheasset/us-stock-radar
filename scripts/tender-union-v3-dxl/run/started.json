@@ -1,0 +1,12 @@
+{
+  "runId": "tender-union-v3-dxl-c5cc6006-8c7b-4856-b575-833628e7cdfd",
+  "accession": "0001193125-26-298540",
+  "model": "gemini-3.5-flash",
+  "physicalCallLimit": 1,
+  "startedAt": "2026-10-06T13:04:48.134Z",
+  "requestHash": "edaf7a6af3109a97fe983908d380263007a7c6a0ec239b2939e806fef18c6b5a",
+  "mappingHash": "c5ad97f31410e373d87c94b3bad134c8a89b8ba786f8732ffa4869d47455631d",
+  "currencyInventory": [
+    "$"
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "runId": "tender-union-v3-dxl-c5cc6006-8c7b-4856-b575-833628e7cdfd",
+  "accession": "0001193125-26-298540",
+  "model": "gemini-3.5-flash",
+  "modelVersion": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "retries": 0,
+  "repairCalls": 0,
+  "fallbackCalls": 0,
+  "semanticCorrections": 0,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "latencyMs": 2812,
+  "usage": {
+    "promptTokenCount": 5996,
+    "candidatesTokenCount": 355,
+    "totalTokenCount": 6351,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 5996
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "currencyInventory": [
+    "$"
+  ],
+  "validation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "canonicalValidation": {
+    "providerSchema": {
+      "valid": true,
+      "errors": []
+    },
+    "local": {
+      "valid": true,
+      "errors": []
+    }
+  },
+  "projectionPass": true,
+  "provenanceValid": true,
+  "technicalPass": true
+}

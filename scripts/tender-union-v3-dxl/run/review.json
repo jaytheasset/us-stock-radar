@@ -1,0 +1,150 @@
+{
+  "pass": true,
+  "failureClass": null,
+  "reviewer": "GPT direct comparison of frozen SEC Evidence and raw provider output; not independent human signoff",
+  "sourceCoverageSufficient": true,
+  "schemaRepresentationFailure": false,
+  "sourceAmbiguity": false,
+  "semanticCorrections": 0,
+  "checks": [
+    {
+      "field": "expiration.current",
+      "expected": "2026-07-24",
+      "actual": "2026-07-24",
+      "pass": true,
+      "refs": [
+        "E1",
+        "E12",
+        "E13"
+      ],
+      "support": "Current scheduled July 24 is explicit."
+    },
+    {
+      "field": "expiration.previous",
+      "expected": "2026-06-22",
+      "actual": "2026-06-22",
+      "pass": true,
+      "refs": [
+        "E4",
+        "E13"
+      ],
+      "support": "Earlier June 22 expiration and later extension to July 24 are explicit in same offer history."
+    },
+    {
+      "field": "offer_price.current.amount",
+      "expected": 0.84,
+      "actual": 0.84,
+      "pass": true,
+      "refs": [
+        "E8",
+        "E9",
+        "E12",
+        "E13"
+      ],
+      "support": "Operative $0.84 cash per-share price is explicit."
+    },
+    {
+      "field": "offer_price.current.currency_text",
+      "expected": "$",
+      "actual": "$",
+      "pass": true,
+      "refs": [
+        "E8",
+        "E9",
+        "E12",
+        "E13"
+      ],
+      "support": "Bare dollar notation is the deterministic source-derived candidate and is attached to the selected amount."
+    },
+    {
+      "field": "offer_price.previous.amount",
+      "expected": 0.82,
+      "actual": 0.82,
+      "pass": true,
+      "refs": [
+        "E12",
+        "E13"
+      ],
+      "support": "Explicit increase from $0.82 to $0.84."
+    },
+    {
+      "field": "offer_price.previous.currency_text",
+      "expected": "$",
+      "actual": "$",
+      "pass": true,
+      "refs": [
+        "E12",
+        "E13"
+      ],
+      "support": "Bare dollar notation is attached to the explicit prior amount."
+    },
+    {
+      "field": "offer_price.current_and_previous.unit",
+      "expected": "cash_per_share",
+      "actual": "cash_per_share",
+      "pass": true,
+      "refs": [
+        "E8",
+        "E9",
+        "E12",
+        "E13"
+      ],
+      "support": "Same tender consideration is per share in cash."
+    },
+    {
+      "field": "board_recommendation.current",
+      "expected": "reject",
+      "actual": "reject",
+      "pass": true,
+      "refs": [
+        "E11",
+        "E12"
+      ],
+      "support": "Board explicitly recommends reject/not tender."
+    },
+    {
+      "field": "board_recommendation.previous",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "refs": [],
+      "support": "Temporary take-no-action and separate FBB merger recommendation are not prior tender recommendations."
+    },
+    {
+      "field": "offer_status",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "refs": [],
+      "support": "No actual tender withdrawal/termination in packet."
+    },
+    {
+      "field": "final_results_observed",
+      "expected": null,
+      "actual": null,
+      "pass": true,
+      "refs": [],
+      "support": "June 22 approximate tendered count is interim, not final."
+    },
+    {
+      "field": "unresolved",
+      "expected": [],
+      "actual": [],
+      "pass": true,
+      "refs": [],
+      "support": "Frozen packet is sufficient for the emitted claims."
+    }
+  ],
+  "currencyInventory": [
+    "$"
+  ],
+  "inventoryRole": "Pre-call lexical constraint only; it does not choose price amount/current/previous semantics and performs no post-call repair.",
+  "referenceReview": {
+    "allReturnedRefsExistAndRelevant": true,
+    "allClaimsDirectlySupported": true,
+    "foreignFabricatedRefs": 0,
+    "irrelevantRefSelections": 0
+  },
+  "decision": "single-call v3 DXL = PASS; stop after the authorized one call; no generalized Practical PASS yet",
+  "history": "v1 DXL failed on expiration.previous omission; v2 DXL fixed previous but failed currency_text semantics; v3 keeps v2 fixed slots and constrains currency_text to source-derived notation inventory."
+}

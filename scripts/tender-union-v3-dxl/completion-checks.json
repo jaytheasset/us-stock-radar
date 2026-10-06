@@ -1,0 +1,32 @@
+{
+  "base": "dc218d10e778964c4a852de27fa803e5650ceaf4",
+  "workspace": "C:/Users/PC/.codex/worktrees/87db/US-Stock Radar",
+  "state": "detached candidate",
+  "changedScope": "scripts/tender-union-v3-dxl only",
+  "semanticResult": "PASS for DXL single-call v3; generalized Practical PASS not claimed",
+  "currencyInventory": [
+    "$"
+  ],
+  "physicalCalls": 1,
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "semanticCorrections": 0,
+  "httpStatus": 200,
+  "model": "gemini-3.5-flash",
+  "inputTokens": 5996,
+  "outputTokens": 355,
+  "latencyMs": 2812,
+  "preflight": "15/15 PASS",
+  "combinedRegression": "44/44 PASS",
+  "typecheck": "PASS",
+  "artifactAudit": "PASS",
+  "diffCheck": "PASS",
+  "outsideV3Changes": "none",
+  "secretScan": "PASS; no Google API-key pattern found",
+  "sourceIdentity": "v2 source/provider/map byte-identical",
+  "expectedLeakage": "none",
+  "productChanges": false,
+  "mainMergePushDeploy": false,
+  "additionalPaidCalls": 0
+}

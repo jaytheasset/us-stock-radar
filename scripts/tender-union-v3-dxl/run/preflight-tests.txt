@@ -1,0 +1,23 @@
+✔ 01 DXL source-derived currency inventory is exactly bare dollar notation (0.9454ms)
+✔ 02 currency inventory comes only from evidence text and is deterministic (0.1536ms)
+✔ 03 provider schema constrains both current and previous currency_text to source inventory (0.2633ms)
+✔ 04 v2 bad currency role outputs are structurally rejected before canonical projection (10.2545ms)
+✔ 05 correct DXL values remain valid and projection does not rewrite semantics (1.446ms)
+✔ 06 fixed slots still require explicit previous decision and refs (3.0784ms)
+✔ 07 null slots do not create canonical false facts (0.1315ms)
+✔ 08 no currency inventory makes offer_price positive structurally impossible (0.9845ms)
+✔ 09 exact v2 source/provider/map bytes retained before any paid call (9.613ms)
+✔ 10 request has exact same provider source and no baseline leakage (1.2337ms)
+✔ 11 foreign currency strings cannot pass merely because they occur as prose (4.3998ms)
+✔ 12 amount and semantic state remain model-owned, not normalized by projection (1.2774ms)
+✔ 13 one physical fetch and durable reservation remain enforced (19.2035ms)
+✔ 14 no retry on HTTP/transport/schema failure (18.3887ms)
+✔ 15 schema inventory is source-derived before request and not stored in provider user content (0.488ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 240.9106

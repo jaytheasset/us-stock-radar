@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"expiration\": {\n    \"current\": \"2026-07-24\",\n    \"previous\": \"2026-06-22\",\n    \"current_evidence_refs\": [\n      \"E1\",\n      \"E12\",\n      \"E13\"\n    ],\n    \"previous_evidence_refs\": [\n      \"E4\",\n      \"E13\"\n    ]\n  },\n  \"offer_price\": {\n    \"current\": {\n      \"amount\": 0.84,\n      \"currency_text\": \"$\",\n      \"unit\": \"cash_per_share\"\n    },\n    \"previous\": {\n      \"amount\": 0.82,\n      \"currency_text\": \"$\",\n      \"unit\": \"cash_per_share\"\n    },\n    \"current_evidence_refs\": [\n      \"E8\",\n      \"E9\",\n      \"E12\",\n      \"E13\"\n    ],\n    \"previous_evidence_refs\": [\n      \"E12\",\n      \"E13\"\n    ]\n  },\n  \"board_recommendation\": {\n    \"current\": \"reject\",\n    \"previous\": null,\n    \"current_evidence_refs\": [\n      \"E11\",\n      \"E12\"\n    ],\n    \"previous_evidence_refs\": []\n  },\n  \"offer_status\": null,\n  \"final_results_observed\": null,\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0T6PaEFDszWlJ/VL7SIzsRTujXn3D6eac/m8PGtY4UL92V8QEXYD7iazaYvb/yEU3ZtEowGc5dcuiw/K4JLIbaaxNLYmAshEy3z7OczRJUd2OmEYVRaXnseasEk0WeRQZLhQ=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 5996,
+    "candidatesTokenCount": 355,
+    "totalTokenCount": 6351,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 5996
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "8PHEaqDqKcCB1e8PgojUwAo"
+}

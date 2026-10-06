@@ -1,0 +1,29 @@
+{
+  "accession": "0001193125-26-298540",
+  "expected": {
+    "expiration": {"current":"2026-07-24","previous":"2026-06-22"},
+    "offer_price": {"current":{"amount":0.84,"currency_text":"$","unit":"cash_per_share"},"previous":{"amount":0.82,"currency_text":"$","unit":"cash_per_share"}},
+    "board_recommendation": {"current":"reject","previous":null},
+    "offer_status": null,
+    "final_results_observed": null,
+    "unresolved": []
+  },
+  "directSupport": {
+    "expiration.current": ["E1","E2","E12","E13"],
+    "expiration.previous": ["E4","E13"],
+    "offer_price.current": ["E8","E9","E12","E13"],
+    "offer_price.previous": ["E12","E13"],
+    "board_recommendation.current": ["E11","E12"]
+  },
+  "sourceReview": {
+    "E3": "HSR waiting-period expiry/termination is a condition, not actual tender termination.",
+    "E6": "Separate January acquisition proposal price is not previous tender price.",
+    "E12_E13": "June 23 amendment raises $0.82 to $0.84 and extends to July 24; June 22 approximate 16% is interim. Temporary take-no-action is not prior board recommendation.",
+    "E15": "Withdrawn recommendation concerns a different FBB merger, not this tender's prior board recommendation or tender withdrawal.",
+    "E10_E17_E18": "Executive compensation and hypothetical July 31 closing are not offer price/expiration.",
+    "status_final": "No supported positive tender withdrawal/termination or final results in supplied evidence. Null is extraction abstention, not canonical false."
+  },
+  "reviewer": "Codex direct frozen-source review; not independent human signoff",
+  "coveragePass": true,
+  "providerInput": false
+}

@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "failureClass": null,
+  "physicalCalls": 1,
+  "retries": 0,
+  "repairCalls": 0,
+  "fallbackCalls": 0,
+  "semanticCorrections": 0,
+  "currencyInventory": [
+    "$"
+  ],
+  "dxlSingleCallV3": "PASS",
+  "generalizedPracticalPass": false,
+  "nextStep": "STOP and await approval before any additional paid representative filing."
+}
