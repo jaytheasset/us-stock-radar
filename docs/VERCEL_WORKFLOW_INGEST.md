@@ -212,6 +212,8 @@ Workflow가 Vercel에서 사용하는 queue/storage/OIDC는 별도 secret 없이
 
 ## Render 병행 운영과 롤백
 
+현재 상태 보충 (2026-10-06): 아래는 전환/롤백 절차이며 상시 이중 수집 방침이 아니다. 현재 자동 source-ingest 스케줄은 [prelaunch 정책](SOURCE_INGEST_SCHEDULING.md)에 따라 꺼져 있다. 실제 Render 목록의 Stock Radar 서비스는 웹 2개와 중지된 alert-delivery cron이며, SEC cron 실행 여부를 `render.yaml` 선언만으로 판단하지 않는다. 사용자 승인으로 이 세 서비스의 auto-deploy만 Off로 변경했고 실행/중지 상태는 유지했다. Vercel 배포·수집 재개·운영 DB 적용은 별도 승인 범위다.
+
 `render.yaml`과 `npm run sec:ingest-production`은 그대로 남아 있다. 첫
 Vercel 배포에서는 Workflow lane enable 값이 비어 있으므로 기존 Render
 운영만 계속된다.

@@ -9,6 +9,8 @@ Current deployment strategy:
 - Keep `POST /api/cron/alert-delivery` as a protected manual operator endpoint.
 - Host the production Telegram webhook at `https://us-stock-radar.com/api/telegram/webhook`.
 
+Operational checkpoint (2026-10-06): this is the intended deployment strategy, not a claim that current production equals local main or that scheduled delivery is active. Render automatic deployment was explicitly disabled for `us-stock-radar-web`, `us-stock-radar`, and `us-stock-radar-alert-delivery-cron`; the cron remains suspended and the two web services remain unsuspended. GitHub publication and Vercel deployment/production activation are separate steps. See the [main handoff](operations/ASTRA_6_MAIN_HANDOFF.md) for commit and verification boundaries.
+
 The delivery system is not a news or SEC analysis pipeline. It only takes already-created `events` and decides which users should receive personalized delivery based on watchlist, discovery categories, preferences, plan limits, and delivery channels.
 
 ## Current Vercel Production Architecture
