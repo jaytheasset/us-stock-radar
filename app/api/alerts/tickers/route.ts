@@ -12,6 +12,7 @@ import {
   normalizeAlertTicker,
 } from "@/lib/alerts/tickers/alertTickerValidation";
 import { supabaseUpsert } from "@/lib/supabase";
+import { TickerSearchUnavailableError } from "@/lib/tickerSearchContract";
 
 export const dynamic = "force-dynamic";
 
@@ -107,6 +108,9 @@ export async function POST(request: NextRequest) {
     const data = await getAlertTickersViewModel(userId);
     return NextResponse.json({ ok: true, data }, { headers: NO_STORE_HEADERS });
   } catch (error) {
+    if (error instanceof TickerSearchUnavailableError) {
+      return NextResponse.json({ ok: false, error: error.code, message: error.message }, { status: 503, headers: NO_STORE_HEADERS });
+    }
     if (error instanceof AlertTickerValidationError) {
       return NextResponse.json(
         {

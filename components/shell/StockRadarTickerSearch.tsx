@@ -293,6 +293,9 @@ export function StockRadarTickerSearch({
             id={searchListboxId}
             role="listbox"
           >
+            {observation.status === "ready" && observation.responseStatus === "partial" ? (
+              <p className={styles.globalSearchState} role="status">{observation.message}</p>
+            ) : null}
             {observation.status === "loading" ? (
               <p
                 className={styles.globalSearchState}

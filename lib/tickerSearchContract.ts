@@ -13,7 +13,28 @@ export type TickerSearchResponse = {
   error?: string;
   message?: string;
   ok?: boolean;
+  partial?: boolean;
 };
+
+export type TickerSearchRead = { data: TickerSearchResult[]; partial?: true };
+export const TICKER_SEARCH_UNAVAILABLE_MESSAGE = "Ticker search is temporarily unavailable. Please try again.";
+export const TICKER_SEARCH_PARTIAL_MESSAGE = "Some results may be unavailable.";
+
+export class TickerSearchUnavailableError extends Error {
+  readonly code = "TICKER_SEARCH_UNAVAILABLE";
+  constructor() { super(TICKER_SEARCH_UNAVAILABLE_MESSAGE); }
+}
+
+export function completeTickerSearch(data: TickerSearchResult[], partial = false): TickerSearchRead {
+  if (partial && !data.length) throw new TickerSearchUnavailableError();
+  return { data, ...(partial ? { partial: true as const } : {}) };
+}
+
+// Array-only callers cannot silently treat an incomplete search as complete.
+export function requireCompleteTickerSearch(result: TickerSearchRead) {
+  if (result.partial) throw new TickerSearchUnavailableError();
+  return result.data;
+}
 
 export function normalizeTickerSearchQuery(value: unknown) {
   if (typeof value !== "string") return "";
@@ -61,12 +82,22 @@ export function mapTickerSearchResults(payload: unknown): TickerSearchResult[] {
   });
 }
 
-export async function readTickerSearchResponse(response: Response) {
-  const payload = (await response.json().catch(() => null)) as TickerSearchResponse | null;
-  if (!response.ok || payload?.ok === false) {
-    throw new Error(payload?.message || "Ticker search failed.");
+export function parseTickerSearchResponse(payload: unknown, httpStatus: number): TickerSearchRead {
+  const row = asRecord(payload);
+  if (httpStatus < 200 || httpStatus >= 300 || row?.ok !== true || !Array.isArray(row.data) ||
+      (row.partial !== undefined && typeof row.partial !== "boolean") ||
+      row.data.some((value) => {
+        const item = asRecord(value);
+        return !normalizeTickerSymbol(item?.ticker) || !readString(item, "companyName");
+      })) {
+    throw new TickerSearchUnavailableError();
   }
-  return mapTickerSearchResults(payload);
+  return completeTickerSearch(mapTickerSearchResults(payload), row.partial === true);
+}
+
+export async function readTickerSearchResponse(response: Response) {
+  const payload: unknown = await response.json().catch(() => null);
+  return parseTickerSearchResponse(payload, response.status);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

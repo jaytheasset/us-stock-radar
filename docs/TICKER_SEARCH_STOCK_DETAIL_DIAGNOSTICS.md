@@ -45,10 +45,25 @@ matching stock page. A direct stock URL correctly reports the search portion as
 - `loading`: the existing ticker-search GET is in progress.
 - `ready`: HTTP succeeded, API `ok` is true, the response has rows, and the
   shared client contract rendered one or more safe results.
+- `responseStatus=partial` with `ready`: usable results remain, but a required
+  supplemental read failed. The UI shows “Some results may be unavailable.”
+  Selection is allowed; the selection snapshot and detail readout retain
+  `partial`, rather than recording a fully completed search.
 - `empty`: HTTP and API succeeded and both response and rendered counts are
   zero. This is a valid no-match result, not a failure.
 - `unavailable`: transport failed, HTTP/API failed, the response shape was
   unsupported, or response and mapped counts were inconsistent.
+
+The normal and stock-research API branches return HTTP 503 with
+`TICKER_SEARCH_UNAVAILABLE` when a known required dependency failed and no
+usable results remain. Primary tickers DB failure also stops the search; SEC
+does not bypass it. Internal unexpected errors remain HTTP 500. Messages are
+fixed safe text, never upstream errors. Complete means the existing search
+policy finished, not an exhaustive worldwide security search. Partial is not
+an asset-type, tradability, or issuer-identity verification.
+
+F2 candidate checks and remaining authenticated Live Room verification:
+[`SEC_TICKER_SEARCH_F2.md`](operations/SEC_TICKER_SEARCH_F2.md).
 
 Stock-detail render state remains `idle`, `loading`, `ready`, or `unavailable`.
 It does not claim that every optional stock subsection succeeded; it mirrors

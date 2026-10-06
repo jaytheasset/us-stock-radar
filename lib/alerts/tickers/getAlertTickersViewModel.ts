@@ -6,6 +6,10 @@ import { supabaseSelect } from "@/lib/supabase";
 import { fetchSecCompanyTickers } from "@/lib/integrations";
 import {
   normalizeTickerSearchQuery,
+  completeTickerSearch,
+  requireCompleteTickerSearch,
+  TickerSearchUnavailableError,
+  type TickerSearchRead,
   type TickerSearchResult,
 } from "@/lib/tickerSearchContract";
 import type {
@@ -91,13 +95,20 @@ export function formatAlertTickerUsage(viewModel: Pick<AlertTickersViewModel, "u
 
 export async function findTickerBySymbol(ticker: string): Promise<TickerSearchResult | null> {
   const normalizedTicker = ticker.trim().toUpperCase();
-  const results = await searchTickerCatalog(normalizedTicker, 12);
-  return results.find((result) => result.ticker === normalizedTicker) ?? null;
+  const result = await readTickerCatalogSearch(normalizedTicker, 12);
+  const exact = result.data.find((row) => row.ticker === normalizedTicker);
+  if (exact) return exact;
+  if (result.partial) throw new TickerSearchUnavailableError();
+  return null;
 }
 
 export async function searchTickerCatalog(query: string, limit = 8): Promise<TickerSearchResult[]> {
+  return requireCompleteTickerSearch(await readTickerCatalogSearch(query, limit));
+}
+
+export async function readTickerCatalogSearch(query: string, limit = 8): Promise<TickerSearchRead> {
   const normalized = normalizeTickerSearchQuery(query);
-  if (!normalized) return [];
+  if (!normalized) return { data: [] };
 
   const cappedLimit = Math.max(1, Math.min(limit, 12));
   const [catalogResult, eventTickerResult] = await Promise.all([
@@ -117,7 +128,7 @@ export async function searchTickerCatalog(query: string, limit = 8): Promise<Tic
   ]);
 
   if (!catalogResult.ok) {
-    throw new Error(catalogResult.error || "Failed to search tickers.");
+    throw new TickerSearchUnavailableError();
   }
 
   const catalogRows = Array.isArray(catalogResult.data)
@@ -127,16 +138,17 @@ export async function searchTickerCatalog(query: string, limit = 8): Promise<Tic
     ? eventTickerResult.data.map(mapEventTickerCatalogRow)
     : [];
   const localRows = mergeTickerResults([...catalogRows, ...eventRows]);
-  const secRows = localRows.length < cappedLimit
+  const sec = localRows.length < cappedLimit
     ? await searchSecTickerCatalog(normalized)
-    : [];
-  const rows = mergeTickerResults([...localRows, ...secRows]);
+    : { data: [], failed: false };
+  const rows = mergeTickerResults([...localRows, ...sec.data]);
   const uppercaseQuery = normalized.toUpperCase();
 
-  return rows.sort((a, b) => {
+  const data = rows.sort((a, b) => {
     const rankDifference = getSearchRank(a, uppercaseQuery) - getSearchRank(b, uppercaseQuery);
     return rankDifference || a.ticker.localeCompare(b.ticker);
   }).slice(0, cappedLimit);
+  return completeTickerSearch(data, !eventTickerResult.ok || sec.failed);
 }
 
 function getSearchRank(item: TickerSearchResult, query: string) {
@@ -200,10 +212,10 @@ function mapEventTickerCatalogRow(row: unknown): TickerSearchResult | null {
   };
 }
 
-async function searchSecTickerCatalog(query: string): Promise<TickerSearchResult[]> {
+async function searchSecTickerCatalog(query: string): Promise<{ data: TickerSearchResult[]; failed: boolean }> {
   const result = await fetchSecCompanyTickers(query, { fresh: false });
-  if (!result.ok || !Array.isArray(result.data)) return [];
-  return result.data.flatMap((value) => {
+  if (!result.ok || !Array.isArray(result.data)) return { data: [], failed: true };
+  const data = result.data.flatMap((value) => {
     const row = value as SecTickerRow;
     const ticker = stringValue(row.ticker).toUpperCase();
     const companyName = stringValue(row.title);
@@ -216,6 +228,7 @@ async function searchSecTickerCatalog(query: string): Promise<TickerSearchResult
       marketCap: null,
     }];
   });
+  return { data, failed: false };
 }
 
 function mergeTickerResults(results: Array<TickerSearchResult | null>) {

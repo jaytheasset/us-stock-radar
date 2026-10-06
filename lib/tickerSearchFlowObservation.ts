@@ -1,5 +1,8 @@
 import {
   mapTickerSearchResults,
+  parseTickerSearchResponse,
+  TICKER_SEARCH_UNAVAILABLE_MESSAGE,
+  TICKER_SEARCH_PARTIAL_MESSAGE,
   normalizeTickerSearchQuery,
   normalizeTickerSymbol,
   type TickerSearchResult,
@@ -13,7 +16,7 @@ export type TickerSearchRequestState =
   | "loading"
   | "received"
   | "failed";
-export type TickerSearchResponseStatus = "unknown" | "success" | "failure";
+export type TickerSearchResponseStatus = "unknown" | "success" | "partial" | "failure";
 export type TickerSearchStatus =
   | "idle"
   | "loading"
@@ -52,7 +55,7 @@ export type TickerSearchSelectionSnapshot = {
   renderedResultCount: number;
   requestHref: string;
   requestState: "received";
-  responseStatus: "success";
+  responseStatus: "success" | "partial";
   selectedTicker: string;
   selectionHref: string;
   sourceResultCount: number;
@@ -112,19 +115,18 @@ export function resolveTickerSearchRequestSnapshot({
   const safeStatus = safeHttpStatus(httpStatus);
   const apiOk = typeof response?.ok === "boolean" ? response.ok : null;
   const rows = Array.isArray(response?.data) ? response.data : null;
-  const succeeded =
-    safeStatus !== null &&
-    safeStatus >= 200 &&
-    safeStatus < 300 &&
-    apiOk === true &&
-    rows !== null;
+  let responseStatus: TickerSearchResponseStatus = "failure";
+  try {
+    const result = parseTickerSearchResponse(payload, safeStatus ?? 0);
+    responseStatus = result.partial ? "partial" : "success";
+  } catch { /* Invalid/failed responses are unavailable, never empty. */ }
 
   return {
     apiOk,
     httpStatus: safeStatus,
     requestState,
-    responseStatus: succeeded ? "success" : "failure",
-    sourceResultCount: succeeded ? rows.length : null,
+    responseStatus,
+    sourceResultCount: apiOk === true && safeStatus !== null && safeStatus >= 200 && safeStatus < 300 && rows ? rows.length : null,
   };
 }
 
@@ -141,7 +143,7 @@ export function resolveTickerSearchObservation({
 }): TickerSearchObservation {
   const normalizedQuery = normalizeTickerSearchQuery(query);
   const mappedResults =
-    request.responseStatus === "success" ? mapTickerSearchResults(payload) : [];
+    request.responseStatus === "success" || request.responseStatus === "partial" ? mapTickerSearchResults(payload) : [];
   const status = resolveSearchStatus(
     normalizedQuery,
     request,
@@ -155,7 +157,9 @@ export function resolveTickerSearchObservation({
     activeIndex < results.length
       ? activeIndex
       : -1;
-  const presentation = searchPresentation(status);
+  const presentation = status === "ready" && request.responseStatus === "partial"
+    ? { message: TICKER_SEARCH_PARTIAL_MESSAGE, role: "status" as const }
+    : searchPresentation(status);
 
   return {
     ...request,
@@ -203,7 +207,7 @@ export function buildTickerSearchReadout(
     sourceResultCount: observation.sourceResultCount,
     stage: "search",
     summary: observation.query
-      ? `Ticker search for ${observation.query}: ${countCopy}.${activeCopy}`
+      ? `Ticker search for ${observation.query}: ${countCopy}.${activeCopy}${observation.responseStatus === "partial" ? ` ${TICKER_SEARCH_PARTIAL_MESSAGE}` : ""}`
       : "Ticker search is idle.",
   };
 }
@@ -221,7 +225,7 @@ export function createTickerSearchSelectionSnapshot({
   if (
     observation.status !== "ready" ||
     observation.requestState !== "received" ||
-    observation.responseStatus !== "success" ||
+    (observation.responseStatus !== "success" && observation.responseStatus !== "partial") ||
     observation.apiOk !== true ||
     observation.httpStatus === null ||
     observation.sourceResultCount === null ||
@@ -240,7 +244,7 @@ export function createTickerSearchSelectionSnapshot({
     renderedResultCount: observation.renderedResultCount,
     requestHref: observation.requestHref,
     requestState: "received",
-    responseStatus: "success",
+    responseStatus: observation.responseStatus,
     selectedTicker: ticker,
     selectionHref,
     sourceResultCount: observation.sourceResultCount,
@@ -280,7 +284,7 @@ export function parseTickerSearchSelectionSnapshot(
     row?.version !== "ticker-search-selection-v1" ||
     row?.status !== "ready" ||
     row?.requestState !== "received" ||
-    row?.responseStatus !== "success" ||
+    (row?.responseStatus !== "success" && row?.responseStatus !== "partial") ||
     row?.apiOk !== true ||
     !query ||
     !ticker ||
@@ -308,7 +312,7 @@ export function parseTickerSearchSelectionSnapshot(
     renderedResultCount,
     requestHref: row.requestHref,
     requestState: "received",
-    responseStatus: "success",
+    responseStatus: row.responseStatus,
     selectedTicker: ticker,
     selectionHref: expectedHref,
     sourceResultCount,
@@ -360,7 +364,7 @@ export function resolveTickerSearchToStockDetailReadout({
     selectionHref: selection?.selectionHref ?? "",
     sourceResultCount: selection?.sourceResultCount ?? null,
     stage: "detail",
-    summary,
+    summary: `${summary}${selection?.responseStatus === "partial" ? ` ${TICKER_SEARCH_PARTIAL_MESSAGE}` : ""}`,
   };
 }
 
@@ -373,7 +377,7 @@ function resolveSearchStatus(
   if (request.requestState === "loading") return "loading";
   if (
     request.requestState === "failed" ||
-    request.responseStatus !== "success" ||
+    (request.responseStatus !== "success" && request.responseStatus !== "partial") ||
     request.apiOk !== true ||
     request.httpStatus === null ||
     request.httpStatus < 200 ||
@@ -402,7 +406,7 @@ function searchPresentation(status: TickerSearchStatus) {
   }
   if (status === "unavailable") {
     return {
-      message: "Ticker search is temporarily unavailable.",
+      message: TICKER_SEARCH_UNAVAILABLE_MESSAGE,
       role: "alert" as const,
     };
   }
