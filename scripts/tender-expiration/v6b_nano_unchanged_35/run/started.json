@@ -1,0 +1,9 @@
+{
+  "runId": "tender-expiration-v6b-nano-unchanged-gemini35-20261006",
+  "accession": "0001213900-23-055698",
+  "model": "gemini-3.5-flash",
+  "startedAt": "2026-10-06T05:05:44.233Z",
+  "maxPhysicalCalls": 1,
+  "requestHash": "b41a654a4679551c842761d90299b2f2cddf04b999dc442b1317ef09e5ca2b5f",
+  "mappingHash": "67771ddb4d785505c19bc88ce24a7d153a4ced9a40c9c0b54295821cc5aed163"
+}

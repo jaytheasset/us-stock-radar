@@ -1,0 +1,312 @@
+{
+  "accession": "0001213900-23-055698",
+  "form": "SC TO-T/A",
+  "coverage": {
+    "partialDocuments": [],
+    "unavailable": [],
+    "externalReferences": "not-resolved",
+    "selection": "bounded source slices; not the complete filing"
+  },
+  "evidence": [
+    {
+      "id": "tender:43615e31b31a9e792effa8b2d3449ff3f4241b14d6b913e0fee5664f048c901b",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "ea0671ebd4865e368ad44e13209176a6c36121e09b1f0b0b9250a45759e57c9c",
+      "location": {
+        "start": 22053,
+        "end": 24347,
+        "heading": "AMENDMENTS TO SPECIFIC PROVISIONS",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "“We will disregard any Notices of Objection received by the Depositary after such deadline. In addition, if you submit a Notice of Objection with respect to Stratasys Shares and thereafter you deliver a Letter of Transmittal by which you tender those Stratasys Shares, we will disregard your Notice of Objection. Similarly, if you submit a Letter of Transmittal by which you tender Stratasys Shares, and thereafter you deliver to us a Notice of Objection with respect to those Stratasys Shares, we will disregard your Letter of Transmittal. If you submit a Letter of Transmittal and a Notice of Objection concurrently with respect to the same Stratasys Shares, we will disregard the Notice of Objection. If you hold such Stratasys Shares through a broker, dealer, commercial bank, trust company or other nominee, you must request such broker, dealer, commercial bank, trust company or other nominee to tender your Stratasys Shares or provide on your behalf a Notice of Objection to the Depositary prior to 5:00 p.m., New York time, on the Expiration Date.”\n\n(ii) The first paragraph of subsection (i) entitled “Withdrawing your Objection” of Section 9 of the Original Offer to Purchase, entitled “Procedures for Tendering Shares or Notifying us of Your Objection to the Offer” is hereby amended and restated as follows:\n\n“You may withdraw a previously submitted Notice of Objection at any time prior to 5:00 p.m., New York time, on the Expiration Date. For a withdrawal to be effective, a written notice of withdrawal must be timely received by the Depositary at its address set forth on the back cover of this Offer to Purchase. Any notice of withdrawal must specify the name of the person(s) who submitted the Notice of Objection to be withdrawn and the number of Stratasys Shares to which the Notice of Objection to be withdrawn relates. If you hold such Stratasys Shares through a broker, dealer, commercial bank, trust company or other nominee, you must request such broker, dealer, commercial bank, trust company or other nominee to submit on your behalf a notice of withdrawal. Following the withdrawal of a Notice of Objection, a new Notice of Objection may be submitted at any time prior to 5:00 p.m., New York time, on the Expiration Date by following the procedures described above.”"
+    },
+    {
+      "id": "tender:908de7f41a96660c094e5205b02450542f827b4186634b1f348b2e6cf040c4d5",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "f2c74b846ce573fe6b721cb34d0e4cae75a5439cf2bee3648891d206d5b96959",
+      "location": {
+        "start": 8892,
+        "end": 9661,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "• You may tender your Stratasys Shares until 5:00 p.m., New York time, on July 24, 2023, or, if we further extend our offer, before 5:00 p.m., New York time, on the date to which the offer is extended.\n\n• As required under Israeli law, if (i) the conditions of the offer have been satisfied or, subject to applicable law, waived by us; and (ii) with respect to each Stratasys Share owned by you, you have (a) not yet responded to the offer, (b) notified us of your objection to the offer, or (c) tendered such Stratasys Share but have properly withdrawn your tender during the Offer Period, then, you will be afforded an additional four (4) calendar-day period, until 5:00 p.m., New York time, on July 28, 2023, during which you may tender each such Stratasys Share.\n\n3"
+    },
+    {
+      "id": "tender:c168c295ea7940f9a4010293d302612984144a6d7c4f410f14896a70ba35203c",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "7c480486b1ed1091482cd5eae717c5e84898df896f290a37324c2f40ad0052cb",
+      "location": {
+        "start": 21711,
+        "end": 23109,
+        "heading": "AMENDMENTS TO SPECIFIC PROVISIONS",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "2. Procedures for Tendering Shares or Notifying us of Your Objection to the Offer\n\n(i) The second paragraph of subsection (h) entitled “Objecting to the Offer” of Section 9 of the Original Offer to Purchase, entitled “Procedures for Tendering Shares or Notifying us of Your Objection to the Offer” is hereby amended and restated as follows:\n\n“We will disregard any Notices of Objection received by the Depositary after such deadline. In addition, if you submit a Notice of Objection with respect to Stratasys Shares and thereafter you deliver a Letter of Transmittal by which you tender those Stratasys Shares, we will disregard your Notice of Objection. Similarly, if you submit a Letter of Transmittal by which you tender Stratasys Shares, and thereafter you deliver to us a Notice of Objection with respect to those Stratasys Shares, we will disregard your Letter of Transmittal. If you submit a Letter of Transmittal and a Notice of Objection concurrently with respect to the same Stratasys Shares, we will disregard the Notice of Objection. If you hold such Stratasys Shares through a broker, dealer, commercial bank, trust company or other nominee, you must request such broker, dealer, commercial bank, trust company or other nominee to tender your Stratasys Shares or provide on your behalf a Notice of Objection to the Depositary prior to 5:00 p.m., New York time, on the Expiration Date.”"
+    },
+    {
+      "id": "tender:607c7b47cafd86830396134c2fabd95ff0c4f0d973961f7cf5f49d83bd917d17",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "c492bda8deab251a09f8f36e58ab6ccbc7974c87d42c93c1f7c02b976d9fb101",
+      "location": {
+        "start": 10679,
+        "end": 12542,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "What if I have already objected to the offer?\n\n• You are deemed to have objected to the offer if you have previously submitted a Notice of Objection.\n\n• You may withdraw a previously submitted Notice of Objection at any time prior to 5:00 p.m., New York time, on the Expiration Date. Following the withdrawal of a Notice of Objection, a new Notice of Objection may be submitted at any time prior to 5:00 p.m., New York time, on the Expiration Date by following the procedures described in Section 9 of the Original Offer to Purchase. In addition, if you submitted a Notice of Objection with respect to Stratasys Shares and thereafter you deliver a Letter of Transmittal by which you tender those Stratasys Shares or you otherwise tender those Stratasys Shares through your broker or other nominee, we will disregard your Notice of Objection. Similarly, if you submitted a Letter of Transmittal by which you tendered Stratasys Shares or you otherwise tendered those Stratasys Shares through your broker or other nominee, and thereafter you deliver to us a Notice of Objection with respect to those Stratasys Shares, we will disregard your Letter of Transmittal or previous tender. If you submitted a Letter of Transmittal (or you otherwise tendered through your broker or other nominee) and a Notice of Objection concurrently with respect to the same Stratasys Shares, we will disregard the Notice of Objection. If you hold such Stratasys Shares through a broker, dealer, commercial bank, trust company or other nominee, you must request such broker, dealer, commercial bank, trust company or other nominee to submit on your behalf a notice of withdrawal. Following the withdrawal of a Notice of Objection, a new Notice of Objection may be submitted at any time prior to 5:00 p.m., New York time, on the Expiration Date by following the procedures described above."
+    },
+    {
+      "id": "tender:82ba713887ab4c1c09aacc071eb5aabb96b076b146a36c79cc1320dae9476ddd",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "5cfd9f2994ad925d43b7ad847284fe3c7b5f91e33244b76b35a5ad6643de83a8",
+      "location": {
+        "start": 286,
+        "end": 530,
+        "heading": "IN AN OFFER BEING CONDUCTED IN THE UNITED STATES",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "NANO DIMENSION LTD.\n\nIN AN OFFER BEING CONDUCTED IN THE UNITED STATES\n\n[TABLE]\n\n|\nTHE OFFER AND WITHDRAWAL RIGHTS WILL EXPIRE AT 5:00 P.M., NEW YORK TIME, ON JULY 24, 2023, UNLESS THE OFFER IS FURTHER EXTENDED OR EARLIER TERMINATED.\n|\n\n[/TABLE]"
+    },
+    {
+      "id": "tender:c2e0ac1e4c6399e9bb96a720a0899348ce05cab4b6435b60b6a3a130e000c8ae",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "d3d2fa11d43fe4ab635a353c35b7d211d590acfcb0ad82c167f4ef0388295fab",
+      "location": {
+        "start": 8636,
+        "end": 8890,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Has the Expiration Date of the offer been changed?\n\n• No. The Expiration Date of the offer is still 5:00 p.m., New York time, on July 24, 2023, unless the offer is further extender or earlier terminated.\n\nHow long do I have to tender my Stratasys Shares?"
+    },
+    {
+      "id": "tender:0dd8f1b92ca2e9045f6f1e014ce43103b57deff4f2bc4e0d8dda294ef12f185b",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "dc7f4df43ac5d252e52e47d911dbb9c0c624b9ba2d62bf57a965a432cf4cdf45",
+      "location": {
+        "start": 8302,
+        "end": 8839,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "• We are amending the offer to increase the Offer Price from $20.05 per Stratasys Share to $24.00 per Stratasys Share to the seller in cash, less any required withholding taxes and without interest, upon the terms and subject to the conditions set forth in the Offer to Purchase and the related Second Amended Letter of Transmittal.\n\nHas the Expiration Date of the offer been changed?\n\n• No. The Expiration Date of the offer is still 5:00 p.m., New York time, on July 24, 2023, unless the offer is further extender or earlier terminated."
+    },
+    {
+      "id": "tender:ec542a659147039c6beae75750c96d0726885d72a109629b67484c863a92e8e1",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "36475aa6884a7c3f7adfdecf19b56af400179aa15f0d9fd5914ec07e34fc5ed8",
+      "location": {
+        "start": 7505,
+        "end": 8300,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Has the number of Stratasys Shares you are offering to purchase in the offer been changed?\n\n• No. We are still offering to purchase up to 25,266,458 of the outstanding Stratasys Shares not owned by Nano, representing approximately 31.9% of the outstanding Stratasys Shares, such that we would own up to and no more than 51% of the outstanding Stratasys Shares upon consummation of the offer, subject to owning a minimum of 21,838,853 Stratasys Shares, upon consummation of the offer, representing approximately 36.9% of the outstanding Stratasys Shares, and in no event less than 3,427,606 Stratasys Shares, representing 5% of the outstanding Stratasys Shares, are tendered in the offer, exclusive of the Stratasys Shares held by Nano, as of the Expiration Date.\n\nWhy are you amending the offer?"
+    },
+    {
+      "id": "tender:541d55b293ca5e597880861551572424a85c3de143ac07475298271e96c5184f",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "4ca98c0bdd705f0fdb699a625203323f2981aaf3b2ea9e5444c2435d4e9b10af",
+      "location": {
+        "start": 12775,
+        "end": 13635,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "• Yes. You may withdraw any Stratasys Shares you have validly tendered at any time prior to 5:00 p.m. New York time on the Expiration Date. See Section 10 of the Original Offer to Purchase — “Withdrawal Rights”.\n\nHow do I withdraw previously tendered Stratasys Shares?\n\n• To withdraw previously tendered Stratasys Shares, you must deliver a written notice of withdrawal to the Depositary at one of its addresses set forth on the back cover of this Second Supplement with the required information to the Depositary while you still have the right to withdraw your Stratasys Shares. If you tendered your Stratasys Shares by giving instructions to a broker, banker or other nominee, you must instruct the broker, banker or other nominee to arrange for the withdrawal of your Stratasys Shares. See Section 10 of the Original Offer to Purchase — “Withdrawal Rights”."
+    },
+    {
+      "id": "tender:1291b671b2a92dc5504c6f02278df9fb648b5d8e3d112c1b740c1e837fa85d0d",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "5a1ba8323ed4b85ea9ba8e28515c3d7d4c2056682b521d26e490ac2db7ab4df2",
+      "location": {
+        "start": 8688,
+        "end": 9093,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "• No. The Expiration Date of the offer is still 5:00 p.m., New York time, on July 24, 2023, unless the offer is further extender or earlier terminated.\n\nHow long do I have to tender my Stratasys Shares?\n\n• You may tender your Stratasys Shares until 5:00 p.m., New York time, on July 24, 2023, or, if we further extend our offer, before 5:00 p.m., New York time, on the date to which the offer is extended."
+    },
+    {
+      "id": "tender:dd0b16365fe87f09af69e3b7c2d70599664e0bb119dd37a23061168a4c0557cd",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "36638301b54750ef4e01af7317651d0378a071af5d0c24e1055d33ae1b000542",
+      "location": {
+        "start": 23374,
+        "end": 25973,
+        "heading": "AMENDMENTS TO SPECIFIC PROVISIONS",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "“You may withdraw a previously submitted Notice of Objection at any time prior to 5:00 p.m., New York time, on the Expiration Date. For a withdrawal to be effective, a written notice of withdrawal must be timely received by the Depositary at its address set forth on the back cover of this Offer to Purchase. Any notice of withdrawal must specify the name of the person(s) who submitted the Notice of Objection to be withdrawn and the number of Stratasys Shares to which the Notice of Objection to be withdrawn relates. If you hold such Stratasys Shares through a broker, dealer, commercial bank, trust company or other nominee, you must request such broker, dealer, commercial bank, trust company or other nominee to submit on your behalf a notice of withdrawal. Following the withdrawal of a Notice of Objection, a new Notice of Objection may be submitted at any time prior to 5:00 p.m., New York time, on the Expiration Date by following the procedures described above.”\n\n(iii) The first paragraph of subsection (j) entitled “Determination of Validity” of Section 9 of the Original Offer to Purchase, entitled “Procedures for Tendering Shares or Notifying us of Your Objection to the Offer” is hereby amended and restated as follows:\n\n“All questions as to the validity, form, eligibility (including time of receipt) and acceptance for payment of any tender of Stratasys Shares and as to the validity, form, eligibility (including time of receipt) of any Notice of Objection will be determined by us, in our sole and absolute discretion. We reserve the absolute right to reject any or all tenders and Notices of Objection that we determine not to be in proper form, including as to which adequate proof of record or beneficial ownership of the Stratasys Shares to which such tender or Notice of Objection relates has not been provided upon our reasonable request or which has not been properly submitted through a broker if you hold Stratasys Shares through a broker, dealer, commercial bank, trust company or other nominee, or, in the case of tenders, the acceptance for payment of which may be unlawful. A tender of Stratasys Shares or submission of a Notice of Objection will not have been made or accepted until all defects and irregularities have been cured or waived. None of us, our affiliates, our assigns, the Depositary, the Information Agent, our legal counsel or any other person will be under any duty to give notification of any defects or irregularities in tenders of Stratasys Shares submissions of Notices of Objection or incur any liability for failure to give any notification.”"
+    },
+    {
+      "id": "tender:f8228e1c53be43abef32745c535d9bb4a8743de23574996e73749c22a387e806",
+      "accession": "0001213900-23-055698",
+      "form": "SC TO-T/A",
+      "document": {
+        "accession": "0001213900-23-055698",
+        "form": "SC TO-T/A",
+        "documentId": "sctota10ex99-a1o_nano.htm",
+        "url": "https://www.sec.gov/Archives/edgar/data/1643303/000121390023055698/sctota10ex99-a1o_nano.htm",
+        "role": "attachment",
+        "format": "html",
+        "completeness": "complete"
+      },
+      "sourceHash": "9203cf6a0deafc957f09823cef21c00f307e670be77a3a5193542bd368661fab",
+      "renderedHash": "35252b40509d52a84c692463576b1359cadcca60a24de946c4645d1e1c53428e",
+      "textHash": "057b9f7c55262169936d6411e0d71a86dbc66f764e576205e072af723fc11da7",
+      "location": {
+        "start": 12677,
+        "end": 13043,
+        "heading": "SUMMARY OF THE AMENDED OFFER",
+        "representation": "tender-render-v1",
+        "offsets": "UTF-16-half-open"
+      },
+      "text": "Once I have tendered Stratasys Shares in the offer, may I withdraw my tendered Stratasys Shares?\n\n• Yes. You may withdraw any Stratasys Shares you have validly tendered at any time prior to 5:00 p.m. New York time on the Expiration Date. See Section 10 of the Original Offer to Purchase — “Withdrawal Rights”.\n\nHow do I withdraw previously tendered Stratasys Shares?"
+    }
+  ]
+}

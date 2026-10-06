@@ -1,0 +1,16 @@
+{
+  "facts": [
+    {
+      "type": "expiration",
+      "current": "2023-07-24",
+      "evidence_refs": [
+        "E2",
+        "E5",
+        "E6",
+        "E7",
+        "E10"
+      ]
+    }
+  ],
+  "unresolved": []
+}

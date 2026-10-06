@@ -1,0 +1,9 @@
+{
+  "runId": "tender-expiration-v6-nano-unchanged-gemini35-20261006",
+  "accession": "0001213900-23-055698",
+  "model": "gemini-3.5-flash",
+  "providerCalls": 0,
+  "started": false,
+  "classification": "PREFLIGHT_TEST_ERROR",
+  "semanticTestReached": false
+}

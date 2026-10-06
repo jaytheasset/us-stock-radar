@@ -1,0 +1,25 @@
+{
+  "runId": "tender-expiration-v6b-nano-unchanged-gemini35-20261006",
+  "accession": "0001213900-23-055698",
+  "model": "gemini-3.5-flash",
+  "physicalCalls": 1,
+  "httpStatus": 200,
+  "finishReason": "STOP",
+  "technicalPass": true,
+  "semanticPass": true,
+  "current": "2023-07-24",
+  "previousAbsent": true,
+  "distractorDateRejected": "2023-07-28",
+  "selectedRefs": [
+    "E2",
+    "E5",
+    "E6",
+    "E7",
+    "E10"
+  ],
+  "retry": 0,
+  "repair": 0,
+  "fallback": 0,
+  "otherModelCalls": 0,
+  "otherFilingCalls": 0
+}

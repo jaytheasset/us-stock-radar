@@ -1,0 +1,52 @@
+{
+  "review_version": "tender-expiration-evidence-support-review-v1",
+  "source_run": "tender-expiration-v6b-nano-unchanged-gemini35-20261006",
+  "accession": "0001213900-23-055698",
+  "fact_type": "expiration",
+  "claims": {
+    "current": {
+      "present": true,
+      "value": "2023-07-24"
+    },
+    "previous": {
+      "present": false
+    }
+  },
+  "refs": {
+    "E2": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "States shares may be tendered until July 24, 2023; separately describes a later Israeli-law additional tender period ending July 28."
+    },
+    "E5": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Cover table explicitly states the offer and withdrawal rights expire July 24, 2023 unless further extended or earlier terminated."
+    },
+    "E6": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Explicitly asks whether expiration changed and answers no; expiration is still July 24, 2023."
+    },
+    "E7": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Explicitly states the expiration date has not changed and is still July 24, 2023."
+    },
+    "E10": {
+      "supports": [
+        "current"
+      ],
+      "strength": "direct",
+      "note": "Explicitly states expiration is still July 24, 2023 and repeats the tender deadline."
+    }
+  }
+}

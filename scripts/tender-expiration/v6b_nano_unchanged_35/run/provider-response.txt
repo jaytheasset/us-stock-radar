@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"facts\": [\n    {\n      \"type\": \"expiration\",\n      \"current\": \"2023-07-24\",\n      \"evidence_refs\": [\n        \"E2\",\n        \"E5\",\n        \"E6\",\n        \"E7\",\n        \"E10\"\n      ]\n    }\n  ],\n  \"unresolved\": []\n}",
+            "thoughtSignature": "EmgKZgFpFH0T9IKDQ6QPRM9pf+xZiq/EbArHz7AB6XdWDIpmzArz+4f1/8xOlxQb3ucGVfH0WSkUTFxn3rB4brYncAaaHXjuUx6s7PvEMV8ENXAZ/wol+64BbaCnUlTYZDdTYXSyYzFwNQ=="
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 3609,
+    "candidatesTokenCount": 92,
+    "totalTokenCount": 3701,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 3609
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash",
+  "responseId": "qYHEaqyTB-Cc0-kPl-6JiAk"
+}
