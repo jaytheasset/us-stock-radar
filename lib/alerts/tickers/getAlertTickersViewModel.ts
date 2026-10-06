@@ -127,16 +127,13 @@ export async function readTickerCatalogSearch(query: string, limit = 8): Promise
     }),
   ]);
 
-  if (!catalogResult.ok) {
+  if (!catalogResult.ok || !Array.isArray(catalogResult.data)) {
     throw new TickerSearchUnavailableError();
   }
 
-  const catalogRows = Array.isArray(catalogResult.data)
-    ? catalogResult.data.map(mapTickerCatalogRow)
-    : [];
-  const eventRows = eventTickerResult.ok && Array.isArray(eventTickerResult.data)
-    ? eventTickerResult.data.map(mapEventTickerCatalogRow)
-    : [];
+  const catalogRows = catalogResult.data.map(mapTickerCatalogRow);
+  const eventFailed = !eventTickerResult.ok || !Array.isArray(eventTickerResult.data);
+  const eventRows = eventFailed ? [] : eventTickerResult.data.map(mapEventTickerCatalogRow);
   const localRows = mergeTickerResults([...catalogRows, ...eventRows]);
   const sec = localRows.length < cappedLimit
     ? await searchSecTickerCatalog(normalized)
@@ -148,7 +145,7 @@ export async function readTickerCatalogSearch(query: string, limit = 8): Promise
     const rankDifference = getSearchRank(a, uppercaseQuery) - getSearchRank(b, uppercaseQuery);
     return rankDifference || a.ticker.localeCompare(b.ticker);
   }).slice(0, cappedLimit);
-  return completeTickerSearch(data, !eventTickerResult.ok || sec.failed);
+  return completeTickerSearch(data, eventFailed || sec.failed);
 }
 
 function getSearchRank(item: TickerSearchResult, query: string) {

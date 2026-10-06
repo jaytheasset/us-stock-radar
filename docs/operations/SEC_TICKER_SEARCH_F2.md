@@ -186,3 +186,104 @@ git diff --cached --check
 
 Stop for independent GPT verification. No claim of complete authenticated site
 verification or operational readiness; no automatic next-stage work.
+
+## Follow-up: HTTP 200 DB list shape validation
+
+2026-10-06, same eeb4 worktree. Base
+`48a007d1c7939067ccb8f317430f2a5f426de207`, detached / clean at start.
+This follow-up changes only `lib/alerts/tickers/getAlertTickersViewModel.ts`,
+`lib/tickerSearchAvailability.test.mjs`, and this verification record.
+The earlier F1/F2 commits and unrelated work remain intact. Main/remote/deploy/
+DB/cron status were not queried. The earlier local-main value above is historical.
+
+Before product edits, the extended existing test ran with the process-only
+`F2_DB_SHAPE_BEFORE=1` flag. Actual Supabase transport consumed HTTP 200 Response
+objects; search services, API handlers, client reader and observation were real.
+Only HTTP responses and the existing mutation-test auth actor were doubles.
+All unexpected external URLs were blocked, and no real DB access occurred.
+
+Observed before:
+
+- Primary tickers HTTP 200 with broken JSON: ABSENT returned
+  `{ok:true,data:[]}` and exact lookup returned null. SYN returned the SEC row
+  and exact lookup also accepted it. One synthetic SEC download then cached
+  results supplied those requests despite malformed primary data.
+- Supplemental event HTTP 200 with a non-array object: local SYN and SEC SYNA
+  were returned with **no partial flag**.
+
+These are pre-existing list-shape gaps, not regressions introduced by F2.
+The before-mode run reported three passing reproduction tests (parent + two
+cases); those results demonstrate the bug, not corrected behavior.
+
+Minimal product fix:
+
+- Primary success requires `ok && Array.isArray(data)` before any SEC fallback.
+  Non-array data throws the existing TickerSearchUnavailableError.
+- Event failure is `!ok || !Array.isArray(data)`. Its contents are ignored;
+  completeTickerSearch applies the existing partial/unavailable contract.
+- SEC lookup/skip threshold, ordering/limit, duplicate/field precedence and
+  individual row mappers are unchanged. A valid [] remains a successful list.
+- No Supabase transport, API, UI, identity validation, F1/cache, or error-type
+  changes. Existing API and client code already propagate the correct state.
+
+Added four scenario groups, each exercising object, null, broken JSON and JSON
+string payloads through the real HTTP-body-reading Supabase transport:
+
+| Check | Result after fix |
+|---|---|
+| Invalid primary; exact SEC match available or absent | Both API branches 503 / TICKER_SEARCH_UNAVAILABLE; client unavailable |
+| Direct exact lookup with invalid primary | Rejects unavailable for exact and absent symbols; never result/null |
+| Cold or already warm SEC cache | Zero SEC calls while primary is malformed; warm cache cannot bypass primary failure |
+| Invalid event; local rows available | Identical values/order, partial=true; exact local row still usable |
+| Invalid event; only SEC rows available | Existing lookup policy returns SYN/SYNA with partial=true; exact row usable |
+| Invalid event; no matching rows | Both branches 503/unavailable; exact lookup rejects rather than null |
+| Invalid event; eight local rows fill API limit | All eight retained with partial=true; zero added SEC calls |
+| Valid empty primary/event and valid SEC no-match | 200 / ok=true / data=[] with no partial; exact lookup null; client empty |
+| Valid arrays with rows excluded by existing mappers | Existing row filtering unchanged; remaining EVENT/VALID rows are complete results |
+| Next response returns valid array | Main failure and event partial clear; normal values/status restored |
+| Actual Watchlist/Alert POST, all four malformed primary shapes | Eight handler checks return 503, never TICKER_NOT_FOUND; storage attempts 0 and SEC calls 0 |
+
+The same tests pass responses through the existing client reader and header
+observation; partial, empty and unavailable remain distinct. Fixed error text
+contains no synthetic private DB error, URL or original response contents.
+
+Verification completed:
+
+- **138/138 PASS**: existing search/API/etc. 113 + Live Room 21 + four added
+  groups. No original assertion removed or expectation weakened.
+- F1 native loopback streaming **6/6 PASS**. Abort times: body stall 15.018s,
+  header stall 15.004s, trickle 15.014s; one flight/attempt per timeout,
+  snapshot/time preservation, retry recovery and late-old-response rejection
+  maintained. Resources closed. Local receipt:
+  `C:/Users/PC/.codex/visualizations/sec-catalog-db-shape-f1-regression.json`.
+- Six normal service/API responses (full/merged/empty × normal/stock-research)
+  and SEC attempt counts were byte-for-byte equal to base **48a007d**.
+  Used the existing normal-comparison script with its baseline commit replaced
+  from 08fa71ad to 48a007d in a process-only loader; git show read the preserved
+  base modules without modifying files, HEAD or worktree connections.
+- Existing eight-query company search baseline comparison also unchanged,
+  including its recorded SHA-256 above.
+- `npm run typecheck`, working and staged `git diff --check`: PASS.
+
+Commands reuse `$f2Node` defined above:
+
+```powershell
+# Executed BEFORE product edits; intentionally fails against the corrected code.
+$env:F2_DB_SHAPE_BEFORE='1'
+try { node @f2Node --test --experimental-strip-types lib/tickerSearchAvailability.test.mjs } finally { Remove-Item Env:F2_DB_SHAPE_BEFORE }
+
+# Run the existing 113-test command above, plus lib/live-room/posts.test.ts in
+# the same invocation: it now reports 138 including the four new groups.
+node @f2Node --test --experimental-strip-types lib/tickerSearchAvailability.test.mjs
+node @f2Node --experimental-strip-types scripts/verify-sec-catalog-body-timeout.mjs
+node @f2Node --experimental-strip-types scripts/verify-sec-company-search-contract.mjs --compare=C:/Users/PC/.codex/visualizations/sec-catalog-stage2-search-before.json
+npm run typecheck
+git diff --check
+git diff --cached --check
+```
+
+No new Next server/browser was needed or started for this service-only fix.
+Authenticated Live Room and actual SEC/DB/Next/browser end-to-end integration
+remain separately unverified. No environment-file, Docker, 3110, external
+delivery, migration, dependency or phase-3 work. Stop for independent GPT review;
+no merge/push/deploy.
