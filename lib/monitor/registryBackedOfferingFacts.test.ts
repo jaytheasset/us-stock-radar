@@ -5,11 +5,42 @@ import {
   type RegistryBackedOfferingFactRepository,
 } from "./registryBackedOfferingFacts.ts";
 import { evaluateOfferingMonitorConditions } from "../offeringMonitorMatcher.ts";
+import { MONITOR_CONDITION_REGISTRY } from "./conditionRegistry.ts";
 
 const eventId = "10000000-0000-4000-8000-000000000001";
 const rawItemId = "20000000-0000-4000-8000-000000000002";
 const accession = "0001213900-26-088706";
 const cik = "0001840317";
+
+test("Registry source descriptors resolve real reader output without making ATM or non-ATM facts matchable", async () => {
+  const entries = MONITOR_CONDITION_REGISTRY.filter(entry => entry.family === "offering");
+  for (const instrumentType of ["atm_program", "warrant"]) {
+    const repo = repository();
+    repo.instruments[0].instrument_type = instrumentType;
+    const result = await readRegistryBackedOfferingFacts(eventId, repo);
+    assert.equal(result.status, "available");
+    if (result.status !== "available") continue;
+    assert.equal(result.mappingStatus, "unmappable");
+    for (const entry of entries) {
+      assert.equal(entry.source.reader, readRegistryBackedOfferingFacts.name);
+      assert.equal(entry.source.table, "dilution_instrument_snapshots");
+      const projected: unknown = entry.source.jsonPath!.reduce<unknown>((value, key) =>
+        (value as Record<string, unknown>)[key], result);
+      if (entry.key === "offering.side") {
+        assert.equal(projected, "unknown");
+      } else {
+        assert.equal((projected as { availability: string }).availability, "unavailable");
+        assert.equal((projected as { value: unknown }).value, null);
+      }
+      const condition = entry.key === "offering.side"
+        ? { key: entry.key, operator: "eq", value: "primary" }
+        : { key: entry.key, operator: "gte", value: 0, ...(
+          ["offering.amount", "offering.offering_price"].includes(entry.key) ? { currency: "USD" } : {}
+        ) };
+      assert.equal(evaluateOfferingMonitorConditions(result, [condition]).status, "ineligible");
+    }
+  }
+});
 
 test("keeps VEEA ATM capacity and every Offering amount fact unavailable", async () => {
   const result = await readRegistryBackedOfferingFacts(eventId, repository());

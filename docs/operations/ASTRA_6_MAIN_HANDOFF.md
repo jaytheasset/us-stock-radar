@@ -257,9 +257,9 @@ Non-negotiable rules:
 
 Legacy Offering Gemini Stage 2 status:
 
-- Automatic Gemini Stage 2 provider execution: disabled.
-- Legacy `event_offering_monitor_canonical` promotion/read and empty-condition Matcher wiring: disabled in product runtime.
-- Historical source, schema, migrations, tests, and stored rows remain for audit; deletion is not authorized.
+- Gemini Stage 2 application provider execution, prompt/schema, input packaging, and orchestration: removed by the approved offline cleanup.
+- Legacy application promotion writer and empty-condition Matcher wrapper: removed. Historical canonical readback remains separate from product runtime.
+- Historical candidate identifiers/types/validation, canonical reader tests, SQL functions/migrations, stored rows, frozen evidence, and provider records remain. The removed execution-only tests do not describe current commands.
 - Offering enqueue/workflow remains active because it runs the deterministic O/S sidecar and records a terminal state.
 - Completed/failed/stale jobs do not return to pending through late workflow linkage.
 
@@ -381,7 +381,7 @@ Some of these already have collection, parser, prompts, or site analysis. That d
 
 ### Legacy Offering cleanup — later, not a feature prerequisite
 
-Automatic legacy Stage 2 is disabled, but its source, schema, migrations, canonical table, historical rows, and tests are retained. Decide cleanup only after an explicit history/rollback/data-retention audit. Do not delete migrations or historical data. The current conservative Registry-backed adapter also needs separately reviewed semantic mappings before additional Offering conditions can become available; never revive Gemini Stage 2 as a shortcut.
+The approved offline Stage 2 cleanup removed unused application execution and promotion code. Historical contracts and canonical readback remain in `offeringMonitorHistoricalContract.ts` and `offeringMonitorCanonicalPersistence.ts`; current Registry/Matcher imports neither. Do not delete migrations, SQL functions, canonical rows, frozen evidence, or provider history. The current conservative Registry-backed adapter also needs separately reviewed semantic mappings before additional Offering conditions can become available; never revive Gemini Stage 2 as a shortcut.
 
 ## 9. Operating rules for the next room
 

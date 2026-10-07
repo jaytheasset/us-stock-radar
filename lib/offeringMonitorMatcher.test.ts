@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   evaluateOfferingMonitorConditions,
-  evaluateOfferingMonitorEvent,
   type OfferingMonitorCondition,
 } from "./offeringMonitorMatcher.ts";
 import type { OfferingMonitorCanonicalReadResult } from "./offeringMonitorCanonicalPersistence.ts";
@@ -115,35 +114,13 @@ test("AND aggregation gives no_match precedence over ineligible", () => {
   assert.deepEqual(result.conditions.map((item) => item.status), ["ineligible", "no_match"]);
 });
 
-test("event-centric interface reads canonical once for multiple condition sets", async () => {
-  let reads = 0;
-  const result = await evaluateOfferingMonitorEvent({
-    eventId: EVENT_ID,
-    conditionSets: [
-      { id: "amount-monitor", conditions: [amount("gte", 5_000_000)] },
-      { id: "total-monitor", conditions: [total("gte", 30_000_000)] },
-    ],
-  }, {
-    readCanonical: async (eventId) => {
-      reads += 1;
-      assert.equal(eventId, EVENT_ID);
-      return availableCanonical();
-    },
-  });
-  assert.equal(reads, 1);
-  assert.deepEqual(result.evaluations.map((item) => item.result.status), ["match", "match"]);
-});
-
-test("reader failure becomes deterministic ineligible without side effects or fallback sources", async () => {
-  const result = await evaluateOfferingMonitorEvent({
-    eventId: EVENT_ID,
-    conditionSets: [{ id: "one", conditions: [amount("gte", 5_000_000)] }],
-  }, { readCanonical: async () => { throw new Error("offline"); } });
-  assert.deepEqual(statusAndReason(result.evaluations[0].result), ["ineligible", "canonical_unavailable"]);
-
+test("pure matcher has no reader, provider, or fallback dependencies", () => {
   const source = readFileSync(new URL("./offeringMonitorMatcher.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /offering_monitor_payload|event_offering_terms|parser terms|ai_runs|Gemini|alert queue|Telegram|Email|notification/i);
-  assert.match(source, /readOfferingMonitorCanonical/);
+  assert.doesNotMatch(source, /offeringMonitorCanonicalPersistence|offeringMonitorHistoricalContract|readOfferingMonitorCanonical|evaluateOfferingMonitorEvent/);
+  assert.deepEqual(statusAndReason(evaluateOfferingMonitorConditions(
+    { status: "not_ready", reason: "canonical_unavailable" }, [amount("gte", 5_000_000)],
+  )), ["ineligible", "canonical_unavailable"]);
 });
 
 function availableCanonical(): Extract<OfferingMonitorCanonicalReadResult, { status: "available" }> {
