@@ -590,3 +590,8 @@ function wireFromCanonical(value: MinimalOfferingMonitor): Record<string, any> {
     })),
   };
 }
+
+test("shared helper never infers exposure compatibility from security names", () => {
+  const source = readFileSync(new URL("./minimalOfferingMonitor.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /warrant.*additional|prefunded.*immediate|common[_ -]?share.*compatible/i);
+});

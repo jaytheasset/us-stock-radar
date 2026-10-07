@@ -22,8 +22,9 @@ or current/latest selection.
 
 Offering runs the deterministic processor as the only active processing step in
 its durable child workflow. The legacy Offering Gemini Stage 2 normalizer and
-its canonical/Matcher continuation remain in source and history but are not
-called by product runtime. The job reaches `completed` after an eligible or
+its application canonical/Matcher continuation have been removed. Historical
+candidate contracts, canonical readback, migrations, and stored evidence remain.
+The job reaches `completed` after an eligible or
 ineligible sidecar result, `failed` after a sidecar exception, and `stale` when
 the exact Primary parent is no longer current. Listing and Corporate Action
 share the generic child processor. Each existing child makes one provider call. A
@@ -71,8 +72,8 @@ different values on that date produce no row.
 
 The selected evidence is one contiguous normalized-primary-document clause and
 the content hash covers the complete stored primary HTML. The processor has no
-provider dependency, so it remains independently runnable when Offering Gemini
-Stage 2 is unavailable.
+provider dependency and remains independent of the removed Offering Gemini
+Stage 2 executor.
 
 ## Persistence
 

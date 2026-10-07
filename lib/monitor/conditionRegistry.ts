@@ -72,7 +72,7 @@ type MonitorFactTable =
   | "events"
   | "event_corporate_action_facts"
   | "event_market_snapshots"
-  | "event_offering_monitor_canonical"
+  | "dilution_instrument_snapshots"
   | "event_offering_terms"
   | "event_listing_risk_facts"
   | "event_form4_transactions"
@@ -104,7 +104,7 @@ export type MonitorConditionDefinition = Readonly<{
     column?: string;
     subject: "event" | "ticker" | "issuer";
     reader?:
-      | "read_event_offering_monitor_canonical"
+      | "readRegistryBackedOfferingFacts"
       | "read_current_event_listing_risk_facts"
       | "read_current_event_corporate_action_facts"
       | "read_current_event_ownership_facts"
@@ -336,13 +336,13 @@ const registry = [
       },
     },
   ),
-  canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "validated_canonical_payload", ["primary_or_resale"], ["primary", "resale", "mixed"]),
-  canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "actual_primary_offering_amount"]),
-  canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "validated_canonical_payload", ["facts", "offering_price"]),
-  canonicalOfferingCondition("offering.immediate_primary_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "immediate_primary_share_exposure"]),
-  canonicalOfferingCondition("offering.additional_potential_primary_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "additional_potential_primary_share_exposure"]),
-  canonicalOfferingCondition("offering.resale_share_exposure", "number", numericOperators, "dilution", "validated_canonical_payload", ["facts", "resale_share_exposure"]),
-  canonicalOfferingCondition("offering.total_potential_share_exposure", "number", numericOperators, "dilution", "materialized_payload", ["total_potential_primary_share_exposure"]),
+  canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "canonical", ["primary_or_resale"], ["primary", "resale", "mixed"]),
+  canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "canonical", ["facts", "actual_primary_offering_amount"]),
+  canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "canonical", ["facts", "offering_price"]),
+  canonicalOfferingCondition("offering.immediate_primary_share_exposure", "number", numericOperators, "dilution", "canonical", ["facts", "immediate_primary_share_exposure"]),
+  canonicalOfferingCondition("offering.additional_potential_primary_share_exposure", "number", numericOperators, "dilution", "canonical", ["facts", "additional_potential_primary_share_exposure"]),
+  canonicalOfferingCondition("offering.resale_share_exposure", "number", numericOperators, "dilution", "canonical", ["facts", "resale_share_exposure"]),
+  canonicalOfferingCondition("offering.total_potential_share_exposure", "number", numericOperators, "dilution", "materialized", ["total_potential_primary_share_exposure"]),
 
   canonicalListingCondition("listing.event_kind", "text", enumOperators, "classification", ["classification", "event_kind"], {
     enumValues: LISTING_EVENT_KINDS,
@@ -774,7 +774,7 @@ function canonicalOfferingCondition(
   valueType: "number" | "text",
   allowedOperators: readonly MonitorConditionOperator[],
   domain: string,
-  column: "validated_canonical_payload" | "materialized_payload",
+  projection: "canonical" | "materialized",
   jsonPath: readonly string[],
   enumValues?: readonly string[],
 ): MonitorConditionDefinition {
@@ -786,11 +786,12 @@ function canonicalOfferingCondition(
     family: "offering" as const,
     domain,
     source: Object.freeze({
-      table: "event_offering_monitor_canonical" as const,
-      column,
+      // Snapshot authority is resolved with exact event/raw/issuer lineage by
+      // this existing TypeScript reader. jsonPath addresses its result, not a DB column.
+      table: "dilution_instrument_snapshots" as const,
       subject: "event" as const,
-      reader: "read_event_offering_monitor_canonical" as const,
-      jsonPath: Object.freeze([...jsonPath]),
+      reader: "readRegistryBackedOfferingFacts" as const,
+      jsonPath: Object.freeze([projection, ...jsonPath]),
     }),
     qualityCapability: Object.freeze(["exact", "derived", "estimated", "unknown"] as const),
     status: "READY" as const,

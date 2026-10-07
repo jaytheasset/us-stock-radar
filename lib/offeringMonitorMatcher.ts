@@ -1,7 +1,4 @@
 import {
-  readOfferingMonitorCanonical,
-} from "./offeringMonitorCanonicalPersistence.ts";
-import {
   MONITOR_COMPARISON_ELIGIBLE_QUALITIES,
   getReadyMonitorCondition,
   type MonitorConditionOperator,
@@ -65,8 +62,7 @@ export type OfferingMonitorConditionSet = Readonly<{
 
 /**
  * The matcher consumes facts, not the persistence lineage that produced them.
- * Both the Stage 2 canonical reader and exact-event Registry adapter implement
- * this deliberately small boundary.
+ * The exact-event Registry adapter implements this deliberately small boundary.
  */
 export type OfferingMonitorFactReadResult =
   | Readonly<{
@@ -81,14 +77,6 @@ export type OfferingMonitorEventMatchResult = Readonly<{
   eventId: string;
   evaluations: readonly Readonly<{ id: string; result: OfferingMonitorMatchResult }>[];
 }>;
-
-export type OfferingMonitorMatcherDependencies = Readonly<{
-  readCanonical(eventId: string): Promise<OfferingMonitorFactReadResult>;
-}>;
-
-const defaultDependencies: OfferingMonitorMatcherDependencies = {
-  readCanonical: readOfferingMonitorCanonical,
-};
 
 const NUMERIC_FACTS = Object.freeze({
   "offering.amount": {
@@ -154,30 +142,6 @@ export function evaluateOfferingMonitorConditions(
   const firstIneligible = evaluated.find((item) => item.status === "ineligible");
   if (firstIneligible) return result("ineligible", firstIneligible.reasonCode, evaluated);
   return result("match", "all_conditions_match", evaluated);
-}
-
-/**
- * Event-centric reader boundary: canonical truth is read exactly once, then any
- * number of condition sets are evaluated without user-specific persistence reads.
- */
-export async function evaluateOfferingMonitorEvent(
-  input: Readonly<{ eventId: string; conditionSets: readonly OfferingMonitorConditionSet[] }>,
-  dependencies: OfferingMonitorMatcherDependencies = defaultDependencies,
-): Promise<OfferingMonitorEventMatchResult> {
-  let canonical: OfferingMonitorFactReadResult;
-  try {
-    canonical = await dependencies.readCanonical(input.eventId);
-  } catch {
-    canonical = { status: "not_ready", reason: "canonical_unavailable" };
-  }
-  return {
-    version: OFFERING_MONITOR_MATCHER_VERSION,
-    eventId: input.eventId,
-    evaluations: input.conditionSets.map((set) => ({
-      id: set.id,
-      result: evaluateOfferingMonitorConditions(canonical, set.conditions),
-    })),
-  };
 }
 
 function evaluateCondition(

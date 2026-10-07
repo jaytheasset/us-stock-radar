@@ -400,6 +400,7 @@ test("foundation keeps the durable child but product runtime is sidecar-only wit
   assert.doesNotMatch(starter, /returnValue/);
   assert.match(child, /"use workflow"/);
   assert.match(child, /processOfferingShareCountSidecar/);
+  assert.match(child, /runOfferingShareCountSidecarStep\.maxRetries = 0/);
   assert.match(child, /finalizeOfferingMonitorSidecarOnlyJob/);
   assert.doesNotMatch(child, /processOfferingMonitorSecondStageJob/);
   assert.doesNotMatch(child, /offeringMonitorSecondStageRuntimeDependencies/);
