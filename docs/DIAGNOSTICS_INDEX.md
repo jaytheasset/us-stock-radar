@@ -29,3 +29,5 @@ Use this index to choose the existing reference for a feature-specific investiga
 - **Alert ticker projection** — original subscription matching, queue provenance, fresh transmission checks and mute targets: [`ALERT_TICKER_PROJECTION_DIAGNOSTICS.md`](ALERT_TICKER_PROJECTION_DIAGNOSTICS.md)
 - **Global News** — global News user-flow investigation: [`NEWS_USER_FLOW_DIAGNOSTICS.md`](NEWS_USER_FLOW_DIAGNOSTICS.md)
 - **Global Calendar** — global Calendar user-flow investigation: [`CALENDAR_USER_FLOW_DIAGNOSTICS.md`](CALENDAR_USER_FLOW_DIAGNOSTICS.md)
+
+- **Kiwoom supporting ticker evidence** — official public notices, US-only manual assessment, retained images, append-only evidence/audit and no ticker authority: [operations/KIWOOM_TICKER_EVIDENCE.md](operations/KIWOOM_TICKER_EVIDENCE.md).

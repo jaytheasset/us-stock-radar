@@ -150,6 +150,7 @@
     "dashboard:movers-finalize": "node scripts/run-dashboard-mover-finalizer.mjs",
     "sec:live-test": "node scripts/sec-room-live-test.mjs",
     "sec:ingest-production": "node scripts/run-sec-production-ingest.mjs",
+    "verify:kiwoom-evidence": "node scripts/verify-kiwoom-evidence.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
