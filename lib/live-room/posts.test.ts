@@ -631,7 +631,12 @@ test("post composer exposes event linking only through real event choices", () =
     postsPanel,
     /\/api\/tickers\/search\?q=\$\{encodeURIComponent\([\s\S]*tickerInputContext\.query/,
   );
-  assert.match(postsPanel, /mapTickerSearchResults\(payload\)/);
+  // F2 uses the shared validating reader so a failed/partial response cannot
+  // silently become an empty suggestion list in this separate consumer.
+  assert.match(postsPanel, /\.then\(readTickerSearchResponse\)/);
+  assert.match(postsPanel, /selectLiveRoomPostTickerSuggestions\(\s*payload\.data,/);
+  assert.match(postsPanel, /setTickerSearchPartial\(payload\.partial === true\)/);
+  assert.match(postsPanel, /setTickerSearchState\("error"\)/);
   assert.match(postsPanel, /moveTickerSearchIndex\(/);
   assert.match(postsPanel, /}, 220\)/);
   assert.match(postsPanel, /new AbortController\(\)/);

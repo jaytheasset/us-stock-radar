@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { normalizeMainSubmissions } from "./mainSubmissions.ts";
 import type {
   SecCompanyFactRow,
   SecFactReadFilter,
@@ -7,6 +9,9 @@ import type {
   SecRepositoryWriteCounts,
   SecStructuredRepository,
   SecTickerObservationRow,
+  SecSubmissionsConfirmation,
+  SecSubmissionsPublication,
+  SecSubmissionsRefreshWrite,
 } from "./types.ts";
 
 export type SqlQueryResult<Row extends Record<string, unknown> = Record<string, unknown>> = {
@@ -34,6 +39,74 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
   }
 
   async ingestBatch(batch: SecNormalizedBatch): Promise<SecRepositoryWriteCounts> {
+    return (await this.storeBatch(batch)).counts;
+  }
+
+  async allocateSubmissionsRefreshSequence(): Promise<string> {
+    this.requireManagedRefresh();
+    const result = await this.client.query<{ sequence: string }>(
+      "select nextval('public.sec_submissions_refresh_sequence')::text as sequence",
+    );
+    return result.rows[0].sequence;
+  }
+
+  async ingestSubmissionsRefresh(batch: SecNormalizedBatch, confirmation: SecSubmissionsConfirmation): Promise<SecSubmissionsRefreshWrite> {
+    this.requireManagedRefresh();
+    const raw = batch.rawSources[0];
+    if (!raw || batch.rawSources.length !== 1 || raw.sourceKind !== "submissions" ||
+        raw.cik !== confirmation.cik || raw.id !== confirmation.sourceRawId ||
+        typeof confirmation.refreshSequence !== "string" ||
+        !/^[1-9][0-9]*$/.test(confirmation.refreshSequence) ||
+        BigInt(confirmation.refreshSequence) > BigInt("9223372036854775807") ||
+        !Number.isFinite(Date.parse(confirmation.confirmedAt))) {
+      throw new Error("invalid_submissions_confirmation");
+    }
+    const expected = normalizeMainSubmissions([{
+      sourceKind: "submissions", sourceUrl: raw.sourceUrl, sourceIdentity: raw.sourceIdentity,
+      cik: raw.cik, fetchedAt: raw.fetchedAt, payload: raw.payload, rawBody: raw.rawContent,
+      sourceSchemaVersion: raw.sourceSchemaVersion,
+      rawBodyKind: "authoritative_http_body",
+    }], raw.cik, raw.ingestedAt);
+    if (raw.id !== expected.rawSources[0].id || raw.contentHash !== expected.rawSources[0].contentHash ||
+        !isDeepStrictEqual(batch.issuers, expected.issuers) ||
+        !isDeepStrictEqual(batch.issuerObservations, expected.issuerObservations) ||
+        !isDeepStrictEqual(batch.tickerObservations, expected.tickerObservations) ||
+        !isDeepStrictEqual(batch.filings, expected.filings) ||
+        batch.facts.length || batch.rejections.length) {
+      throw new Error("invalid_submissions_confirmation_batch");
+    }
+    return this.storeBatch(batch, confirmation);
+  }
+
+  private requireManagedRefresh() {
+    if (this.transactionMode !== "managed") throw new Error("submissions_refresh_requires_managed_connection");
+  }
+
+  private async publishSubmissionsCurrent(confirmation: SecSubmissionsConfirmation): Promise<SecSubmissionsPublication> {
+    const values = [confirmation.cik, confirmation.sourceRawId, confirmation.refreshSequence, confirmation.confirmedAt];
+    const result = await this.client.query(
+      `insert into public.sec_submissions_current (issuer_cik, source_raw_id, refresh_sequence, confirmed_at)
+       values ($1, $2, $3::bigint, $4::timestamptz)
+       on conflict (issuer_cik) do update set
+         source_raw_id = excluded.source_raw_id, refresh_sequence = excluded.refresh_sequence,
+         confirmed_at = excluded.confirmed_at
+       where sec_submissions_current.refresh_sequence < excluded.refresh_sequence
+       returning issuer_cik`, values,
+    );
+    if (result.rows.length === 1) return "published";
+    // Conflict row remains locked until commit. A separate statement sees the
+    // concurrent winner at READ COMMITTED, including a just-inserted row.
+    const current = await this.client.query<{ refresh_sequence: string; identical: boolean }>(
+      `select refresh_sequence::text,
+         (source_raw_id = $2::uuid and confirmed_at = $4::timestamptz and refresh_sequence = $3::bigint) as identical
+       from public.sec_submissions_current where issuer_cik = $1`, values,
+    );
+    if (current.rows[0]?.identical) return "unchanged";
+    if (current.rows[0] && BigInt(current.rows[0].refresh_sequence) > BigInt(confirmation.refreshSequence)) return "superseded";
+    throw new Error("conflicting_submissions_confirmation");
+  }
+
+  private async storeBatch(batch: SecNormalizedBatch, confirmation?: SecSubmissionsConfirmation): Promise<SecSubmissionsRefreshWrite> {
     if (this.transactionMode === "managed") await this.client.query("begin");
     try {
       if (this.transactionMode === "managed") await this.client.query("set local statement_timeout = '30s'");
@@ -43,12 +116,13 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
       const tickerObservationsInserted = await this.insertTickerObservations(batch);
       const filingCounts = await this.insertFilings(batch);
       const factsInserted = await this.insertFacts(batch);
+      const publication = confirmation ? await this.publishSubmissionsCurrent(confirmation) : "unchanged";
       if (this.transactionMode === "managed") await this.client.query("commit");
       const attempted = batch.rawSources.length + batch.issuers.length + batch.issuerObservations.length
         + batch.tickerObservations.length + batch.filings.length + batch.facts.length;
       const inserted = raw.ids.length + issuersInserted + issuerObservationsInserted
         + tickerObservationsInserted + filingCounts.inserted + factsInserted;
-      return {
+      return { publication, counts: {
         inserted,
         updated: filingCounts.updated,
         deduped: attempted - inserted - filingCounts.updated,
@@ -60,7 +134,7 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
         filingsUpdated: filingCounts.updated,
         factsInserted,
         insertedRawSourceIds: raw.ids,
-      };
+      } };
     } catch (error) {
       if (this.transactionMode === "managed") await this.client.query("rollback");
       throw error;
@@ -138,7 +212,7 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
            source_schema_version text, raw_content_kind text, raw_content text,
            payload jsonb
          )
-         on conflict (source_kind, source_identity, content_hash) do nothing
+         on conflict do nothing
          returning id`,
         [JSON.stringify(rows.map((row) => ({
           id: row.id, source_kind: row.sourceKind, source_url: row.sourceUrl,
@@ -150,6 +224,37 @@ export class PostgresSecStructuredRepository implements SecStructuredRepository 
         })))],
       );
       ids.push(...result.rows.map((row) => row.id));
+      // A separate statement sees a concurrent winner after INSERT has waited
+      // for its commit (READ COMMITTED). A single INSERT/SELECT CTE can retain
+      // the pre-conflict snapshot. Never connect observations to an unverified ID.
+      const verified = await this.client.query<{ id: string }>(
+        `select stored.id
+         from pg_catalog.jsonb_to_recordset($1::jsonb) as expected(
+           id uuid, cik text, source_kind text, source_url text,
+           source_identity text, content_hash text, raw_content text,
+           payload jsonb, raw_payload jsonb
+         )
+         join public.sec_structured_raw_sources stored
+           on stored.id = expected.id
+          and stored.cik = expected.cik
+          and stored.source_kind = expected.source_kind
+          and stored.source_url = expected.source_url
+          and stored.source_identity = expected.source_identity
+          and stored.content_hash = expected.content_hash
+          and stored.raw_content = expected.raw_content
+          and stored.payload = expected.payload
+          and stored.payload = expected.raw_payload`,
+        [JSON.stringify(rows.map((row) => ({
+          id: row.id, cik: row.cik, source_kind: row.sourceKind,
+          source_url: row.sourceUrl, source_identity: row.sourceIdentity,
+          content_hash: row.contentHash, raw_content: row.rawContent,
+          payload: row.payload,
+          // Match the existing JSON.parse -> JSONB payload contract, including
+          // number representation. Exact source bytes are compared separately.
+          raw_payload: JSON.parse(row.rawContent),
+        })))],
+      );
+      if (verified.rows.length !== rows.length) throw new Error("sec_raw_source_identity_mismatch");
     }
     return { ids };
   }

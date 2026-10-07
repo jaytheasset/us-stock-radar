@@ -2,6 +2,7 @@ import { XMLParser } from "fast-xml-parser";
 import { getServerEnv } from "@/lib/env";
 import { normalizeMarketDataSymbol } from "@/lib/market-data/marketDataProvider";
 import { probeEventsTable } from "@/lib/supabase";
+import { readSecCompanyCatalog, SecCompanyCatalogHttpError } from "./sources/sec/tickerCatalog.ts";
 
 type IntegrationResult = {
   key: string;
@@ -373,7 +374,7 @@ export async function fetchFmpDailyBars(symbol: string, days = 20) {
   };
 }
 
-export async function fetchSecCompanyTickers(query: string, options: { exactTicker?: boolean } = {}) {
+export async function fetchSecCompanyTickers(query: string, options: { exactTicker?: boolean; fresh?: boolean } = {}) {
   const env = getServerEnv();
   if (!env.secUserAgent) {
     return {
@@ -386,18 +387,7 @@ export async function fetchSecCompanyTickers(query: string, options: { exactTick
   }
 
   try {
-    const response = await timedFetch("https://www.sec.gov/files/company_tickers.json", {
-      headers: {
-        "User-Agent": env.secUserAgent,
-        Accept: "application/json",
-      },
-    });
-    const data = await response.json();
-    const rows = Object.values(data || {}) as Array<{
-      cik_str: number;
-      ticker: string;
-      title: string;
-    }>;
+    const { rows, status } = await readSecCompanyCatalog(options.fresh ?? true);
     const normalizedQuery = query.trim().toUpperCase();
     const filtered = normalizedQuery
       ? rows.filter(
@@ -410,16 +400,16 @@ export async function fetchSecCompanyTickers(query: string, options: { exactTick
       : rows;
 
     return {
-      ok: response.ok,
-      status: response.status,
+      ok: true,
+      status,
       data: filtered.slice(0, 50),
       count: rows.length,
-      error: response.ok ? undefined : response.statusText,
+      error: undefined,
     };
   } catch (error) {
     return {
       ok: false,
-      status: 0,
+      status: error instanceof SecCompanyCatalogHttpError ? error.status : 0,
       data: [],
       count: 0,
       error: error instanceof Error ? error.message : "SEC request failed",

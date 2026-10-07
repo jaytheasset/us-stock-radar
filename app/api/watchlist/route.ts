@@ -3,6 +3,7 @@ import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
 import { addWatchlistTicker } from "@/lib/watchlist/addTicker";
 import { findTickerBySymbol } from "@/lib/alerts/tickers/getAlertTickersViewModel";
+import { TickerSearchUnavailableError } from "@/lib/tickerSearchContract";
 import { getGuestWatchlistViewModel, getWatchlistViewModel } from "@/lib/watchlist/getWatchlistViewModel";
 import { getProjectedWatchlistViewModel } from "@/lib/watchlist/tickerProjection";
 import {
@@ -74,6 +75,9 @@ export async function POST(request: NextRequest) {
       : await getWatchlistViewModel(userId);
     return NextResponse.json({ ok: true, data }, { headers: NO_STORE_HEADERS });
   } catch (error) {
+    if (error instanceof TickerSearchUnavailableError) {
+      return NextResponse.json({ ok: false, error: error.code, message: error.message }, { status: 503, headers: NO_STORE_HEADERS });
+    }
     if (error instanceof WatchlistValidationError) {
       return NextResponse.json(
         {

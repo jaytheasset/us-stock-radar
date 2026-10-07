@@ -61,12 +61,30 @@ export class SecRequestPolicy {
   }
 
   fetch(url: string, init: RequestInit = {}): Promise<Response> {
-    const execute = this.queue.then(() => this.fetchWithRetry(url, init));
+    return this.enqueue(url, init, async (response) => response);
+  }
+
+  // JSON clients consume the body while the final attempt's deadline is alive.
+  // Body failures are not fetch failures and do not enter the retry loop.
+  fetchText(url: string, init: RequestInit = {}): Promise<{ response: Response; text: string }> {
+    return this.enqueue(url, init, async (response, signal) => {
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        return { response, text: "" };
+      }
+      const text = await response.text();
+      signal.throwIfAborted();
+      return { response, text };
+    });
+  }
+
+  private enqueue<T>(url: string, init: RequestInit, consume: (response: Response, signal: AbortSignal) => Promise<T>): Promise<T> {
+    const execute = this.queue.then(() => this.fetchWithRetry(url, init, consume));
     this.queue = execute.then(() => undefined, () => undefined);
     return execute;
   }
 
-  private async fetchWithRetry(url: string, init: RequestInit) {
+  private async fetchWithRetry<T>(url: string, init: RequestInit, consume: (response: Response, signal: AbortSignal) => Promise<T>): Promise<T> {
     let lastNetworkError: unknown;
     for (let attempt = 1; attempt <= this.maximumAttempts; attempt += 1) {
       await this.waitForRequestSlot();
@@ -79,14 +97,19 @@ export class SecRequestPolicy {
           headers: { ...headersRecord(init.headers), "User-Agent": this.userAgent },
         });
       } catch (error) {
+        attemptSignal.dispose();
         lastNetworkError = error;
         if (attempt === this.maximumAttempts) break;
         await this.sleep(this.retryDelayMs(attempt, null));
         continue;
+      }
+      try {
+        if (!isRetryableStatus(response.status) || attempt === this.maximumAttempts) {
+          return await consume(response, attemptSignal.signal);
+        }
       } finally {
         attemptSignal.dispose();
       }
-      if (!isRetryableStatus(response.status) || attempt === this.maximumAttempts) return response;
       await response.body?.cancel().catch(() => undefined);
       await this.sleep(this.retryDelayMs(attempt, response.headers.get("retry-after")));
     }

@@ -45,9 +45,11 @@ import type {
   LiveRoomPostSignal,
 } from "@/lib/live-room/postSignals";
 import {
-  mapTickerSearchResults,
+  readTickerSearchResponse,
+  TICKER_SEARCH_PARTIAL_MESSAGE,
+  TICKER_SEARCH_UNAVAILABLE_MESSAGE,
   type TickerSearchResult,
-} from "@/lib/watchlist/stockOverview";
+} from "@/lib/tickerSearchContract";
 import {
   moveTickerSearchIndex,
   type TickerSearchArrowKey,
@@ -112,7 +114,8 @@ export function PostsPanel({
   const [tickers, setTickers] = useState("");
   const [tickerResults, setTickerResults] = useState<TickerSearchResult[]>([]);
   const [tickerSearchState, setTickerSearchState] =
-    useState<"idle" | "loading" | "ready">("idle");
+    useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [tickerSearchPartial, setTickerSearchPartial] = useState(false);
   const [tickerActiveIndex, setTickerActiveIndex] = useState(-1);
   const [tickerInputFocused, setTickerInputFocused] = useState(false);
   const [eventId, setEventId] = useState("");
@@ -144,7 +147,7 @@ export function PostsPanel({
     tickerInputFocused &&
     !tickerInputContext.atLimit &&
     Boolean(tickerInputContext.query) &&
-    (tickerSearchState === "loading" || tickerResults.length > 0);
+    tickerSearchState !== "idle";
 
   const loadLocal = async (before?: string | null) => {
     try {
@@ -178,6 +181,7 @@ export function PostsPanel({
   }, [controlledLoad, repository]);
 
   useEffect(() => {
+    setTickerSearchPartial(false);
     if (
       !formOpen ||
       tickerInputContext.atLimit ||
@@ -205,19 +209,21 @@ export function PostsPanel({
         .then((payload) => {
           if (controller.signal.aborted) return;
           const nextResults = selectLiveRoomPostTickerSuggestions(
-            mapTickerSearchResults(payload),
+            payload.data,
             tickerInputContext,
             currentTicker,
           );
           setTickerResults(nextResults);
+          setTickerSearchPartial(payload.partial === true);
           setTickerActiveIndex(nextResults.length ? 0 : -1);
-          setTickerSearchState("ready");
+          setTickerSearchState(payload.partial && !nextResults.length ? "error" : "ready");
         })
         .catch(() => {
           if (controller.signal.aborted) return;
           setTickerResults([]);
           setTickerActiveIndex(-1);
-          setTickerSearchState("idle");
+          setTickerSearchPartial(false);
+          setTickerSearchState("error");
         });
     }, 220);
 
@@ -495,10 +501,17 @@ export function PostsPanel({
                   id={tickerListboxId}
                   role="listbox"
                 >
+                  {tickerSearchState === "ready" && tickerSearchPartial ? (
+                    <p className={styles.tickerSearchStatus} role="status">{TICKER_SEARCH_PARTIAL_MESSAGE}</p>
+                  ) : null}
                   {tickerSearchState === "loading" ? (
                     <p className={styles.tickerSearchStatus} role="status">
                       Searching tickers...
                     </p>
+                  ) : tickerSearchState === "error" ? (
+                    <p className={styles.tickerSearchStatus} role="alert">{TICKER_SEARCH_UNAVAILABLE_MESSAGE}</p>
+                  ) : !tickerResults.length ? (
+                    <p className={styles.tickerSearchStatus} role="status">No matching ticker suggestions.</p>
                   ) : (
                     tickerResults.map((result, index) => (
                       <div
@@ -756,12 +769,4 @@ function formatPostDate(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-}
-
-async function readTickerSearchResponse(response: Response) {
-  const payload = await response.json();
-  if (!response.ok || payload?.ok === false) {
-    throw new Error(payload?.message || "Ticker search failed.");
-  }
-  return payload;
 }

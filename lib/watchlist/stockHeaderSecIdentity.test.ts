@@ -1,102 +1,55 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readStockHeaderSecIdentity } from "./stockHeaderSecIdentity.ts";
-
-const cik = "0001840317";
-const sourceId = "11111111-1111-4111-8111-111111111111";
-const olderSourceId = "22222222-2222-4222-8222-222222222222";
-
-function fixture(options: {
-  catalog?: unknown[];
-  listings?: unknown[];
-  sources?: unknown[];
-  names?: unknown[];
-} = {}) {
-  const queries: Array<{ table: string; search: Record<string, string> }> = [];
-  return {
-    queries,
-    readCanonicalExchange: async () => "",
-    readCatalog: async (_ticker: string, search: { exactTicker: true }) => {
-      assert.equal(search.exactTicker, true);
-      return { ok: true, data: options.catalog ?? [{ cik_str: 1840317, ticker: "VEEAW" }] };
-    },
-    selectRows: async (table: string, search: Record<string, string>) => {
-      queries.push({ table, search });
-      const data = table === "sec_structured_raw_sources"
-        ? options.sources ?? [
-            { id: sourceId, fetched_at: "2026-08-28T20:47:12Z" },
-            { id: olderSourceId, fetched_at: "2026-08-01T00:00:00Z" },
-          ]
-        : table === "sec_issuer_source_observations"
-          ? options.names ?? [{ entity_name: "VEEA INC." }]
-          : options.listings ?? [
-              { ticker: "VEEAW", exchange: "Nasdaq" },
-            ];
-      return { ok: true, data };
-    },
-  };
-}
-
-test("uses the latest main submissions source and the exact current ticker/exchange pair", async () => {
-  const dependencies = fixture();
-  const identity = await readStockHeaderSecIdentity("veeaw", dependencies);
-  assert.equal(dependencies.queries.length, 3);
-  assert.deepEqual(identity, {
-    companyName: "VEEA INC.", exchange: "Nasdaq",
-  });
-  assert.equal(dependencies.queries[0]?.search.source_identity,
-    `eq.https://data.sec.gov/submissions/CIK${cik}.json`);
-  assert.equal(dependencies.queries[1]?.search.source_raw_id, `eq.${sourceId}`);
-  assert.equal(dependencies.queries[2]?.search.source_raw_id, `eq.${sourceId}`);
-  assert.equal(dependencies.queries[2]?.search.ticker, "eq.VEEAW");
+import { stockHeaderIdentityPresentation } from "./stockHeaderIdentityPresentation.ts";
+import { readStockHeaderCurrent } from "./stockHeaderCurrentReader.ts";
+import type { SecCurrentSubmissionsResult } from "../sec-structured-data/types.ts";
+const current: Extract<SecCurrentSubmissionsResult, {status:"available"}> = { status:"available",cik:"0001840317",entityName:"Synthetic issuer",listings:[
+  {ticker:"SYN",exchange:"Synthetic Common Exchange"},{ticker:"SYNW",exchange:"Synthetic Warrant Exchange"}],
+  sourceRawId:"11111111-1111-4111-8111-111111111111",sourceKind:"submissions",sourceUrl:"https://data.sec.gov/test",
+  sourceIdentity:"internal",contentHash:"0".repeat(64),refreshSequence:"4",confirmedAt:"2026-10-07T01:02:03Z",firstFetchedAt:"2026-01-01T00:00:00Z" };
+function deps(value: SecCurrentSubmissionsResult = current) { return {
+  readCatalog: async (ticker: string, options: {exactTicker:true;fresh:true})=>{
+    assert.deepEqual(options,{exactTicker:true,fresh:true});return {ok:true,data:[{ticker,cik_str:1840317}]};},
+  readCurrent:async(cik:string)=>{assert.equal(cik,current.cik);return value;},
+}; }
+test("fresh exact catalog/current/unique listing use same source and allowlisted DTO",async()=>{
+  const identity=await readStockHeaderSecIdentity("synw",deps());
+  assert.deepEqual(identity,{ticker:"SYNW",status:"available",companyName:"Synthetic issuer",exchange:"Synthetic Warrant Exchange",confirmedAt:current.confirmedAt});
+  assert.equal(stockHeaderIdentityPresentation("SYNW",identity).confirmationLabel,"SEC checked 2026-10-07 01:02:03 UTC");
 });
-
-test("missing submissions/exchange can use revalidated canonical identity for the current catalog pair", async () => {
-  for (const options of [{ sources: [] }, { listings: [] }, { listings: [{ ticker: "VEEAW", exchange: "" }] }]) {
-    const dependencies = fixture(options);
-    let calls = 0;
-    dependencies.readCanonicalExchange = async (...args: unknown[]) => {
-      assert.deepEqual(args, ["VEEAW", cik]); calls++; return "Nasdaq";
-    };
-    assert.equal((await readStockHeaderSecIdentity("VEEAW", dependencies)).exchange, "Nasdaq");
-    assert.equal(calls, 1);
+test("catalog duplicate/conflict/failure never reaches current or borrows another issuer",async()=>{
+  for(const data of [[{ticker:"SYNW",cik_str:1},{ticker:"SYNW",cik_str:2}],[{ticker:"SYNW",cik_str:1},{ticker:"SYNW",cik_str:1}],[{ticker:"SYNW",cik_str:0}],null]){
+    const r=await readStockHeaderSecIdentity("SYNW",{readCatalog:async()=>({ok:true,data}),readCurrent:async()=>assert.fail("ambiguous catalog")});
+    assert.equal(r.status,"unavailable");
   }
+  assert.equal((await readStockHeaderSecIdentity("SYNW",{readCatalog:async()=>{throw Error("private error");}})).status,"unavailable");
+  assert.equal((await readStockHeaderSecIdentity("SYNW",{readCatalog:async()=>({ok:true,data:[]})})).status,"not-confirmed");
 });
-
-test("fallback cannot bypass absent current ticker, conflicting catalog or submissions pairs", async () => {
-  for (const options of [{ catalog: [] }, { catalog: [{ cik_str: 1, ticker: "VEEAW" }, { cik_str: 2, ticker: "VEEAW" }] },
-    { listings: [{ ticker: "VEEAW", exchange: "NYSE" }, { ticker: "VEEAW", exchange: "Nasdaq" }] },
-    { listings: [{ ticker: "VEEA", exchange: "NYSE" }] }]) {
-    const dependencies = fixture(options);
-    dependencies.readCanonicalExchange = async () => { assert.fail("must not bypass current identity ambiguity"); };
-    assert.equal((await readStockHeaderSecIdentity("VEEAW", dependencies)).exchange, "");
+test("no current, empty listing, absent ticker and unavailable remain distinct without fallback",async()=>{
+  assert.deepEqual(await readStockHeaderSecIdentity("SYNW",deps({status:"not-confirmed"})),{ticker:"SYNW",status:"not-confirmed",reason:"no-current"});
+  for(const listings of [[],[{ticker:"SYN",exchange:"NYSE"}]]) {
+    assert.deepEqual(await readStockHeaderSecIdentity("SYNW",deps({...current,listings})),{ticker:"SYNW",status:"not-confirmed",reason:"ticker-not-listed"});
   }
+  assert.equal((await readStockHeaderSecIdentity("SYNW",deps({status:"unavailable"}))).status,"unavailable");
 });
-
-test("a missing or mismatched ticker pair cannot borrow another class's exchange", async () => {
-  for (const listings of [[], [{ ticker: "VEEA", exchange: "NYSE" }]]) {
-    const dependencies = fixture({ listings });
-    assert.deepEqual(await readStockHeaderSecIdentity("VEEAW", dependencies), {
-      companyName: "VEEA INC.", exchange: "",
-    });
+test("different CIK, duplicate listing and blank exchange fail closed",async()=>{
+  for(const value of [{...current,cik:"0000000001"},{...current,listings:[{ticker:"SYNW",exchange:"NYSE"},{ticker:"SYNW",exchange:"Nasdaq"}]},{...current,listings:[{ticker:"SYNW",exchange:""}]}])
+    assert.equal((await readStockHeaderSecIdentity("SYNW",deps(value))).status,"unavailable");
+});
+test("a later failure and ticker navigation cannot retain previous identity or time",async()=>{
+  const good=await readStockHeaderSecIdentity("SYNW",deps());
+  const failed=await readStockHeaderSecIdentity("SYNW",deps({status:"unavailable"}));
+  assert.equal(stockHeaderIdentityPresentation("SYN",good).confirmedAt,null);
+  assert.equal(stockHeaderIdentityPresentation("SYNW",failed).confirmedAt,null);
+  assert.match(stockHeaderIdentityPresentation("SYNW",failed).companyName,/temporarily unavailable/);
+});
+test("SQL adapter releases successful reads and destroys failed connections; no writes",async()=>{
+  for(const fail of [false,true]) {const releases:boolean[]=[];let calls=0;
+    const pool={end:async()=>{},connect:async()=>({release:(destroy?:boolean)=>{releases.push(Boolean(destroy));},
+      query:async(sql:string)=>{calls++;assert.match(sql,/^select/);if(fail)throw Error("private DB error");return {rows:[],rowCount:0};}})};
+    assert.equal((await readStockHeaderCurrent(current.cik,pool)).status,fail?"unavailable":"not-confirmed");
+    assert.deepEqual(releases,[fail]);assert.equal(calls,1);
   }
-});
-
-test("ambiguous current catalog or simultaneous source snapshots fail closed", async () => {
-  const duplicateCatalog = fixture({ catalog: [
-    { cik_str: 1840317, ticker: "VEEAW" },
-    { cik_str: 9999999, ticker: "VEEAW" },
-  ] });
-  assert.deepEqual(await readStockHeaderSecIdentity("VEEAW", duplicateCatalog), {
-    companyName: "", exchange: "",
-  });
-  assert.equal(duplicateCatalog.queries.length, 0);
-
-  const tiedSources = fixture({ sources: [
-    { id: sourceId, fetched_at: "2026-08-28T20:47:12Z" },
-    { id: olderSourceId, fetched_at: "2026-08-28T20:47:12Z" },
-  ] });
-  assert.deepEqual(await readStockHeaderSecIdentity("VEEAW", tiedSources), {
-    companyName: "", exchange: "",
-  });
+  assert.deepEqual(await readStockHeaderCurrent(current.cik,{end:async()=>{},connect:async()=>{throw Error("refused");}}),{status:"unavailable"});
 });

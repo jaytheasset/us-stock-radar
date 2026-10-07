@@ -1,6 +1,8 @@
+import { normalizeMainSubmissions } from "./mainSubmissions.ts";
 import { normalizeCik, normalizeSecStructuredDocuments } from "./normalization.ts";
 import type {
   SecIssuerIngestResult,
+  SecIssuerSubmissionsIngestResult,
   SecRefreshMode,
   SecStructuredRepository,
   SecStructuredSourceClient,
@@ -19,6 +21,19 @@ export class SecStructuredDataService {
     this.sourceClient = sourceClient;
     this.repository = repository;
     this.now = now;
+  }
+
+  /** Explicit server-side ingestion only; no reader, scheduler or O/S connection. */
+  async ingestIssuerSubmissions(input: { cik: string }): Promise<SecIssuerSubmissionsIngestResult> {
+    const cik = normalizeCik(input.cik);
+    const documents = await this.sourceClient.fetchSubmissions(cik, "incremental");
+    const normalized = normalizeMainSubmissions(documents, cik, this.now().toISOString());
+    const counts = await this.repository.ingestBatch(normalized);
+    return {
+      cik, mode: "incremental", ...counts,
+      sourceUpdates: { submissions: sourceUpdateCounts("submissions", 1, normalized.rawSources, new Set(counts.insertedRawSourceIds)) },
+      sourceDocuments: 1, normalizedFacts: 0, rejected: 0,
+    };
   }
 
   async ingestIssuer(input: { cik: string; mode: SecRefreshMode }): Promise<SecIssuerIngestResult> {

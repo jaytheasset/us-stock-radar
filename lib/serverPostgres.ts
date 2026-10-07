@@ -20,12 +20,13 @@ export type ServerPostgresClient = {
     text: string,
     values?: unknown[],
   ): Promise<ServerPostgresQueryResult<Row>>;
-  release(): void;
+  release(destroy?: boolean): void;
 };
 
 export type ServerPostgresPool = {
   connect(): Promise<ServerPostgresClient>;
   end(): Promise<void>;
+  on?(event: "error", listener: (error: Error) => void): unknown;
 };
 
 export function requireServerPostgresUrl(
@@ -42,10 +43,12 @@ export function requireServerPostgresUrl(
 
 export function createServerPostgresPool(
   environment: ServerPostgresEnvironment = process.env,
+  options: Pick<pg.PoolConfig, "connectionTimeoutMillis" | "statement_timeout" | "query_timeout" | "options"> = {},
 ): ServerPostgresPool {
   return new pg.Pool({
     connectionString: requireServerPostgresUrl(environment),
     max: 1,
+    ...options,
   }) as ServerPostgresPool;
 }
 

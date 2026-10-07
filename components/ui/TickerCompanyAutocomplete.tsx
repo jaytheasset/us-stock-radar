@@ -11,6 +11,8 @@ import {
 } from "react";
 import {
   readTickerSearchResponse,
+  TICKER_SEARCH_PARTIAL_MESSAGE,
+  TICKER_SEARCH_UNAVAILABLE_MESSAGE,
   type TickerSearchResult,
 } from "@/lib/tickerSearchContract";
 import { moveTickerSearchIndex } from "@/lib/tickerSearchNavigation";
@@ -63,6 +65,7 @@ export function TickerCompanyAutocomplete({
   onSelectRef.current = onSelect;
   const [results, setResults] = useState<TickerSearchResult[]>([]);
   const [state, setState] = useState<SearchState>("idle");
+  const [partial, setPartial] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const normalizedValue = value.trim();
@@ -70,10 +73,11 @@ export function TickerCompanyAutocomplete({
     Boolean(selectedTicker) && selectedTicker?.toUpperCase() === normalizedValue.toUpperCase();
 
   useEffect(() => {
+    setPartial(false);
+    setResults([]);
+    setActiveIndex(-1);
+    setState("idle");
     if (!normalizedValue || selectionMatches) {
-      setResults([]);
-      setState("idle");
-      setActiveIndex(-1);
       setIsOpen(false);
       return;
     }
@@ -88,8 +92,10 @@ export function TickerCompanyAutocomplete({
         signal: controller.signal,
       })
         .then(readTickerSearchResponse)
-        .then((nextResults) => {
+        .then((result) => {
           if (controller.signal.aborted) return;
+          const nextResults = result.data;
+          setPartial(result.partial === true);
           setResults(nextResults);
           setActiveIndex(nextResults.length ? 0 : -1);
           setState("ready");
@@ -105,11 +111,12 @@ export function TickerCompanyAutocomplete({
             onSelectRef.current(exact);
           }
         })
-        .catch((error: unknown) => {
+        .catch(() => {
           if (controller.signal.aborted) return;
           setResults([]);
+          setPartial(false);
           setActiveIndex(-1);
-          setState(error instanceof DOMException && error.name === "AbortError" ? "idle" : "error");
+          setState("error");
         });
     }, 220);
 
@@ -211,13 +218,16 @@ export function TickerCompanyAutocomplete({
           id={listboxId}
           role="listbox"
         >
+          {state === "ready" && partial ? (
+            <p className={styles.status} role="status">{TICKER_SEARCH_PARTIAL_MESSAGE}</p>
+          ) : null}
           {state === "loading" ? (
             <p className={styles.status} role="status">
               <LoaderCircle aria-hidden="true" className={styles.spinner} size={15} />
               Searching...
             </p>
           ) : state === "error" ? (
-            <p className={styles.status} role="alert">Ticker search is unavailable.</p>
+            <p className={styles.status} role="alert">{TICKER_SEARCH_UNAVAILABLE_MESSAGE}</p>
           ) : results.length ? (
             results.map((result, index) => {
               const optionDisabled = isOptionDisabled?.(result) === true;

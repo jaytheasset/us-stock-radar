@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { StockRadarWatchlistV2 } from "@/components/watchlist-v2/StockRadarWatchlistV2";
-import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import { getOptionalCurrentUserIdReadOnly } from "@/lib/currentUser";
 import { getProjectedWatchlistViewModel } from "@/lib/watchlist/tickerProjection";
 import { readStockHeaderSecIdentity } from "@/lib/watchlist/stockHeaderSecIdentity";
 import { readStockListingStatus } from "@/lib/watchlist/stockListingStatusServer";
@@ -45,7 +45,7 @@ export default async function StockPage({ params }: StockPageProps) {
     redirect(getStockRouteHref(ticker) as string);
   }
 
-  const userId = await getOptionalCurrentUserId();
+  const userId = await getOptionalCurrentUserIdReadOnly();
   const initialWatchlist = await getProjectedWatchlistViewModel(userId, ticker);
   const currentTicker = initialWatchlist.selection?.requestedTicker === ticker
     ? initialWatchlist.selection.currentTicker
@@ -56,6 +56,7 @@ export default async function StockPage({ params }: StockPageProps) {
 
   return (
     <StockRadarWatchlistV2
+      key={`${ticker}:${currentTicker}`}
       initialSelectedTicker={ticker}
       initialWatchlist={initialWatchlist}
       selectionMode="stock"

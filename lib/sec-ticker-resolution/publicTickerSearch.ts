@@ -1,8 +1,8 @@
 import "server-only";
 
-import { searchTickerCatalog } from "@/lib/alerts/tickers/getAlertTickersViewModel";
+import { readTickerCatalogSearch } from "@/lib/alerts/tickers/getAlertTickersViewModel";
 import { fetchSecCompanyTickers } from "@/lib/integrations";
-import { normalizeTickerSearchQuery, type TickerSearchResult } from "@/lib/tickerSearchContract";
+import { normalizeTickerSearchQuery, completeTickerSearch, requireCompleteTickerSearch, type TickerSearchResult, type TickerSearchRead } from "@/lib/tickerSearchContract";
 import {
   readSecTickerProductProjectionForTicker,
   readSecTickerSourceFiling,
@@ -27,31 +27,37 @@ export async function searchPublicStockTickerCatalog(
   query: string,
   limit = 8,
 ): Promise<TickerSearchResult[]> {
+  return requireCompleteTickerSearch(await readPublicStockTickerCatalogSearch(query, limit));
+}
+
+export async function readPublicStockTickerCatalogSearch(query: string, limit = 8): Promise<TickerSearchRead> {
   const normalized = normalizeTickerSearchQuery(query);
-  if (!normalized) return [];
+  if (!normalized) return { data: [] };
   const cappedLimit = Math.max(1, Math.min(limit, 12));
-  const baseResults = await searchTickerCatalog(normalized, cappedLimit);
+  const base = await readTickerCatalogSearch(normalized, cappedLimit);
+  const baseResults = base.data;
   const exactTicker = /^[A-Z0-9][A-Z0-9.-]{0,11}$/.test(normalized.toUpperCase())
     ? normalized.toUpperCase()
     : "";
-  if (!exactTicker) return baseResults;
+  if (!exactTicker) return base;
 
   const bound = await readIssuerBoundPublicStockTickerProjection(exactTicker);
+  if (bound.status === "unavailable") return completeTickerSearch(baseResults, true);
   if (
     bound.status !== "available" ||
     bound.projection.currentTicker === exactTicker ||
     !bound.projection.historicalTickers.includes(exactTicker)
-  ) return baseResults;
+  ) return base;
 
   const historicalResult: TickerSearchResult = {
     ...bound.currentSecTicker,
     historicalTicker: exactTicker,
     isHistoricalTicker: true,
   };
-  return [
+  return completeTickerSearch([
     historicalResult,
     ...baseResults.filter((result) => result.ticker !== historicalResult.ticker),
-  ].slice(0, cappedLimit);
+  ].slice(0, cappedLimit), base.partial);
 }
 
 export async function readIssuerBoundPublicStockTickerProjection(

@@ -48,12 +48,11 @@ export class SecStructuredHttpClient implements SecStructuredSourceClient {
   }
 
   private async fetchDocument(url: string, sourceKind: "submissions" | "companyfacts", cik: string) {
-    const response = await this.requestPolicy.fetch(url, {
+    const { response, text: rawBody } = await this.requestPolicy.fetchText(url, {
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
     if (!response.ok) throw new SecStructuredHttpError(sourceKind, response.status);
-    const rawBody = await response.text();
     let payload: unknown;
     try {
       payload = JSON.parse(rawBody);

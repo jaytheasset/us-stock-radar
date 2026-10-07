@@ -14,6 +14,7 @@ export function TickerSearchFlowReadout({
       data-ticker-flow-active-ticker={state.activeTicker ?? "none"}
       data-ticker-flow-api-ok={stringifyBoolean(state.apiOk)}
       data-ticker-flow-detail-render-state={state.detailRenderState}
+      data-ticker-flow-company-identity-state={state.companyIdentityState}
       data-ticker-flow-http-status={state.httpStatus ?? "unknown"}
       data-ticker-flow-query={state.query}
       data-ticker-flow-rendered-count={state.renderedResultCount ?? "unknown"}

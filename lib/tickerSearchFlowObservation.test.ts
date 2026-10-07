@@ -207,3 +207,14 @@ test("detail readout joins the validated selection to the actual rendered route"
   assert.equal(direct.searchStatus, "unobserved");
   assert.equal(direct.renderedTicker, "NVDA");
 });
+
+
+test("confirmed company identity stays separate from unavailable market/source data", () => {
+  const state = resolveTickerSearchToStockDetailReadout({detailRenderState:"unavailable",companyIdentityState:"available",
+    routeHref:"/stocks/SYN",routeTicker:"SYN",selection:null});
+  assert.equal(state.detailRenderState,"unavailable");
+  assert.equal(state.companyIdentityState,"available");
+  assert.equal(state.requestState,"unobserved");
+  assert.match(state.summary,/SEC company information is available/);
+  assert.match(state.summary,/Stock market\/source data is unavailable/);
+});

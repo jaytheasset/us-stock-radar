@@ -89,6 +89,14 @@
   gap: var(--sr-space-3);
 }
 
+.secConfirmation {
+  display: block;
+  margin-top: 4px;
+  color: var(--sr-color-text-muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .stockLogo {
   display: grid;
   width: 44px;
@@ -129,6 +137,14 @@
 
 .stockIdentity p {
   margin-top: var(--sr-space-1);
+}
+
+.stockHeader[data-company-identity-state="not-confirmed"] .stockIdentity p,
+.stockHeader[data-company-identity-state="unavailable"] .stockIdentity p {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .stockQuote {
@@ -1589,6 +1605,16 @@
 
   .stockStatus {
     display: none;
+  }
+
+  .stockHeader[data-company-identity-state] .stockStatus {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sr-space-2);
   }
 
   .overviewLayout {

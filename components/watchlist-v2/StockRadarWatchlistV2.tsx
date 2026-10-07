@@ -95,6 +95,7 @@ import type { StockFinancialsSnapshot } from "@/lib/watchlist/stockFinancials";
 import type { StockSc13OwnershipSnapshot } from "@/lib/watchlist/stockSc13Ownership";
 import type { StockForm4Transaction } from "@/lib/watchlist/stockForm4Transactions";
 import type { StockHeaderSecIdentity } from "@/lib/watchlist/stockHeaderSecIdentity";
+import { stockHeaderIdentityPresentation } from "@/lib/watchlist/stockHeaderIdentityPresentation";
 import type {
   WatchlistTickerItem,
   WatchlistViewModel,
@@ -272,8 +273,9 @@ export function StockRadarWatchlistV2({
     sourceFilingsState: secSourceFilingsState,
   });
   const stockDetailUnavailable = overviewState === "unavailable";
-  const headerCompanyName = selectionMode === "stock" && stockHeaderIdentity?.companyName
-    ? stockHeaderIdentity.companyName
+  const headerIdentity = stockHeaderIdentityPresentation(selectedTicker, stockHeaderIdentity);
+  const headerCompanyName = selectionMode === "stock"
+    ? headerIdentity.companyName
     : stockDetailUnavailable
       ? "Ticker unavailable"
       : profile.companyName ||
@@ -287,11 +289,12 @@ export function StockRadarWatchlistV2({
       : "";
     return resolveTickerSearchToStockDetailReadout({
       detailRenderState: overviewState,
+      companyIdentityState: selectionMode === "stock" ? headerIdentity.status : undefined,
       routeHref,
       routeTicker: selectedTicker,
       selection: tickerSearchSelection,
     });
-  }, [overviewState, selectedTicker, tickerSearchSelection]);
+  }, [overviewState, selectedTicker, tickerSearchSelection, selectionMode, headerIdentity.status]);
   const selectedEvent =
     events.find((event) => event.id === selectedEventId) ?? events[0] ?? null;
   const latestEvent = events[0] ?? null;
@@ -1096,14 +1099,17 @@ export function StockRadarWatchlistV2({
             </p> : null}
             <StockHeader
               companyName={headerCompanyName}
-              exchange={selectionMode === "stock" ? stockHeaderIdentity?.exchange || "" : profile.exchange}
+              exchange={selectionMode === "stock" ? headerIdentity.exchange : profile.exchange}
+              confirmedAt={selectionMode === "stock" ? headerIdentity.confirmedAt : null}
+              confirmationLabel={selectionMode === "stock" ? headerIdentity.confirmationLabel : ""}
+              identityState={selectionMode === "stock" ? headerIdentity.status : undefined}
               isSaved={Boolean(selectedWatchlistItem)}
               watchlistActionLabel={selectedWatchlistItem
                 ? selectionMode === "stock" && selectedWatchlistItem.projectionConflict?.length
                   ? "Choose saved row to remove"
                   : `Remove saved ${selectedWatchlistItem.ticker} from Watchlist`
                 : undefined}
-              isUnavailable={stockDetailUnavailable}
+              isUnavailable={selectionMode === "stock" ? false : stockDetailUnavailable}
               isQuoteUnavailable={
                 !Object.values(quote).some((value) => value !== null)
               }
@@ -1586,6 +1592,9 @@ function WatchlistRail({
 function StockHeader({
   companyName,
   exchange,
+  confirmedAt,
+  confirmationLabel,
+  identityState,
   isSaved,
   watchlistActionLabel,
   isQuoteUnavailable,
@@ -1598,6 +1607,9 @@ function StockHeader({
 }: {
   companyName: string;
   exchange: string;
+  confirmedAt: string | null;
+  confirmationLabel: string;
+  identityState?: "available" | "not-confirmed" | "unavailable";
   isSaved: boolean;
   watchlistActionLabel?: string;
   isQuoteUnavailable: boolean;
@@ -1610,7 +1622,7 @@ function StockHeader({
 }) {
   const isPositive = (quote.changePercent ?? 0) >= 0;
   return (
-    <header className={styles.stockHeader}>
+    <header className={styles.stockHeader} aria-label="Stock company and quote" data-company-identity-state={identityState}>
       <div className={styles.stockIdentity}>
         <div className={styles.stockLogo}>
           <MarketTickerLogo size="detail" ticker={ticker} />
@@ -1621,6 +1633,7 @@ function StockHeader({
             <small>{exchange || "Exchange unavailable"}</small>
           </div>
           <p>{companyName || "Company profile unavailable"}</p>
+          {confirmedAt ? <time className={styles.secConfirmation} dateTime={confirmedAt}>{confirmationLabel}</time> : null}
         </div>
       </div>
       <div className={styles.stockQuote}>
