@@ -152,6 +152,8 @@
     "sec:ingest-production": "node scripts/run-sec-production-ingest.mjs",
     "sec:offline-import": "node --no-warnings --experimental-loader ./scripts/resolve-ts-paths.mjs --experimental-strip-types scripts/import-sec-offline-archive.ts",
     "sec:cover-replay": "node scripts/run-sec-stored-raw-cover.mjs",
+    "sec:ticker-automatic": "node scripts/run-sec-ticker-automatic.mjs",
+    "verify:sec-ticker-automatic": "node scripts/run-sec-ticker-automatic.mjs --test",
     "verify:sec-cover-replay": "node --no-warnings --import ./scripts/resolve-server-only.mjs --test --experimental-strip-types lib/sec-cover-observations/storedRawReplay.test.ts",
     "verify:sec-offline-import": "node --no-warnings --test --experimental-strip-types lib/sec-offline-import/canonical.test.ts lib/sec-offline-import/localTarget.test.ts lib/sec-offline-import/persistence.test.ts",
     "verify:kiwoom-evidence": "node scripts/verify-kiwoom-evidence.mjs",
