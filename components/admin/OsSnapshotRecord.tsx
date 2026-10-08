@@ -12,12 +12,11 @@ export function OsSnapshotRecord({ record, blocks }: { record: OsRecord; blocks:
       <div className={styles.fullWidth}><dt>기준 시점 원문</dt><dd>{record.as_of_text}</dd></div>
     </dl>
     <div className={styles.evidence}>
-      <p>이 수량의 원문 근거 · {record.evidence_blocks.length}개</p>
+      <p>원문 근거 · {record.evidence_blocks.length}개</p>
       {record.evidence_blocks.map((id, index) => {
         const block = blocks.find(b => b.id === id);
         return <details key={id}>
-          <summary>근거 {index + 1} 펼치기{block ? ` · 원문 ${block.line_start}–${block.line_end}행` : ''}</summary>
-          <small>{id}</small>
+          <summary>근거 {index + 1} 보기</summary>
           <pre>{block?.text ?? '원문 근거를 읽을 수 없습니다.'}</pre>
         </details>;
       })}
