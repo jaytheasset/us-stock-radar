@@ -1,0 +1,108 @@
+{
+  "status": "PASS",
+  "criteriaRevision": "offering-gate-adjudication-r3",
+  "criteriaHash": "f6c7bd1d8602b39ecd6bd2df8b62c73c066350c0c7da73f093e45098315c0f96",
+  "outputProtocol": "offering-output-r2",
+  "filings": 10,
+  "issuers": 6,
+  "newUnreviewedFilingsInContinuation": 8,
+  "additionalGptCalls": 8,
+  "cumulativeGateGptCalls": 11,
+  "r1FilesPreserved": 115,
+  "outputRepair": false,
+  "parserSemanticSelection": false,
+  "productIntegrationMayBegin": true,
+  "cases": [
+    {
+      "id": "arm-f1a",
+      "accession": "0001193125-23-228059",
+      "cik": "0001973239",
+      "family": "333-274120",
+      "status": "PASS",
+      "rawHash": "96566a10763d350f51584d65a7b02fa3a0982355bdbbeb3a26b900857ff2257c",
+      "additionalCallsThisContinuation": 0
+    },
+    {
+      "id": "birkenstock-f1",
+      "accession": "0001193125-23-233488",
+      "cik": "0001977102",
+      "family": "333-274483",
+      "status": "PASS",
+      "rawHash": "e54d652484075c75c726a009bd7848638566cf7b880707ad5bd63c5f717d0b72",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "birkenstock-f1a",
+      "accession": "0001193125-23-250555",
+      "cik": "0001977102",
+      "family": "333-274483",
+      "status": "PASS",
+      "rawHash": "663ccb4cdb5b1f217057a6fa2a20c02ca55850da98434b098ded45fc24769aba",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "viking-f1",
+      "accession": "0001193125-24-087969",
+      "cik": "0001745201",
+      "family": "333-278515",
+      "status": "PASS",
+      "rawHash": "089257538bfe54e4fc170946b9c8bffe4fea67db74dec4e0b9d7b22368fe915c",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "viking-f1a",
+      "accession": "0001193125-24-119708",
+      "cik": "0001745201",
+      "family": "333-278515",
+      "status": "PASS",
+      "rawHash": "2aaf2aec23a404a2a0b595f0bcefb4e851c5616a5c0846263988fd81f959960c",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "amer-f1",
+      "accession": "0001104659-24-001168",
+      "cik": "0001988894",
+      "family": "333-276370",
+      "status": "PASS",
+      "rawHash": "119c4c785666067f6e09c580623b76995d24f1293cedb62280ad411b99313133",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "amer-f1a",
+      "accession": "0001104659-24-007307",
+      "cik": "0001988894",
+      "family": "333-276370",
+      "status": "PASS",
+      "rawHash": "e30ce09727208f32000bfcfcde5bcee0e7c98ee5cd3f51be6a7b22874deaf441",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "on-f1",
+      "accession": "0001193125-21-253415",
+      "cik": "0001858985",
+      "family": "333-258998",
+      "status": "PASS",
+      "rawHash": "08e28e55ec8da611b1c48f5350cf2f3922d579ec48b466f5fbdda6bdfdbdc409",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "on-f1a",
+      "accession": "0001193125-21-270834",
+      "cik": "0001858985",
+      "family": "333-258998",
+      "status": "PASS",
+      "rawHash": "4308be7e753067f6086a9c0082410c314e82da91026459bb0784e8f47461f2a5",
+      "additionalCallsThisContinuation": 1
+    },
+    {
+      "id": "nucana-f1a",
+      "accession": "0001193125-25-110310",
+      "cik": "0001709626",
+      "family": "333-286716",
+      "status": "PASS",
+      "rawHash": "09e9497796c5dc22877539691d6a4ff9001e0a06790fef5b0dbbd7e34fbda979",
+      "additionalCallsThisContinuation": 0
+    }
+  ],
+  "coverageLimit": "No final-stated IPO price in this fixed cohort; proposed ranges, assumed fixed package price, blanks, primary/resale/mixed, ADS, warrants, direct proceeds/post-offering scenarios and four amendment pairs covered."
+}

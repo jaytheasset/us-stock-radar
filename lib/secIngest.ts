@@ -1,4 +1,5 @@
 import { enqueueOsSnapshot } from "./sec-os-snapshot/repository";
+import { enqueueOfferingPlan } from "./sec-offering-plan/repository";
 import { isOsForm } from "./sec-os-snapshot/source";
 import { randomUUID } from "node:crypto";
 import { ensureSecForm25Identity } from "@/lib/sec-form25-identity/persistence";
@@ -75,6 +76,7 @@ type SecRawIngestDependencies = {
   enqueueTenderStructured?: typeof enqueueTenderStructured;
   enqueueProxyStructured?: typeof enqueueProxyStructured;
   enqueueOsSnapshot?: typeof enqueueOsSnapshot;
+  enqueueOfferingPlan?: typeof enqueueOfferingPlan;
 };
 
 export async function runSecRawIngest(
@@ -98,6 +100,7 @@ export async function runSecRawIngest(
     enqueueTenderStructured: dependencies.enqueueTenderStructured ?? enqueueTenderStructured,
     enqueueProxyStructured: dependencies.enqueueProxyStructured ?? enqueueProxyStructured,
     enqueueOsSnapshot: dependencies.enqueueOsSnapshot ?? enqueueOsSnapshot,
+    enqueueOfferingPlan: dependencies.enqueueOfferingPlan ?? enqueueOfferingPlan,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -112,6 +115,11 @@ export async function runSecRawIngest(
   async function osAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
     if (dryRun || !isOsForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
     try { return await runtime.enqueueOsSnapshot(rawItemId); }
+    catch (error) { return { status: "failed", reason: String(error) }; }
+  }
+  async function offeringAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
+    if (dryRun || !isOsForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
+    try { return await runtime.enqueueOfferingPlan(rawItemId); }
     catch (error) { return { status: "failed", reason: String(error) }; }
   }
   async function tenderAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
@@ -320,7 +328,8 @@ export async function runSecRawIngest(
             const persisted = existing && !force ? existing : await runtime.saveRawItem(rawItem, runId, existing);
             if (!existing || force) stats.raw_upserted_count += 1;
             items.push({ ...buildExcludedRawItem(rawItem, exclusion), raw_item_id: persisted.id,
-              os_snapshot: await osAfterRawSave(rawItem, stringValue(persisted.id)) });
+              os_snapshot: await osAfterRawSave(rawItem, stringValue(persisted.id)),
+              offering_plan: await offeringAfterRawSave(rawItem, stringValue(persisted.id)) });
           } else items.push(buildExcludedRawItem(rawItem, exclusion));
           continue;
         }
@@ -362,6 +371,7 @@ export async function runSecRawIngest(
             tender_structured: await tenderAfterRawSave(rawItem, stringValue(existing.id)),
             proxy_structured: await proxyAfterRawSave(rawItem, stringValue(existing.id)),
             os_snapshot: await osAfterRawSave(rawItem, stringValue(existing.id)),
+            offering_plan: await offeringAfterRawSave(rawItem, stringValue(existing.id)),
             sec_cover_observation_persistence: secCoverObservationPersistence,
             form25_delisting: form25Delisting,
             form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(existing.id)),
@@ -405,6 +415,7 @@ export async function runSecRawIngest(
           tender_structured: await tenderAfterRawSave(rawItem, stringValue(persisted.id)),
           proxy_structured: await proxyAfterRawSave(rawItem, stringValue(persisted.id)),
           os_snapshot: await osAfterRawSave(rawItem, stringValue(persisted.id)),
+          offering_plan: await offeringAfterRawSave(rawItem, stringValue(persisted.id)),
           sec_cover_observation_persistence: secCoverObservationPersistence,
           form25_delisting: form25Delisting,
           form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(persisted.id)),

@@ -1,0 +1,231 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "NuCana plc",
+    "cik": "0001709626",
+    "accession": "0001193125-25-110310",
+    "form": "F-1/A",
+    "filing_date": "2025-05-02",
+    "accepted_at": "2025-05-02T01:34:19.000Z",
+    "file_number": "333-286716",
+    "registration_number": "333-286716"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ads",
+        "security_label": "American Depositary Shares",
+        "quantity": {
+          "status": "stated",
+          "value": "12497768",
+          "unit": "ADSs"
+        },
+        "price": {
+          "status": "fixed",
+          "qualification": "assumed",
+          "value": "0.5601",
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "ADS together with one Series A Warrant and one Series B Warrant"
+        },
+        "scenario": "Up to the stated quantity in a reasonable best efforts offering. Each ADS must be purchased with one Series A Warrant and one Series B Warrant, issued separately and immediately separable. Each Pre-Funded Warrant sold reduces the ADSs offered one-for-one.",
+        "depositary": {
+          "underlying_share_class": "ordinary shares",
+          "underlying_shares_per_security": "25",
+          "evidence_blocks": [
+            "0001193125-25-110310:primary:893488390fe3bd85:L441"
+          ]
+        },
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L161",
+          "0001193125-25-110310:primary:893488390fe3bd85:L441"
+        ]
+      },
+      {
+        "id": "c2",
+        "seller_type": "issuer",
+        "security_type": "warrants",
+        "security_label": "Series A Warrants",
+        "quantity": {
+          "status": "stated",
+          "value": "12497768",
+          "unit": "ADSs initially purchasable under Series A Warrants"
+        },
+        "price": {
+          "status": "not_stated",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": null,
+          "per_unit": null
+        },
+        "scenario": "Warrants initially to purchase up to the stated quantity of ADSs; one accompanies each ADS or Pre-Funded Warrant sold. The combined ADS-and-warrants price is recorded in c1. Exercisable from issuance for five years, with exercise-price and underlying-ADS quantity adjustments.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L161",
+          "0001193125-25-110310:primary:893488390fe3bd85:L481",
+          "0001193125-25-110310:primary:893488390fe3bd85:L2361"
+        ]
+      },
+      {
+        "id": "c3",
+        "seller_type": "issuer",
+        "security_type": "warrants",
+        "security_label": "Series B Warrants",
+        "quantity": {
+          "status": "stated",
+          "value": "12497768",
+          "unit": "ADSs initially purchasable under Series B Warrants"
+        },
+        "price": {
+          "status": "not_stated",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": null,
+          "per_unit": null
+        },
+        "scenario": "Warrants initially to purchase up to the stated quantity of ADSs; one accompanies each ADS or Pre-Funded Warrant sold. The combined ADS-and-warrants price is recorded in c1. Term is two and one-half years from issuance, subject to exercise restrictions, exercise-price and quantity adjustments, and a zero exercise price option subject to the Mandatory Nominal Exercise Price.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L161",
+          "0001193125-25-110310:primary:893488390fe3bd85:L521",
+          "0001193125-25-110310:primary:893488390fe3bd85:L2441",
+          "0001193125-25-110310:primary:893488390fe3bd85:L2521"
+        ]
+      },
+      {
+        "id": "c4",
+        "seller_type": "issuer",
+        "security_type": "prefunded_warrants",
+        "security_label": "Pre-Funded Warrants",
+        "quantity": {
+          "status": "stated",
+          "value": "12497768",
+          "unit": "ADSs purchasable under Pre-Funded Warrants"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "Pre-Funded Warrant together with one Series A Warrant and one Series B Warrant"
+        },
+        "scenario": "Up to the stated quantity in lieu of ADSs for purchasers exceeding the 4.99% beneficial ownership limit, or 9.99% at their election. Each Pre-Funded Warrant purchases one ADS and reduces ADSs offered one-for-one. The combined purchase price equals the ADS-and-accompanying-warrants price minus the USD equivalent of GBP 0.01 at the pricing-date exchange rate.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L161",
+          "0001193125-25-110310:primary:893488390fe3bd85:L201",
+          "0001193125-25-110310:primary:893488390fe3bd85:L481",
+          "0001193125-25-110310:primary:893488390fe3bd85:L521"
+        ]
+      },
+      {
+        "id": "c5",
+        "seller_type": "issuer",
+        "security_type": "ads",
+        "security_label": "American Depositary Shares Underlying the Series A Warrants, the Series B Warrants (which Series B Warrants contain a “zero exercise price” option) and the Pre-Funded Warrants",
+        "quantity": {
+          "status": "stated",
+          "value": "559275129",
+          "unit": "ADSs"
+        },
+        "price": {
+          "status": "not_stated",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": null,
+          "per_unit": null
+        },
+        "scenario": "Up to the stated aggregate quantity registered for issuance upon exercise of c2, c3 and c4, including warrant adjustments and the Series B zero exercise price option. These underlying ADSs represent up to 13,981,878,225 ordinary shares.",
+        "depositary": {
+          "underlying_share_class": "ordinary shares",
+          "underlying_shares_per_security": "25",
+          "evidence_blocks": [
+            "0001193125-25-110310:primary:893488390fe3bd85:L561"
+          ]
+        },
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L161",
+          "0001193125-25-110310:primary:893488390fe3bd85:L561",
+          "0001193125-25-110310:primary:893488390fe3bd85:L3161"
+        ]
+      }
+    ],
+    "over_allotment": [],
+    "post_offering_os": [
+      {
+        "security_label": "ADSs",
+        "quantity": "18234940",
+        "unit": "ADSs",
+        "scenario": "After this offering, assuming no Pre-Funded Warrants are issued and no Warrants are exercised; each ADS represents twenty-five ordinary shares.",
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L521"
+        ]
+      },
+      {
+        "security_label": "ordinary shares",
+        "quantity": "464338974",
+        "unit": "ordinary shares",
+        "scenario": "Immediately after this offering, including ordinary shares represented by ADSs, assuming no Pre-Funded Warrants are issued and no Warrants are exercised. The stated calculation excludes outstanding equity-compensation options and 29,123 ordinary shares issued upon option exercises subsequent to December 31, 2024.",
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L561",
+          "0001193125-25-110310:primary:893488390fe3bd85:L641"
+        ]
+      }
+    ],
+    "proceeds": [
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "5500000",
+        "currency": "USD",
+        "scenario": "Approximately, assuming all offered securities are sold at the assumed combined price of USD 0.5601 per ADS and accompanying Warrants, after Placement Agent fees and estimated offering expenses, with no Pre-Funded Warrants sold and no Warrants exercised.",
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L881"
+        ]
+      },
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "3900000",
+        "currency": "USD",
+        "scenario": "Approximately, assuming 75% of offered securities are sold at the assumed combined price of USD 0.5601 per ADS and accompanying Warrants, after estimated Placement Agent fees and offering expenses, with no Pre-Funded Warrants issued and no Warrants exercised.",
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L881"
+        ]
+      },
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "2400000",
+        "currency": "USD",
+        "scenario": "Approximately, assuming 50% of offered securities are sold at the assumed combined price of USD 0.5601 per ADS and accompanying Warrants, after estimated Placement Agent fees and offering expenses, with no Pre-Funded Warrants issued and no Warrants exercised.",
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L881"
+        ]
+      },
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "800000",
+        "currency": "USD",
+        "scenario": "Approximately, assuming 25% of offered securities are sold at the assumed combined price of USD 0.5601 per ADS and accompanying Warrants, after estimated Placement Agent fees and offering expenses, with no Pre-Funded Warrants issued and no Warrants exercised.",
+        "evidence_blocks": [
+          "0001193125-25-110310:primary:893488390fe3bd85:L881"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

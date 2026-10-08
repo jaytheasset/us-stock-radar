@@ -1,0 +1,135 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "Viking Holdings Ltd",
+    "cik": "0001745201",
+    "accession": "0001193125-24-119708",
+    "form": "F-1/A",
+    "filing_date": "2024-04-29",
+    "accepted_at": "2024-04-29T10:54:45.000Z",
+    "file_number": "333-278515",
+    "registration_number": "333-278515"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "11000000",
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "21.00",
+          "high": "25.00",
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Issuer shares offered in the initial public offering.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L121",
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L441"
+        ]
+      },
+      {
+        "id": "c2",
+        "seller_type": "selling_shareholders",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "42000000",
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "21.00",
+          "high": "25.00",
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Selling-shareholder shares offered in the initial public offering, excluding the underwriters' option.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L121",
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L441",
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L1561"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c2"
+        ],
+        "seller_type": "selling_shareholders",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "7950000",
+          "unit": "ordinary shares"
+        },
+        "scenario": "Underwriters' option, exercisable for 30 days from the prospectus date, to purchase up to this number of additional shares solely to cover over-allotments, at the public offering price less underwriting discounts and commissions.",
+        "evidence_blocks": [
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L9801"
+        ]
+      }
+    ],
+    "post_offering_os": [
+      {
+        "security_label": "ordinary shares",
+        "quantity": "303683900",
+        "unit": "ordinary shares",
+        "scenario": "Immediately after the offering, giving effect to the Conversion Event and RSU Net Settlement; assumes no underwriters' option exercise, no subsequent option or warrant exercises, and no other RSU settlements. Share counts reflect the 26-for-1 share split.",
+        "evidence_blocks": [
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L8961",
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L1841"
+        ]
+      },
+      {
+        "security_label": "special shares",
+        "quantity": "127771124",
+        "unit": "special shares",
+        "scenario": "Immediately after the offering, giving effect to the Conversion Event and RSU Net Settlement; assumes no underwriters' option exercise, no subsequent option or warrant exercises, and no other RSU settlements. Share counts reflect the 26-for-1 share split.",
+        "evidence_blocks": [
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L8961",
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L1841"
+        ]
+      }
+    ],
+    "proceeds": [
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "235200000",
+        "currency": "USD",
+        "scenario": "Estimated net proceeds assuming an initial public offering price of $23.00 per ordinary share, the midpoint of the proposed range, after deducting underwriting discounts and commissions and estimated offering expenses payable by the issuer.",
+        "evidence_blocks": [
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L5161",
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L441"
+        ]
+      },
+      {
+        "kind": "no_proceeds",
+        "recipient": "issuer",
+        "amount": null,
+        "currency": null,
+        "scenario": "The issuer will receive no proceeds from the sale of ordinary shares by the selling shareholders.",
+        "evidence_blocks": [
+          "0001193125-24-119708:primary:8d8dceb068bf9ebc:L121"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "reviewer": "current Codex task; direct source review after freeze",
+  "outputSha256": "e30ce09727208f32000bfcfcde5bcee0e7c98ee5cd3f51be6a7b22874deaf441",
+  "checks": [
+    {"sourceBlocks": ["L161","L1001","L1521"], "finding": "Issuer-only 100000000 ordinary shares, proposed USD16-18 range; stated reclassification and 3.3269-for-1 split context. No historical A/B classes treated as separately offered securities."},
+    {"sourceBlocks": ["L201","L1521"], "finding": "Issuer 15000000 additional-share option, 30 days, separated from base quantity."},
+    {"sourceBlocks": ["L1521","L1561","L1601"], "finding": "Direct 484499607/499499607 post-offering scenarios for no/full option exercise; no computation or current O/S substitution."},
+    {"sourceBlocks": ["L3361","L3681"], "finding": "Direct net USD1.6bn/1.8bn scenarios and directly written USD1.7bn new-investor consideration before expenses. Gross is not a multiplication by host or an invented number. Cornerstone purchase indications not treated as an additional offering or proceeds."}
+  ],
+  "transport": "PASS",
+  "semantic": "PASS",
+  "outputEdited": false,
+  "providerInvocations": 1
+}

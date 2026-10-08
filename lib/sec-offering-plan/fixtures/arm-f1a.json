@@ -1,0 +1,110 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "ARM HOLDINGS PLC /UK",
+    "cik": "0001973239",
+    "accession": "0001193125-23-228059",
+    "form": "F-1/A",
+    "filing_date": "2023-09-05",
+    "accepted_at": "2023-09-05T10:45:02.000Z",
+    "file_number": "333-274120",
+    "registration_number": "333-274120"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "selling_shareholders",
+        "security_type": "ads",
+        "security_label": "American Depositary Shares",
+        "quantity": {
+          "status": "stated",
+          "value": "95500000",
+          "unit": "ADSs"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "47.00",
+          "high": "51.00",
+          "currency": "USD",
+          "per_unit": "ADS"
+        },
+        "scenario": "Initial public offering; excludes the underwriters’ option to purchase additional ADSs.",
+        "depositary": {
+          "underlying_share_class": "ordinary shares",
+          "underlying_shares_per_security": "1",
+          "evidence_blocks": [
+            "0001193125-23-228059:primary:a5e9122f1fc36627:L121",
+            "0001193125-23-228059:primary:a5e9122f1fc36627:L1521"
+          ]
+        },
+        "evidence_blocks": [
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L121",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L161",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L1481"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c1"
+        ],
+        "seller_type": "selling_shareholders",
+        "security_label": "American Depositary Shares",
+        "quantity": {
+          "status": "stated",
+          "value": "7000000",
+          "unit": "ADSs"
+        },
+        "scenario": "Up to 7,000,000 additional ADSs; option exercisable for 30 days after the date of the final prospectus at the initial public offering price less underwriting discounts and commissions.",
+        "evidence_blocks": [
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L121",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L161",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L10761"
+        ]
+      }
+    ],
+    "post_offering_os": [
+      {
+        "security_label": "ordinary shares",
+        "quantity": "1026078866",
+        "unit": "ordinary shares",
+        "scenario": "Upon completion of this offering, based on September 1, 2023 shares following the corporate reorganization and 844,866 shares issuable upon vesting of RSU and Executive Awards; assumes $49.00 per ADS, adoption of the Articles and no underwriter option exercise; excludes the other unvested awards described in the offering summary.",
+        "evidence_blocks": [
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L1481",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L1561",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L1601",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L1641"
+        ]
+      },
+      {
+        "security_label": "Ordinary shares",
+        "quantity": "1025661064",
+        "unit": "ordinary shares",
+        "scenario": "June 30, 2023 capitalization, as adjusted to give effect to the corporate reorganization and vesting of equity awards in connection with this offering.",
+        "evidence_blocks": [
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L3801",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L3841",
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L3881"
+        ]
+      }
+    ],
+    "proceeds": [
+      {
+        "kind": "no_proceeds",
+        "recipient": "issuer",
+        "amount": null,
+        "currency": null,
+        "scenario": "Sale of ADSs by the selling shareholder, including any sale pursuant to the underwriters’ option to purchase additional ADSs.",
+        "evidence_blocks": [
+          "0001193125-23-228059:primary:a5e9122f1fc36627:L3721"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

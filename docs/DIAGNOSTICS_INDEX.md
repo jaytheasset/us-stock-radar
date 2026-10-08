@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **Offering Structured v1 candidate** — frozen ten-filing gate, single-call output transport, immutable snapshots, shared worker, registration history and administrator review: [`operations/OFFERING_PLAN_V1_CANDIDATE.md`](operations/OFFERING_PLAN_V1_CANDIDATE.md).
+
 - **Tender Evidence v1 candidate** — SC 14D9 Recommendation coverage, source-only local MCP search/read, eleven live SEC question groups, provenance/isolation and source-versus-retrieval limits: [`EVIDENCE_HANDOFF.md`](../lib/sources/sec/forms/tender/EVIDENCE_HANDOFF.md).
 - **SEC Submissions explicit current confirmation** — immutable raw/current separation, explicit refresh, snapshot reader and isolated PostgreSQL verification: [`operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md`](operations/SEC_SUBMISSIONS_CURRENT_VERIFICATION.md). Candidate stock-header connection: [`operations/SEC_CURRENT_STOCK_HEADER.md`](operations/SEC_CURRENT_STOCK_HEADER.md). Actual three-issuer browser verification, visual finding and login gate: [`operations/SEC_CURRENT_HEADER_LIVE_COMPLETION.md`](operations/SEC_CURRENT_HEADER_LIVE_COMPLETION.md).
 - **SEC Submissions bounded refresh runner** — explicit CIK dry-run/apply, 24h confirmedAt policy, owned session advisory lock and synthetic HTTP/owned PostgreSQL checks: [`operations/SEC_SUBMISSIONS_REFRESH_RUNNER.md`](operations/SEC_SUBMISSIONS_REFRESH_RUNNER.md). No automatic scheduling or site initial load.

@@ -1,0 +1,92 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "Amer Sports, Inc.",
+    "cik": "0001988894",
+    "accession": "0001104659-24-001168",
+    "form": "F-1",
+    "filing_date": "2024-01-04",
+    "accepted_at": "2024-01-04T14:01:07.000Z",
+    "file_number": "333-276370",
+    "registration_number": "333-276370"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "Ordinary Shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Initial public offering.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001104659-24-001168:primary:706c716322edcdfb:L161",
+          "0001104659-24-001168:primary:706c716322edcdfb:L401",
+          "0001104659-24-001168:primary:706c716322edcdfb:L1521"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c1"
+        ],
+        "seller_type": "issuer",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "scenario": "Underwriters' option exercisable for 30 days from the date of the prospectus to purchase additional ordinary shares to cover over-allotments at the initial public offering price less underwriting discounts and commissions.",
+        "evidence_blocks": [
+          "0001104659-24-001168:primary:706c716322edcdfb:L201",
+          "0001104659-24-001168:primary:706c716322edcdfb:L9681"
+        ]
+      }
+    ],
+    "post_offering_os": [
+      {
+        "security_label": "Class A voting shares",
+        "quantity": "0",
+        "unit": "shares",
+        "scenario": "As adjusted for the Reclassification into a single class of ordinary shares, the Share Split, the Equitization and the offering and application of its proceeds; assumes no exercise of the underwriters' over-allotment option.",
+        "evidence_blocks": [
+          "0001104659-24-001168:primary:706c716322edcdfb:L1561",
+          "0001104659-24-001168:primary:706c716322edcdfb:L3321",
+          "0001104659-24-001168:primary:706c716322edcdfb:L3361",
+          "0001104659-24-001168:primary:706c716322edcdfb:L3441"
+        ]
+      },
+      {
+        "security_label": "Class B non-voting shares",
+        "quantity": "0",
+        "unit": "shares",
+        "scenario": "As adjusted for the Reclassification into a single class of ordinary shares, the Share Split, the Equitization and the offering and application of its proceeds; assumes no exercise of the underwriters' over-allotment option.",
+        "evidence_blocks": [
+          "0001104659-24-001168:primary:706c716322edcdfb:L1561",
+          "0001104659-24-001168:primary:706c716322edcdfb:L3321",
+          "0001104659-24-001168:primary:706c716322edcdfb:L3401",
+          "0001104659-24-001168:primary:706c716322edcdfb:L3441"
+        ]
+      }
+    ],
+    "proceeds": []
+  },
+  "review": null
+}

@@ -1,0 +1,125 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "Birkenstock Holding plc",
+    "cik": "0001977102",
+    "accession": "0001193125-23-233488",
+    "form": "F-1",
+    "filing_date": "2023-09-12",
+    "accepted_at": "2023-09-12T20:24:03.000Z",
+    "file_number": "333-274483",
+    "registration_number": "333-274483"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Initial public offering, excluding the underwriters’ over-allotment option.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L161",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L401",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L1761",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L1881"
+        ]
+      },
+      {
+        "id": "c2",
+        "seller_type": "selling_shareholders",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Sale by BK LC Lux MidCo S.à r.l. in the initial public offering, excluding the underwriters’ over-allotment option.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L161",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L401",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L1761",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L1881"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c1"
+        ],
+        "seller_type": "issuer",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "scenario": "Underwriters may purchase additional ordinary shares from the issuer within 30 days of the prospectus date to cover over-allotments.",
+        "evidence_blocks": [
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L161",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L1761"
+        ]
+      },
+      {
+        "component_ids": [
+          "c2"
+        ],
+        "seller_type": "selling_shareholders",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "scenario": "Underwriters may purchase additional ordinary shares from the selling shareholder within 30 days of the prospectus date to cover over-allotments.",
+        "evidence_blocks": [
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L161",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L1761"
+        ]
+      }
+    ],
+    "post_offering_os": [],
+    "proceeds": [
+      {
+        "kind": "no_proceeds",
+        "recipient": "issuer",
+        "amount": null,
+        "currency": null,
+        "scenario": "The issuer will not receive any proceeds from the sale of ordinary shares by the selling shareholder.",
+        "evidence_blocks": [
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L161",
+          "0001193125-23-233488:primary:12ed94b22fa867e9:L3841"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

@@ -1,0 +1,106 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "Viking Holdings Ltd",
+    "cik": "0001745201",
+    "accession": "0001193125-24-087969",
+    "form": "F-1",
+    "filing_date": "2024-04-05",
+    "accepted_at": "2024-04-05T12:41:09.000Z",
+    "file_number": "333-278515",
+    "registration_number": "333-278515"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Initial public offering of ordinary shares by the issuer.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L121",
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L441",
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L1561"
+        ]
+      },
+      {
+        "id": "c2",
+        "seller_type": "selling_shareholders",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Base offering by TPG and CPP Investments, excluding the underwriters' option to purchase additional ordinary shares.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L121",
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L441",
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L1561",
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L1601"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c2"
+        ],
+        "seller_type": "selling_shareholders",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "ordinary shares"
+        },
+        "scenario": "Underwriters' option exercisable for 30 days from the prospectus date solely to cover over-allotments, at the public offering price less underwriting discounts and commissions.",
+        "evidence_blocks": [
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L9441"
+        ]
+      }
+    ],
+    "post_offering_os": [],
+    "proceeds": [
+      {
+        "kind": "no_proceeds",
+        "recipient": "issuer",
+        "amount": null,
+        "currency": null,
+        "scenario": "The issuer will receive no proceeds from the sale of ordinary shares by the selling shareholders.",
+        "evidence_blocks": [
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L121",
+          "0001193125-24-087969:primary:8bd8c9d1e3f1fdfa:L4801"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

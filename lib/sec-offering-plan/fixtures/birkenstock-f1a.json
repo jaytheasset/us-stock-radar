@@ -1,0 +1,137 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "Birkenstock Holding plc",
+    "cik": "0001977102",
+    "accession": "0001193125-23-250555",
+    "form": "F-1/A",
+    "filing_date": "2023-10-04",
+    "accepted_at": "2023-10-04T16:07:11.000Z",
+    "file_number": "333-274483",
+    "registration_number": "333-274483"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares, no par value",
+        "quantity": {
+          "status": "stated",
+          "value": "10752688",
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "44.00",
+          "high": "49.00",
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Issuer shares offered in the proposed initial public offering.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-23-250555:primary:5a100b0db2f95389:L161",
+          "0001193125-23-250555:primary:5a100b0db2f95389:L401"
+        ]
+      },
+      {
+        "id": "c2",
+        "seller_type": "selling_shareholders",
+        "security_type": "ordinary_shares",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "21505376",
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "44.00",
+          "high": "49.00",
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Shares offered by BK LC Lux MidCo S.à r.l. in the proposed initial public offering, excluding the underwriters' over-allotment option.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-23-250555:primary:5a100b0db2f95389:L161",
+          "0001193125-23-250555:primary:5a100b0db2f95389:L401"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c2"
+        ],
+        "seller_type": "selling_shareholders",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "4838709",
+          "unit": "ordinary shares"
+        },
+        "scenario": "Underwriters may purchase up to this number of additional shares from the selling shareholder within 30 days of the prospectus date to cover over-allotments.",
+        "evidence_blocks": [
+          "0001193125-23-250555:primary:5a100b0db2f95389:L161",
+          "0001193125-23-250555:primary:5a100b0db2f95389:L1761"
+        ]
+      }
+    ],
+    "post_offering_os": [
+      {
+        "security_label": "ordinary shares",
+        "quantity": "187825592",
+        "unit": "ordinary shares",
+        "scenario": "Expected immediately after the offering, giving effect to the capital reorganization and offering share issuance; assumes no exercise of outstanding options and excludes shares reserved under the Equity Plan and Employee Share Purchase Plan.",
+        "evidence_blocks": [
+          "0001193125-23-250555:primary:5a100b0db2f95389:L1881",
+          "0001193125-23-250555:primary:5a100b0db2f95389:L1921",
+          "0001193125-23-250555:primary:5a100b0db2f95389:L11121"
+        ]
+      }
+    ],
+    "proceeds": [
+      {
+        "kind": "gross",
+        "recipient": "issuer",
+        "amount": "500000000",
+        "currency": "USD",
+        "scenario": "Total consideration to be paid by new investors for the issuer's 10,752,688 offered shares at the assumed midpoint price of $46.50 per share, before underwriting discounts, commissions and estimated offering expenses.",
+        "evidence_blocks": [
+          "0001193125-23-250555:primary:5a100b0db2f95389:L4321",
+          "0001193125-23-250555:primary:5a100b0db2f95389:L401"
+        ]
+      },
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "450200000",
+        "currency": "USD",
+        "scenario": "Estimated net proceeds of approximately $450.2 million at the assumed midpoint offering price of $46.50 per ordinary share, after underwriting discounts, commissions and estimated offering expenses payable by the issuer.",
+        "evidence_blocks": [
+          "0001193125-23-250555:primary:5a100b0db2f95389:L1801",
+          "0001193125-23-250555:primary:5a100b0db2f95389:L401"
+        ]
+      },
+      {
+        "kind": "no_proceeds",
+        "recipient": "issuer",
+        "amount": null,
+        "currency": null,
+        "scenario": "The issuer will receive no proceeds from the sale of ordinary shares by the selling shareholder.",
+        "evidence_blocks": [
+          "0001193125-23-250555:primary:5a100b0db2f95389:L161"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

@@ -1,0 +1,115 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "On Holding AG",
+    "cik": "0001858985",
+    "accession": "0001193125-21-253415",
+    "form": "F-1",
+    "filing_date": "2021-08-23",
+    "accepted_at": "2021-08-23T11:47:44.000Z",
+    "file_number": "333-258998",
+    "registration_number": "333-258998"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "Class A ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "Class A ordinary shares"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "Class A ordinary share"
+        },
+        "scenario": "Initial public offering, excluding the underwriters' over-allotment option.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-21-253415:primary:548321e04b379c3b:L201",
+          "0001193125-21-253415:primary:548321e04b379c3b:L401",
+          "0001193125-21-253415:primary:548321e04b379c3b:L1401"
+        ]
+      },
+      {
+        "id": "c2",
+        "seller_type": "selling_shareholders",
+        "security_type": "ordinary_shares",
+        "security_label": "Class A ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "Class A ordinary shares"
+        },
+        "price": {
+          "status": "blank",
+          "qualification": "not_stated",
+          "value": null,
+          "low": null,
+          "high": null,
+          "currency": "USD",
+          "per_unit": "Class A ordinary share"
+        },
+        "scenario": "Sale by the selling shareholders in the initial public offering.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-21-253415:primary:548321e04b379c3b:L201",
+          "0001193125-21-253415:primary:548321e04b379c3b:L401",
+          "0001193125-21-253415:primary:548321e04b379c3b:L1401"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c1"
+        ],
+        "seller_type": "issuer",
+        "security_label": "Class A ordinary shares",
+        "quantity": {
+          "status": "blank",
+          "value": null,
+          "unit": "Class A ordinary shares"
+        },
+        "scenario": "Underwriters' option to purchase additional shares from the issuer within 30 days of the prospectus date solely to cover over-allotments.",
+        "evidence_blocks": [
+          "0001193125-21-253415:primary:548321e04b379c3b:L1441"
+        ]
+      }
+    ],
+    "post_offering_os": [
+      {
+        "security_label": "Class B voting rights shares",
+        "quantity": "345437500",
+        "unit": "Class B voting rights shares",
+        "scenario": "After the offering, giving effect to the Share Capital Reorganization and assuming no exercise of the underwriters' over-allotment option or outstanding options.",
+        "evidence_blocks": [
+          "0001193125-21-253415:primary:548321e04b379c3b:L7721",
+          "0001193125-21-253415:primary:548321e04b379c3b:L1561"
+        ]
+      }
+    ],
+    "proceeds": [
+      {
+        "kind": "no_proceeds",
+        "recipient": "issuer",
+        "amount": null,
+        "currency": null,
+        "scenario": "The issuer will not receive proceeds from the sale of Class A ordinary shares by the selling shareholders.",
+        "evidence_blocks": [
+          "0001193125-21-253415:primary:548321e04b379c3b:L1441"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

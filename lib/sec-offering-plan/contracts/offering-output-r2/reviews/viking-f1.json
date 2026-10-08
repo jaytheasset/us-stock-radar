@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "reviewer": "current Codex task; direct source review after freeze",
+  "outputSha256": "089257538bfe54e4fc170946b9c8bffe4fea67db74dec4e0b9d7b22368fe915c",
+  "checks": [
+    {"sourceBlocks": ["L121","L1561","L1601"], "finding": "Issuer and selling-shareholder ordinary shares are the offered securities. Special shares are an existing separate class, not an offered component. Quantities and price endpoints are explicit blanks."},
+    {"sourceBlocks": ["L1601","L9441"], "finding": "TPG/CPP shareholder sale; 30-day shareholder-only over-allotment, quantity blank; no inferred percentage or quantity."},
+    {"sourceBlocks": ["L1561","L1601","L4801"], "finding": "Post-offering class counts and net proceeds are blank, so no numeric observations invented. Explicit issuer no-proceeds for shareholder sale preserved; no sensitivity amount used as proceeds."},
+    {"sourceBlocks": ["L441"], "finding": "USD normalization supported. Source block integrity and output Unicode transport passed."}
+  ],
+  "transport": "PASS",
+  "semantic": "PASS",
+  "outputEdited": false,
+  "providerInvocations": 1
+}

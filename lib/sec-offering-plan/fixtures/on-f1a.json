@@ -1,0 +1,178 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "On Holding AG",
+    "cik": "0001858985",
+    "accession": "0001193125-21-270834",
+    "form": "F-1/A",
+    "filing_date": "2021-09-13",
+    "accepted_at": "2021-09-13T10:59:42.000Z",
+    "file_number": "333-258998",
+    "registration_number": "333-258998"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "Class A ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "25442391",
+          "unit": "Class A ordinary shares"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "20.00",
+          "high": "22.00",
+          "currency": "USD",
+          "per_unit": "Class A ordinary share"
+        },
+        "scenario": "Base initial public offering, excluding the underwriters' over-allotment option.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L241",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L481"
+        ]
+      },
+      {
+        "id": "c2",
+        "seller_type": "selling_shareholders",
+        "security_type": "ordinary_shares",
+        "security_label": "Class A ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "5657609",
+          "unit": "Class A ordinary shares"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "20.00",
+          "high": "22.00",
+          "currency": "USD",
+          "per_unit": "Class A ordinary share"
+        },
+        "scenario": "Selling shareholders' sale in the initial public offering, excluding the underwriters' over-allotment option.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L241",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L481"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c1"
+        ],
+        "seller_type": "issuer",
+        "security_label": "Class A ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "3815734",
+          "unit": "Class A ordinary shares"
+        },
+        "scenario": "Underwriters may purchase up to this additional quantity from the issuer within 30 days of the prospectus date to cover over-allotments.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1521"
+        ]
+      },
+      {
+        "component_ids": [
+          "c2"
+        ],
+        "seller_type": "selling_shareholders",
+        "security_label": "Class A ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "849266",
+          "unit": "Class A ordinary shares"
+        },
+        "scenario": "Underwriters may purchase up to this additional quantity from the selling shareholders within 30 days of the prospectus date to cover over-allotments.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1521"
+        ]
+      }
+    ],
+    "post_offering_os": [
+      {
+        "security_label": "Class A ordinary shares",
+        "quantity": "271182391",
+        "unit": "Class A ordinary shares",
+        "scenario": "After this offering, giving effect to the Share Capital Reorganization and assuming no exercise of the underwriters' over-allotment option or outstanding options; excludes the specified equity awards and shares reserved under incentive plans.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1521",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1601",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1641",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1681"
+        ]
+      },
+      {
+        "security_label": "Class A ordinary shares",
+        "quantity": "274998125",
+        "unit": "Class A ordinary shares",
+        "scenario": "After this offering, giving effect to the Share Capital Reorganization and assuming full exercise of the underwriters' over-allotment option and no exercise of outstanding options; excludes the specified equity awards and shares reserved under incentive plans.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1521",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1641",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1681"
+        ]
+      },
+      {
+        "security_label": "Class B voting rights shares",
+        "quantity": "345437500",
+        "unit": "Class B voting rights shares",
+        "scenario": "After this offering, giving effect to the Share Capital Reorganization and assuming no exercise of the underwriters' over-allotment option or outstanding options; excludes the specified equity awards and shares reserved under incentive plans.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1521",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1601",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1641",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1681"
+        ]
+      }
+    ],
+    "proceeds": [
+      {
+        "kind": "gross",
+        "recipient": "issuer",
+        "amount": "534290217",
+        "currency": "USD",
+        "scenario": "Total consideration stated for new investors purchasing the issuer's 25,442,391 Class A ordinary shares at the assumed $21.00 midpoint price, before underwriting discounts, commissions and offering expenses, assuming no exercise of the over-allotment option.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L3601",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1601",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L481"
+        ]
+      },
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "496600000",
+        "currency": "USD",
+        "scenario": "Estimated net proceeds of approximately $496.6 million at the assumed $21.00 midpoint price, after estimated underwriting discounts, commissions and offering expenses payable by the issuer, assuming no exercise of the over-allotment option.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L3361",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1601",
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L481"
+        ]
+      },
+      {
+        "kind": "no_proceeds",
+        "recipient": "issuer",
+        "amount": null,
+        "currency": null,
+        "scenario": "The issuer will not receive any proceeds from the selling shareholders' sale of Class A ordinary shares.",
+        "evidence_blocks": [
+          "0001193125-21-270834:primary:122837b5d1cfe88b:L1521"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

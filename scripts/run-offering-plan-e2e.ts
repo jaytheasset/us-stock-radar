@@ -1,0 +1,30 @@
+import {readFileSync,writeFileSync,readdirSync,existsSync} from 'node:fs';
+import {join} from 'node:path';
+import {registerHooks} from 'node:module';
+import assert from 'node:assert/strict';
+import {enqueueOfferingPlan,readOfferingPlan,repository,select} from '../lib/sec-offering-plan/repository.ts';
+import {CodexCliOfferingProvider} from '../lib/sec-offering-plan/provider.ts';
+import {processOfferingPlan} from '../lib/sec-offering-plan/runtime.ts';
+registerHooks({resolve(s,c,next){if(s==='server-only')return{shortCircuit:true,url:'data:text/javascript,export{}'};if(s==='@/lib/ai/secInvestableUniverseGate')return{shortCircuit:true,url:'data:text/javascript,export function evaluateSecInvestableUniverse(){return null}'};return next(s,c);}});
+const out=process.argv[2],exe=process.env.OS_SNAPSHOT_CODEX_EXECUTABLE,root=process.env.OS_SNAPSHOT_JOURNAL_DIR;
+if(!out||!exe||!root)throw Error('Evidence directory, native executable and shared journal root required');
+const setup=JSON.parse(readFileSync(join(out,'setup.json'),'utf8')),repo=await repository();
+const raw=(await select(repo,'raw_items',{id:`eq.${setup.rawItemId}`,select:'*',limit:'1'}))[0];
+const {runSecRawIngest}=await import('../lib/secIngest.ts');
+let queued:any;
+// Feed one already-preserved full filing through the actual post-save ingest hook.
+// Other domains are deliberately not invoked in this Offering-only E2E.
+const ingest=await runSecRawIngest({}, {fetchRawItems:async()=>({ok:true,status:200,items:[raw],diagnostics:{documentsRequested:0,documentsFetched:0,documentsFailed:0}}),ensureSource:async()=>{},createSourceRun:async()=>'running',finishSourceRun:async()=>{},findExistingRawItem:async()=>({id:setup.rawItemId}),persistCoverObservations:async()=>({status:'not_applicable'}),enqueueOsSnapshot:async()=>({status:'not_run'}),enqueueOfferingPlan:async(id:string)=>{queued=await enqueueOfferingPlan(id,repo);return queued;}} as never);
+if(!queued?.id)throw Error('Offering ingest did not enqueue: '+JSON.stringify(ingest));
+assert.ok(queued?.id);writeFileSync(join(out,'enqueue.json'),JSON.stringify(queued,null,2),{flag:'wx'});
+const provider=new CodexCliOfferingProvider({executable:exe,root});
+const result=await processOfferingPlan(queued.id,provider,repo),snapshot=await readOfferingPlan(queued.id,repo);
+writeFileSync(join(out,'result.json'),JSON.stringify({result,runId:queued.id,checkpoint:snapshot.run.metadata.offeringCheckpoint},null,2),{flag:'wx'});
+const replay=await enqueueOfferingPlan(setup.rawItemId,repo);assert.equal(replay.id,queued.id);
+await processOfferingPlan(queued.id,{run:async()=>{throw Error('Reenqueue must not call provider');}},repo);
+const attempts=readdirSync(join(root,'offering',queued.id));assert.equal(attempts.length,1);
+const marker=JSON.parse(readFileSync(join(root,'offering',queued.id,'1','started.json'),'utf8'));assert.ok(marker.pid>0);
+const status=snapshot.run.metadata.offeringStatus;
+const report={status,runId:queued.id,accession:setup.accession,codexCalls:1,reenqueueAdditionalCalls:0,automaticIngestHook:true,validation:snapshot.run.metadata.offeringCheckpoint.validation?.stage};
+writeFileSync(join(out,'e2e-report.json'),JSON.stringify(report,null,2),{flag:'wx'});console.log(JSON.stringify(report));
+assert.ok(['PASS','REVIEW_REQUIRED','NO_DIRECT_OFFERING_PLAN'].includes(status));
