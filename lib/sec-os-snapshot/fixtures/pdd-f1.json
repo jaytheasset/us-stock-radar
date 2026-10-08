@@ -1,0 +1,36 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "PDD Holdings Inc.",
+    "cik": "0001737806",
+    "accession": "0001047469-19-000356",
+    "form": "F-1",
+    "filing_date": "2019-02-05"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "class",
+      "share_class": "Class A ordinary shares",
+      "quantity": "2381240988",
+      "as_of_date": "2019-02-05",
+      "as_of_text": "as of the date of this prospectus",
+      "evidence_blocks": [
+        "d6c822f9d469a:L002529-L002560",
+        "d6c822f9d469a:L000097-L000128"
+      ]
+    },
+    {
+      "scope": "class",
+      "share_class": "Class B ordinary shares",
+      "quantity": "2074447700",
+      "as_of_date": "2019-02-05",
+      "as_of_text": "as of the date of this prospectus",
+      "evidence_blocks": [
+        "d6c822f9d469a:L002529-L002560",
+        "d6c822f9d469a:L000097-L000128"
+      ]
+    }
+  ],
+  "review": null
+}

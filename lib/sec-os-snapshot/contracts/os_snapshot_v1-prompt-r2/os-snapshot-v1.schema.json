@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:stock-radar:experiment:os-snapshot-v1:contract-r1",
+  "title": "O/S Snapshot v1 minimal contract r1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "filing",
+    "status",
+    "current_os",
+    "review"
+  ],
+  "properties": {
+    "version": {
+      "const": "os_snapshot_v1"
+    },
+    "filing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "issuer",
+        "cik",
+        "accession",
+        "form",
+        "filing_date"
+      ],
+      "properties": {
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cik": {
+          "type": "string",
+          "pattern": "^\\d{10}$"
+        },
+        "accession": {
+          "type": "string",
+          "pattern": "^\\d{10}-\\d{2}-\\d{6}$"
+        },
+        "form": {
+          "enum": [
+            "F-1",
+            "F-1/A"
+          ]
+        },
+        "filing_date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "REVIEW_REQUIRED",
+        "NO_DIRECT_CURRENT_OS"
+      ]
+    },
+    "current_os": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    },
+    "review": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "candidates"
+          ],
+          "properties": {
+            "code": {
+              "enum": [
+                "CONFLICTING_CURRENT_OS",
+                "AMBIGUOUS_CURRENT_SCOPE",
+                "CURRENT_ACTUAL_NOT_ISOLATABLE"
+              ]
+            },
+            "candidates": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/record"
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "code": {
+                    "const": "CONFLICTING_CURRENT_OS"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "candidates": {
+                    "minItems": 2
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "share_class",
+        "quantity",
+        "as_of_date",
+        "as_of_text",
+        "evidence_blocks"
+      ],
+      "properties": {
+        "scope": {
+          "enum": [
+            "issuer_total",
+            "class"
+          ]
+        },
+        "share_class": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "quantity": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "as_of_date": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "as_of_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_blocks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "scope": {
+                "const": "issuer_total"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "share_class": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "share_class": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "current_os": {
+            "minItems": 1
+          },
+          "review": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "NO_DIRECT_CURRENT_OS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "current_os": {
+            "maxItems": 0
+          },
+          "review": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "REVIEW_REQUIRED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "current_os": {
+            "maxItems": 0
+          },
+          "review": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

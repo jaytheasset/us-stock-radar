@@ -150,11 +150,16 @@
     "dashboard:movers-finalize": "node scripts/run-dashboard-mover-finalizer.mjs",
     "sec:live-test": "node scripts/sec-room-live-test.mjs",
     "sec:ingest-production": "node scripts/run-sec-production-ingest.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:os-snapshot": "node scripts/run-os-command.mjs test",
+    "verify:os-snapshot:local": "node --no-warnings --experimental-strip-types scripts/verify-os-snapshot-local.mjs",
+    "os-snapshot:worker": "node scripts/run-os-command.mjs worker"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
     "@supabase/supabase-js": "2.109.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "fast-xml-parser": "^5.8.0",
     "htmlparser2": "^10.1.0",
     "lucide-react": "^1.16.0",

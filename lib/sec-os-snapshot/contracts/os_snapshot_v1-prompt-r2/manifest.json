@@ -1,0 +1,10 @@
+{
+  "revision": "os_snapshot_v1-prompt-r2",
+  "sourceRevisionManifestSha256": "b806fdf52f1188df3d3f3fcb1dca0dd7b459d710d7c433cca34ee474682077bf",
+  "files": {
+    "os-snapshot-v1.schema.json": "d7b69bbedc8c1653c6d7f50144836fc884b29919356bb70b71350293f4cdddb2",
+    "extraction-instructions.md": "60f2cf5f15f51410dc5cd7b605a336078195d406b093a350dcaa298bf44a5771",
+    "validate.py": "a2b569b9d238214c17da648bb4ac68496948b4ac3915ea17ccdc097af731f1f0"
+  },
+  "semanticEdits": false
+}

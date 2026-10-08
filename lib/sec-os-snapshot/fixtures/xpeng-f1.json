@@ -1,0 +1,34 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "XPENG INC.",
+    "cik": "0001810997",
+    "accession": "0001193125-20-212871",
+    "form": "F-1",
+    "filing_date": "2020-08-07"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "class",
+      "share_class": "Class A ordinary shares",
+      "quantity": "107051240",
+      "as_of_date": null,
+      "as_of_text": "As of the date of this prospectus",
+      "evidence_blocks": [
+        "df7e58279c4e2:L002977-L003008"
+      ]
+    },
+    {
+      "scope": "class",
+      "share_class": "Class B ordinary shares",
+      "quantity": "331234375",
+      "as_of_date": null,
+      "as_of_text": "As of the date of this prospectus",
+      "evidence_blocks": [
+        "df7e58279c4e2:L002977-L003008"
+      ]
+    }
+  ],
+  "review": null
+}

@@ -68,6 +68,7 @@ export type SecDocument = {
   rawSourceFormat?: string | null;
   form25OriginalSource?: Form25OriginalDocument;
   s8OriginalSource?: S8Document;
+  osSnapshotOriginal?: string;
   sc13RawText?: string | null;
   sc13RawTextCharCount?: number;
   sc13RawTextTruncated?: boolean;
@@ -407,6 +408,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           primary_document_html: primary?.rawHtml || null,
           primary_document_html_char_count: primary?.rawHtmlCharCount || 0,
           primary_document_html_truncated: Boolean(primary?.rawHtmlTruncated),
+          ...((formType === "F-1" || formType === "F-1/A") && primary?.osSnapshotOriginal
+            ? { os_snapshot_primary_html: primary.osSnapshotOriginal } : {}),
           ...(isS8Form(formType) ? { s8_source: { version: S8_SOURCE_VERSION,
             documents: detail.documents.flatMap(document => document.s8OriginalSource ? [document.s8OriginalSource] : []) } } : {}),
           ...(/^(25|25-NSE)(\/A)?$/.test(formType || "") ? {
@@ -968,6 +971,8 @@ async function fetchFilingDetail({
         rawSourceFormat: rawOwnershipSource?.format || null,
         form25OriginalSource: captureForm25Document(effectiveFormType, document, text),
         s8OriginalSource: captureS8Document(effectiveFormType, document, text),
+        // O/S retains the completed primary response independently of Primary's existing text budget.
+        osSnapshotOriginal: document.isPrimary && (effectiveFormType === "F-1" || effectiveFormType === "F-1/A") ? text : undefined,
         sc13RawText: rawSc13Source ? rawSc13Source.text : null,
         sc13RawTextCharCount: rawSc13Source?.charCount || 0,
         sc13RawTextTruncated: Boolean(rawSc13Source?.truncated),

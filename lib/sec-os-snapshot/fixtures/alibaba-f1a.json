@@ -1,0 +1,22 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "Alibaba Group Holding Ltd",
+    "cik": "0001577552",
+    "accession": "0001193125-14-341794",
+    "form": "F-1/A",
+    "filing_date": "2014-09-15"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "issuer_total",
+      "share_class": null,
+      "quantity": "2250073061",
+      "as_of_date": "2014-06-30",
+      "as_of_text": "As of June 30, 2014",
+      "evidence_blocks": ["df2576f9919b1:L004641-L004672"]
+    }
+  ],
+  "review": null
+}
