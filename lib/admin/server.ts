@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import { getOptionalCurrentUserId } from "@/lib/currentUser";
+import { getOptionalCurrentUserIdReadOnly } from "@/lib/currentUser";
 import { supabaseSelect } from "@/lib/supabase";
 import {
   isAdminRole,
@@ -66,7 +66,7 @@ async function readAdminAccessForUser(
 export const getAdminAccessForUser = cache(readAdminAccessForUser);
 
 const getRequiredAdminAccess = cache(async (): Promise<AdminAccess> => {
-  const userId = await getOptionalCurrentUserId();
+  const userId = await getOptionalCurrentUserIdReadOnly();
   if (!userId) redirect("/login?next=%2Fadmin");
 
   const access = await getAdminAccessForUser(userId);
