@@ -27,6 +27,7 @@ export async function resolveAdminApiAccess(
   const auth = await resolveAuthSession({
     accessToken: request.cookies.get(AUTH_ACCESS_COOKIE)?.value || "",
     refreshToken: request.cookies.get(AUTH_REFRESH_COOKIE)?.value || "",
+    bootstrap: false,
   });
   const userId = auth.user?.id;
   if (!userId) {

@@ -11,6 +11,7 @@ import {
   buildSecArchiveIndexUrlFromMasterFilename,
 } from "@/lib/sources/sec/archiveUrls";
 import { decodeSecHtmlEntities } from "@/lib/sources/sec/htmlEntities";
+import { cleanSecDocumentText } from "@/lib/sources/sec/documentText";
 import {
   extractPeriodicReportIngestEvidence,
   type PeriodicReportIngestSourceBlock,
@@ -924,7 +925,7 @@ async function fetchFilingDetail({
 
       const text = await documentResponse.text();
 
-      const cleaned = cleanDocumentText(text);
+      const cleaned = cleanSecDocumentText(text);
       const retainAnalysisText = shouldRetainSecDocumentAnalysisText(
         document,
         effectiveFormType,
@@ -1542,7 +1543,7 @@ function readSchedule13IssuerName(text: string) {
   const cleanedHtmlName = cleanSchedule13IssuerName(htmlName);
   if (cleanedHtmlName) return cleanedHtmlName;
 
-  const cleanText = cleanDocumentText(text);
+  const cleanText = cleanSecDocumentText(text);
   const lines = cleanText
     .split(/\n/)
     .map((line) => line.trim())
@@ -1899,28 +1900,6 @@ function tickerQualityScore(ticker: string) {
   if (value.includes(".")) score -= 5;
   score -= Math.max(0, value.length - 4) * 3;
   return score;
-}
-
-function cleanDocumentText(input: string) {
-  const withoutHidden = input
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<ix:hidden[\s\S]*?<\/ix:hidden>/gi, " ")
-    .replace(/<\?xml[\s\S]*?\?>/gi, " ");
-
-  const withBreaks = withoutHidden
-    .replace(/<\/(p|div|tr|table|section|article|h[1-6])>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(td|th)>/gi, " | ");
-
-  return decodeSecHtmlEntities(withBreaks)
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\r/g, "\n")
-    .replace(/[ \t\f\v]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 function readCompanyNameFromDetailHtml(html: string) {

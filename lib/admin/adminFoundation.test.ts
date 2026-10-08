@@ -94,6 +94,7 @@ test("data submenu retains existing direct routes and both Form 25 review tools"
     "/admin/data/form25-identity",
     "/admin/data/form25-analysis",
     "/admin/data/ticker-resolution",
+    "/admin/data/kiwoom-verification",
     "/admin/data/dilution-registry",
     "/admin/db",
     "/admin/sources",

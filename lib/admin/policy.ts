@@ -86,6 +86,7 @@ export const ADMIN_DATA_NAVIGATION: readonly AdminNavigationItem[] = [
   { href: "/admin/data/form25-identity", label: "Form 25 Identity Review", permission: "system.read" },
   { href: "/admin/data/form25-analysis", label: "Form 25 Analysis Review", permission: "system.read" },
   { href: "/admin/data/ticker-resolution", label: "SEC ticker resolution", permission: "system.read" },
+  { href: "/admin/data/kiwoom-verification", label: "Kiwoom ticker evidence", permission: "system.read" },
   { href: "/admin/data/dilution-registry", label: "Dilution Registry", permission: "data.read" },
   { href: "/admin/db", label: "Database", permission: "data.read" },
   { href: "/admin/sources", label: "Sources", permission: "data.read" },
