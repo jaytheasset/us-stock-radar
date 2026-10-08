@@ -1,0 +1,48 @@
+.actions {
+  min-width: 0;
+}
+
+.candidate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  width: fit-content;
+  min-width: 100px;
+  cursor: pointer;
+}
+
+.candidate input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+}
+
+.reason {
+  display: block;
+  margin: 8px 0 12px;
+}
+
+.reason textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 600px;
+  min-height: 88px;
+  padding: 10px;
+  font: inherit;
+  resize: vertical;
+}
+
+.buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.buttons button {
+  min-height: 44px;
+  max-width: 100%;
+}
