@@ -100,6 +100,9 @@ function reviewRef(review: SavedReview): CandidateEvidenceLink["review"] {
 function validateRow(row: ManualKiwoomRow, candidate: CandidateRevision, review: SavedReview) {
   requireValid(review.draft.facts.kind === "symbol_change");
   for (const k of ["oldTicker", "newTicker", "effectiveDate"] as const) requireValid(review.draft.facts[k] === candidate.values[k]);
+  validateRowBinding(row, candidate, review);
+}
+function validateRowBinding(row: ManualKiwoomRow, candidate: CandidateRevision, review: SavedReview) {
   keys(row, ["method", "candidateRevisionSha256", "reviewId", "caseId", "reviewRevision", "noticeId", "sourceHash", "imageSha256", "locator",
     "cells", "market", "event", "additionalChanges", "values", "dateBasis", "securityType", "securityClass", "rowCorrespondence", "correspondenceReason"]);
   requireValid(row.method === "manual_transcription" && row.candidateRevisionSha256 === candidate.revisionSha256
@@ -141,8 +144,22 @@ export function createCandidateEvidenceLink(input: {
 }): CandidateEvidenceLink {
   const candidate = candidateRevision(input.evaluation), review = validatedReview(input.review);
   validateRow(input.row, candidate, review);
-  const content = { version: "kiwoom-candidate-link-v1" as const, candidate, observed: structuredClone(input.row), review: reviewRef(review),
-    comparison: compare(candidate, input.row, review), authority: "supporting_evidence_only" as const,
+  return buildLink(candidate, input.row, review);
+}
+
+/** Human comparisons bind independent broker facts to their reviewed row, not to
+ * automatic values. The automatic candidate and its comparison remain unchanged. */
+export function createHumanCandidateEvidenceLink(input: Parameters<typeof createCandidateEvidenceLink>[0]): CandidateEvidenceLink {
+  const candidate = candidateRevision(input.evaluation), review = validatedReview(input.review);
+  validateRowBinding(input.row, candidate, review);
+  requireValid(review.draft.facts.kind === "symbol_change" && input.row.dateBasis !== "broker_account");
+  for (const k of ["oldTicker", "newTicker", "effectiveDate"] as const) requireValid(review.draft.facts[k] === input.row.values[k]);
+  return buildLink(candidate, input.row, review);
+}
+
+function buildLink(candidate: CandidateRevision, row: ManualKiwoomRow, review: SavedReview): CandidateEvidenceLink {
+  const content = { version: "kiwoom-candidate-link-v1" as const, candidate, observed: structuredClone(row), review: reviewRef(review),
+    comparison: compare(candidate, row, review), authority: "supporting_evidence_only" as const,
     tickerAuthority: "none" as const, scope: "candidate_field_comparison_not_security_identity" as const };
   return { ...content, linkSha256: digest(content) };
 }
@@ -152,6 +169,15 @@ export function createCandidateEvidenceLink(input: {
 export function checkCandidateEvidenceLink(link: CandidateEvidenceLink, current: {
   evaluation: SecTickerResolutionEvaluation | null; snapshot: KiwoomSnapshot | null; review: SavedReview | null; row: ManualKiwoomRow | null;
 }): { reusable: boolean; status: ComparisonStatus; reasons: string[] } {
+  return checkLink(link, current, createCandidateEvidenceLink);
+}
+
+export function checkHumanCandidateEvidenceLink(link: CandidateEvidenceLink, current: Parameters<typeof checkCandidateEvidenceLink>[1]) {
+  return checkLink(link, current, createHumanCandidateEvidenceLink);
+}
+
+function checkLink(link: CandidateEvidenceLink, current: Parameters<typeof checkCandidateEvidenceLink>[1],
+  build: typeof createCandidateEvidenceLink): ReturnType<typeof checkCandidateEvidenceLink> {
   try {
     const { linkSha256, ...content } = link;
     requireValid(hash(linkSha256) && digest(content) === linkSha256);
@@ -166,7 +192,7 @@ export function checkCandidateEvidenceLink(link: CandidateEvidenceLink, current:
     if (review.draft.verdict === "withdrawn") reasons.push("review_withdrawn");
     if (reasons.length) return { reusable: false, status: "unconfirmed", reasons };
     // Replay the comparison, not just its stored status or checksum.
-    const replay = createCandidateEvidenceLink({ evaluation: current.evaluation, review, row: link.observed });
+    const replay = build({ evaluation: current.evaluation, review, row: link.observed });
     requireValid(replay.linkSha256 === link.linkSha256);
     return { reusable: true, status: replay.comparison.status, reasons: replay.comparison.reasons };
   } catch { return { reusable: false, status: "unconfirmed", reasons: ["link_or_current_input_invalid"] }; }

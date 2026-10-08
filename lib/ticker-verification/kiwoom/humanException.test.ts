@@ -39,7 +39,7 @@ function setup(withoutAutomaticClass = false): HumanExceptionInput {
     quote = 'Additionally, in connection with the Closing, on October 6, 2026, the Company transferred the listing of the Class B Common Stock from The Nasdaq Stock Market LLC to the New York Stock Exchange and changed the ticker symbol for the Class B Common Stock from "PSKY" to "SKYD".';
   } else {
     // Entirely synthetic control. Neither SEC nor Kiwoom source is asserted to be real.
-    quote = 'On October 6, 2026, Class B Common Stock changed from ALFA to BETA and transferred from The Nasdaq Stock Market LLC to the New York Stock Exchange.';
+    quote = 'On October 6, 2026, Class B Common Stock changed from PSKY to SKYD and transferred from The Nasdaq Stock Market LLC to the New York Stock Exchange.';
     const rawContent = `<p>${quote}</p><p>Unrelated record date: October 7, 2026.</p>`;
     const cik = "0000001234", beforeAcc = "0000001234-26-000001", afterAcc = "0000001234-26-000002";
     const cover = (ticker: string, acc: string, exchange: string): VerifiedSecCoverObservation => ({ resultId: acc, observationKey: acc, accessionNumber: acc, issuerCik: cik,
@@ -50,7 +50,7 @@ function setup(withoutAutomaticClass = false): HumanExceptionInput {
     secSource = { resultId: afterAcc, accessionNumber: afterAcc, issuerCik: cik, rawSourceId: id,
       url: `https://www.sec.gov/Archives/edgar/data/1234/${afterAcc.replaceAll("-", "")}/source.htm`, documentName: "source.htm", sha256: sha256(rawContent), rawContent };
     evaluation = evaluateSecTickerResolution({ issuerCik: cik, evidenceAccessionNumber: afterAcc, beforeAccessionNumber: beforeAcc, afterAccessionNumber: afterAcc,
-      source: secSource, beforeObservations: [cover("ALFA", beforeAcc, "The Nasdaq Stock Market LLC")], afterObservations: [cover("BETA", afterAcc, "New York Stock Exchange")] });
+      source: secSource, beforeObservations: [cover("PSKY", beforeAcc, "The Nasdaq Stock Market LLC")], afterObservations: [cover("SKYD", afterAcc, "New York Stock Exchange")] });
     const d = parseNoticeDetail({ noticeDetail: { seqid: 4611, scrnTp: "NWGCZ", ttl: "Synthetic control", makeTime: "2026.10.06", custPsdn: "Fixture",
       dtlCntn: '<p>Synthetic US row.</p><img src="/bbs/VBbsNoticeImageView?apndnm=test.png">', attcFile: [] } }, "4611");
     const { imageUrls, ...detail } = d;
@@ -58,8 +58,8 @@ function setup(withoutAutomaticClass = false): HumanExceptionInput {
     const s = { ...detail, version: "kiwoom-notice-v1" as const, capturedAt: stamp, authority: "supporting_evidence_only" as const,
       images: [{ sourceUrl: imageUrls[0], mime: "image/png" as const, base64, sha256: sha256(Buffer.from(base64, "base64")) }] };
     snapshot = { ...s, sourceHash: snapshotHash(s) };
-    secValues = { oldTicker: "ALFA", newTicker: "BETA", effectiveDate: "2026-10-06" };
-    rowValues = { oldTicker: "ALFA", newTicker: "BETA", effectiveDate: "2026-10-06" };
+    secValues = { oldTicker: "PSKY", newTicker: "SKYD", effectiveDate: "2026-10-06" };
+    rowValues = { oldTicker: "PSKY", newTicker: "SKYD", effectiveDate: "2026-10-06" };
   }
   const c = candidateRevision(evaluation), visible = secVisibleText(secSource.rawContent), start = visible.indexOf(quote);
   assert.ok(start >= 0, "Manually selected exact SEC quote must exist");
@@ -73,17 +73,69 @@ function setup(withoutAutomaticClass = false): HumanExceptionInput {
     exchangeTransfer: { from: "The Nasdaq Stock Market LLC", to: "New York Stock Exchange", date: "2026-10-06", status: "occurred", proof } };
   const locator = retained ? manualRows.psky.locator : "synthetic US row 1";
   const draft: ReviewDraft = { caseId: id, expectedRevision: 0, noticeId: snapshot.id, expectedSourceHash: snapshot.sourceHash,
-    verdict: "unclear", facts: { market: "US", kind: "symbol_change", securityName: "Research comparison, not administrator review", ...c.values },
-    proof: { imageSha256: snapshot.images[0].sha256, locator, quote: null }, usMarketRowReviewed: true, reason: "Test-only review envelope preserving original automatic candidate values." };
+    verdict: "unclear", facts: { market: "US", kind: "symbol_change", securityName: "Research comparison, not administrator review", ...rowValues },
+    proof: { imageSha256: snapshot.images[0].sha256, locator, quote: null }, usMarketRowReviewed: true, reason: "Test-only independent Kiwoom facts; automatic null date is not copied into the review." };
   const review: SavedReview = { id, caseId: id, revision: 1, actorUserId: id, createdAt: stamp, requestId: id, requestHash: reviewRequestHash(draft), draft, snapshot, tickerAuthority: "none" };
   const row: ManualKiwoomRow = { method: "manual_transcription", candidateRevisionSha256: c.revisionSha256,
     reviewId: id, caseId: id, reviewRevision: 1, noticeId: snapshot.id, sourceHash: snapshot.sourceHash, imageSha256: snapshot.images[0].sha256, locator,
-    cells: retained ? structuredClone(manualRows.psky.cells) : { country: "US", event: "symbol change", symbol: "ALFA", securityName: "Synthetic", details: "ALFA to BETA", date: "October 6, 2026" },
+    cells: retained ? structuredClone(manualRows.psky.cells) : { country: "US", event: "symbol change", symbol: "PSKY", securityName: "Synthetic", details: "PSKY to SKYD", date: "October 6, 2026" },
     market: "US", event: "symbol_change", additionalChanges: [], values: rowValues, dateBasis: "market_effective", securityType: null, securityClass: null,
     rowCorrespondence: "unconfirmed", correspondenceReason: "Same ticker row selected for field comparison only; Kiwoom CIK/class absent. No same-security approval." };
   return { evaluation, secSource, judgment, review, row };
 }
 const current = (s: HumanExceptionInput) => ({ ...s, snapshot: s.review.snapshot });
+
+test("revision 3 independent Kiwoom date survives human comparison and current replay with automatic REVIEW/null", () => {
+  const s = setup();
+  s.review.revision = 3; s.review.draft.expectedRevision = 2; s.row.reviewRevision = 3;
+  s.review.draft.facts = { ...s.review.draft.facts, ...s.row.values };
+  s.review.requestHash = reviewRequestHash(s.review.draft);
+  const before = structuredClone(s);
+  assert.equal(s.evaluation.resolutionState, "REVIEW");
+  assert.equal(s.evaluation.summary.effectiveDate, null);
+  assert.equal(s.review.draft.facts.effectiveDate, "2026-10-06");
+  // The automatic-only contract is deliberately still strict.
+  assert.throws(() => createCandidateEvidenceLink(s));
+  const result = createHumanExceptionComparison(s);
+  assert.deepEqual(result.comparison.fields, { oldTicker: "match", newTicker: "match", effectiveDate: "match" });
+  assert.deepEqual(result.differencesFromAutomatic, [{ field: "effectiveDate", automatic: null, human: "2026-10-06" }]);
+  assert.equal(result.exchange.compared, false);
+  assert.equal(result.assessment.eligible, false);
+  assert.ok(result.assessment.reasons.includes("row_correspondence_unconfirmed"));
+  assert.equal(result.tickerAuthority, "none");
+  assert.deepEqual(checkHumanExceptionComparison(result, current(s)), { reusable: true, reasons: [] });
+  assert.deepEqual(s, before);
+});
+
+test("human links reject independent review/row disagreement without changing the automatic-only contract", () => {
+  for (const field of ["oldTicker", "newTicker", "effectiveDate"] as const) {
+    const s = setup();
+    s.row.values[field] = field === "effectiveDate" ? "2026-10-07" : "OTHER";
+    assert.throws(() => createHumanExceptionComparison(s));
+  }
+  const s = setup();
+  s.review.draft.facts = { ...s.review.draft.facts, ...candidateRevision(s.evaluation).values };
+  s.review.requestHash = reviewRequestHash(s.review.draft);
+  assert.doesNotThrow(() => createCandidateEvidenceLink(s));
+  assert.throws(() => createHumanExceptionComparison(s));
+});
+
+test("human row bindings reject wrong review, source, candidate and account/settlement date claims", () => {
+  const patches = [
+    { reviewId: nextId }, { caseId: nextId }, { reviewRevision: 3 }, { noticeId: "4612" },
+    { sourceHash: "0".repeat(64) }, { imageSha256: "0".repeat(64) }, { locator: "different row" },
+    { candidateRevisionSha256: "0".repeat(64) }, { dateBasis: "broker_account" }, { dateBasis: "settlement" },
+    { issuerCik: "0000001234" }, { exchange: "NYSE" },
+  ];
+  for (const patch of patches) {
+    const s = setup(), result = createHumanExceptionComparison(s);
+    Object.assign(s.row, patch);
+    assert.throws(() => createHumanExceptionComparison(s));
+    assert.equal(checkHumanExceptionComparison(result, current(s)).reusable, false);
+  }
+  const s = setup(); s.evaluation.decision.decision_sha256 = "0".repeat(64);
+  assert.throws(() => createHumanExceptionComparison(s));
+});
 
 for (const c of [
   { name: "A", automatic: "B", human: "B", kiwoom: null, conflict: false },
@@ -184,7 +236,7 @@ test("human status separate from field equality; proposed/unknown event cannot c
     p.judgment = { ...p.judgment, candidateRevisionSha256: c.revisionSha256, source, eventStatus: "proposed", exchangeTransfer: null,
       reason: "Research reading of earlier SEC intended-change statement. Proposed date, not completed event or administrator approval.",
       proofs: { oldTicker: proof, newTicker: proof, effectiveDate: proof, security: proof, eventStatus: proof } };
-    p.review.draft.facts = { ...p.review.draft.facts, ...c.values };
+    p.review.draft.facts = { ...p.review.draft.facts, ...p.row.values };
     p.review.requestHash = reviewRequestHash(p.review.draft); p.row.candidateRevisionSha256 = c.revisionSha256;
     const proposed = createHumanExceptionComparison(p);
     assert.equal(proposed.comparison.fields.effectiveDate, "unconfirmed");
@@ -254,6 +306,7 @@ test("semantic-error control: genuine source reference does NOT prove the typed 
   const s = setup();
   // Intentionally wrong interpretation with perfectly valid source coordinates.
   s.judgment.values.effectiveDate = "2026-10-07"; s.row.values.effectiveDate = "2026-10-07";
+  s.review.draft.facts.effectiveDate = "2026-10-07"; s.review.requestHash = reviewRequestHash(s.review.draft);
   const out = createHumanExceptionComparison(s);
   assert.equal(out.proofReferences.fields.effectiveDate, true); assert.equal(out.comparison.status, "match");
   assert.equal(out.semanticAccuracy, "requires_human_review"); assert.equal(out.authentication, "not_verified");

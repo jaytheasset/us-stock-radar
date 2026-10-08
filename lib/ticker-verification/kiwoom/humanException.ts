@@ -1,5 +1,5 @@
 import { secVisibleText, type SecTickerResolutionEvaluation, type VerifiedSecResolutionSource } from "../../sec-ticker-resolution/canonical.ts";
-import { candidateRevision, createCandidateEvidenceLink, checkCandidateEvidenceLink, type ManualKiwoomRow, type ComparisonStatus } from "./candidateLink.ts";
+import { candidateRevision, createHumanCandidateEvidenceLink, checkHumanCandidateEvidenceLink, type ManualKiwoomRow, type ComparisonStatus } from "./candidateLink.ts";
 import { isUuid, type SavedReview } from "./review.ts";
 import { isoDate, sha256, type KiwoomSnapshot } from "./source.ts";
 
@@ -93,7 +93,7 @@ function validate(input: HumanExceptionInput) {
 /** Pure separate assertion; never changes the automatic evaluation or its rejection rules.
  * Proof presence validates references only, not the truth of human-entered semantics. */
 export function createHumanExceptionComparison(input: HumanExceptionInput) {
-  const original = createCandidateEvidenceLink(input); // Original null/facts equality contract remains intact.
+  const original = createHumanCandidateEvidenceLink(input); // Independent reviewed row; automatic-only contract stays strict.
   const { evidence, exchangeEvidence } = validate(input);
   const h = input.judgment, row = input.row;
   const fieldComparison = Object.fromEntries(fields.map(key => {
@@ -145,7 +145,7 @@ export function checkHumanExceptionComparison(saved: HumanExceptionComparison, c
     requireValid(hash(comparisonSha256) && digest(content) === comparisonSha256);
     const { evaluation, secSource, judgment, review, row, snapshot } = current;
     if (!evaluation || !secSource || !judgment || !review || !row || !snapshot) return { reusable: false, reasons: ["current_inputs_unavailable"] };
-    const prior = checkCandidateEvidenceLink(saved.originalLink, { evaluation, review, row, snapshot });
+    const prior = checkHumanCandidateEvidenceLink(saved.originalLink, { evaluation, review, row, snapshot });
     const reasons = prior.reusable ? [] : [...prior.reasons];
     if (judgment.status === "withdrawn") reasons.push("human_withdrawn");
     if (humanJudgmentSha256(judgment) !== saved.humanJudgmentSha256) reasons.push("human_judgment_changed");
