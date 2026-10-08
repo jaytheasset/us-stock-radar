@@ -140,3 +140,43 @@ GitHub/Vercel/shared DB/cron unqueried; code equality/deployment not claimed.
 No migration, environment/UI/browser/login change, paid API, collection,
 main/3110/Docker operation, merge/push/deploy. Existing real authentication and
 storage integration gaps remain outside scope. Stop for GPT independent review.
+
+## Explicit automatic/human class conflict fix
+
+Follow-up base `4776ca68afdf4b412e78ff49ac9797402fc2f554`, detached/clean.
+Before modifying product code, added five direct class controls and ran:
+`node --no-warnings --experimental-strip-types --test --test-name-pattern='automatic-human class' lib/ticker-verification/kiwoom/humanException.test.ts`.
+A/D/E passed; B/C failed because both returned `eligible: true`, reasons `[]`.
+The failure log is retained as `real-sec-link/class-conflict-before.log`.
+
+The only product change compares the already structured automatic candidate
+class with the SEC human class. When both are non-null and unequal, it adds
+`automatic_human_security_class_conflict`. No parsing, normalization, correction
+or change to field comparison, automatic decisions or reuse logic.
+
+| Control | Automatic / human / Kiwoom class | Before eligible | After eligible | New conflict |
+| --- | --- | --- | --- | --- |
+| A | B / B / null | true | true | no |
+| B | B / A / null | true | false | yes |
+| C | B / A / A | true | false | yes |
+| D | null / A / null | true | true | no; automatic null retained |
+| E | B / null / null | true | true | no; human null retained |
+
+These are controlled assertions with synthetic row-correspondence confirmation
+to isolate this guard. D uses synthetic class-unspecified cover observations
+through the existing evaluator, not an edited real candidate. All five retain
+three matching ticker/date fields, original REVIEW/EXCHANGE_CONFLICT, distinct
+class values and `tickerAuthority: none`. Eligibility here is not class identity
+confirmation or administrator approval. Missing classes remain missing.
+
+The unmodified actual PSKY sample remains B/B/null, REVIEW/date null, human/date
+2026-10-06, three-field match and **ineligible: row_correspondence_unconfirmed**.
+Hashes of all nine retained JSON/HTML files before/after replay are equal,
+including the original automatic and human comparison outputs.
+
+Regression: existing 38 plus five controls **43/43**; canonical SEC **7/7**;
+retained-source mode existing 10 plus five controls **15/15**. Full typecheck
+and diffcheck pass. Commands are the same as above. New logs:
+`class-conflict-regression.log`, `class-conflict-real-mode.log` alongside the
+pre-fix log. No existing expectations weakened. No additional defect fixed,
+UI/login/DB/source fetching or ticker writes; prior scope restrictions remain.

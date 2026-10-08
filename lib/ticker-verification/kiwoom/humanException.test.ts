@@ -16,10 +16,11 @@ after(() => assert.equal(networkCalls, 0));
 const id = "10000000-0000-4000-8000-000000000001";
 const nextId = "20000000-0000-4000-8000-000000000002";
 const stamp = "2026-10-08T08:00:00Z"; // Synthetic judgment metadata, not an event or actual login time.
-function setup(): HumanExceptionInput {
+function setup(withoutAutomaticClass = false): HumanExceptionInput {
+  const retained = dir && !withoutAutomaticClass;
   let evaluation: SecTickerResolutionEvaluation, secSource: VerifiedSecResolutionSource, snapshot: KiwoomSnapshot;
   let secValues: ManualKiwoomRow["values"], rowValues: ManualKiwoomRow["values"], quote: string;
-  if (dir) {
+  if (retained) {
     const r = JSON.parse(readFileSync(resolve(dir, "human-exception-automatic.json"), "utf8"));
     const manifest = JSON.parse(readFileSync(resolve(dir, "manifest.json"), "utf8"));
     const after = r.coverResults.find((x: { role: string }) => x.role === "after");
@@ -44,7 +45,7 @@ function setup(): HumanExceptionInput {
     const cover = (ticker: string, acc: string, exchange: string): VerifiedSecCoverObservation => ({ resultId: acc, observationKey: acc, accessionNumber: acc, issuerCik: cik,
       acceptedAt: acc === beforeAcc ? "2026-10-01T00:00:00Z" : "2026-10-07T00:00:00Z", sourceRawId: id,
       sourceUrl: null, sourceDocument: "source.htm", sourceSha256: sha256(rawContent), contextRef: acc, dimensions: [],
-      securityTitleStatus: "observed", securityTitle: "Class B Common Stock", tradingSymbolStatus: "observed", tradingSymbol: ticker,
+      securityTitleStatus: "observed", securityTitle: withoutAutomaticClass ? "Common Stock" : "Class B Common Stock", tradingSymbolStatus: "observed", tradingSymbol: ticker,
       exchangeStatus: "observed", exchange });
     secSource = { resultId: afterAcc, accessionNumber: afterAcc, issuerCik: cik, rawSourceId: id,
       url: `https://www.sec.gov/Archives/edgar/data/1234/${afterAcc.replaceAll("-", "")}/source.htm`, documentName: "source.htm", sha256: sha256(rawContent), rawContent };
@@ -70,19 +71,53 @@ function setup(): HumanExceptionInput {
     security: { title: "Class B Common Stock", securityClass: "B" },
     proofs: { oldTicker: proof, newTicker: proof, effectiveDate: proof, security: proof, eventStatus: proof },
     exchangeTransfer: { from: "The Nasdaq Stock Market LLC", to: "New York Stock Exchange", date: "2026-10-06", status: "occurred", proof } };
-  const locator = dir ? manualRows.psky.locator : "synthetic US row 1";
+  const locator = retained ? manualRows.psky.locator : "synthetic US row 1";
   const draft: ReviewDraft = { caseId: id, expectedRevision: 0, noticeId: snapshot.id, expectedSourceHash: snapshot.sourceHash,
     verdict: "unclear", facts: { market: "US", kind: "symbol_change", securityName: "Research comparison, not administrator review", ...c.values },
     proof: { imageSha256: snapshot.images[0].sha256, locator, quote: null }, usMarketRowReviewed: true, reason: "Test-only review envelope preserving original automatic candidate values." };
   const review: SavedReview = { id, caseId: id, revision: 1, actorUserId: id, createdAt: stamp, requestId: id, requestHash: reviewRequestHash(draft), draft, snapshot, tickerAuthority: "none" };
   const row: ManualKiwoomRow = { method: "manual_transcription", candidateRevisionSha256: c.revisionSha256,
     reviewId: id, caseId: id, reviewRevision: 1, noticeId: snapshot.id, sourceHash: snapshot.sourceHash, imageSha256: snapshot.images[0].sha256, locator,
-    cells: dir ? structuredClone(manualRows.psky.cells) : { country: "US", event: "symbol change", symbol: "ALFA", securityName: "Synthetic", details: "ALFA to BETA", date: "October 6, 2026" },
+    cells: retained ? structuredClone(manualRows.psky.cells) : { country: "US", event: "symbol change", symbol: "ALFA", securityName: "Synthetic", details: "ALFA to BETA", date: "October 6, 2026" },
     market: "US", event: "symbol_change", additionalChanges: [], values: rowValues, dateBasis: "market_effective", securityType: null, securityClass: null,
     rowCorrespondence: "unconfirmed", correspondenceReason: "Same ticker row selected for field comparison only; Kiwoom CIK/class absent. No same-security approval." };
   return { evaluation, secSource, judgment, review, row };
 }
 const current = (s: HumanExceptionInput) => ({ ...s, snapshot: s.review.snapshot });
+
+for (const c of [
+  { name: "A", automatic: "B", human: "B", kiwoom: null, conflict: false },
+  { name: "B", automatic: "B", human: "A", kiwoom: null, conflict: true },
+  { name: "C", automatic: "B", human: "A", kiwoom: "A", conflict: true },
+  { name: "D", automatic: null, human: "A", kiwoom: null, conflict: false },
+  { name: "E", automatic: "B", human: null, kiwoom: null, conflict: false },
+]) {
+  test(`automatic-human class ${c.name}: ${c.automatic}/${c.human}/${c.kiwoom}`, t => {
+    // Controlled assertions, not approved interpretations of a real security.
+    // D uses synthetic class-unspecified cover observations through the real evaluator.
+    const s = setup(c.automatic === null);
+    assert.equal(s.evaluation.summary.securityClass, c.automatic);
+    s.judgment.security.securityClass = c.human;
+    s.row.securityClass = c.kiwoom;
+    s.row.rowCorrespondence = "confirmed";
+    s.row.correspondenceReason = "Synthetic correspondence assertion to isolate the class guard, not an approval.";
+    const before = structuredClone(s), out = createHumanExceptionComparison(s);
+    t.diagnostic(JSON.stringify({ sample: c.name, automatic: out.originalLink.candidate.securityClass,
+      human: out.secHuman.security.securityClass, kiwoom: out.originalLink.observed.securityClass,
+      assessment: out.assessment, comparison: out.comparison.fields, tickerAuthority: out.tickerAuthority }));
+    assert.equal(out.assessment.eligible, !c.conflict);
+    assert.deepEqual(out.assessment.reasons, c.conflict ? ["automatic_human_security_class_conflict"] : []);
+    assert.deepEqual(out.comparison.fields, { oldTicker: "match", newTicker: "match", effectiveDate: "match" });
+    assert.equal(out.originalLink.candidate.securityClass, c.automatic);
+    assert.equal(out.secHuman.security.securityClass, c.human);
+    assert.equal(out.originalLink.observed.securityClass, c.kiwoom);
+    assert.deepEqual(out.automatic, before.evaluation);
+    assert.equal(out.automatic.resolutionState, "REVIEW");
+    assert.ok(out.automatic.reasons.includes("EXCHANGE_CONFLICT"));
+    assert.equal(out.tickerAuthority, "none");
+    assert.deepEqual(s, before);
+  });
+}
 
 test("separate SEC human values compare three fields while original REVIEW/null and old validation stay unchanged", () => {
   const s = setup(), before = JSON.stringify(s), out = createHumanExceptionComparison(s);

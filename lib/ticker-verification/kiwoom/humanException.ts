@@ -111,6 +111,8 @@ export function createHumanExceptionComparison(input: HumanExceptionInput) {
   if (!evidence.security || !evidence.eventStatus) reasons.push("sec_context_evidence_missing");
   if (h.exchangeTransfer && !exchangeEvidence) reasons.push("exchange_evidence_missing");
   if (h.eventStatus !== "occurred") reasons.push("sec_event_not_completed");
+  if (original.candidate.securityClass !== null && h.security.securityClass !== null
+    && original.candidate.securityClass !== h.security.securityClass) reasons.push("automatic_human_security_class_conflict");
   if (h.security.securityClass !== null && row.securityClass !== null && h.security.securityClass !== row.securityClass) reasons.push("security_class_conflict");
   if (row.securityType !== null && original.candidate.securityType !== null && row.securityType !== original.candidate.securityType) reasons.push("security_type_conflict");
   const status: ComparisonStatus = Object.values(fieldComparison).includes("conflict") ? "conflict"
