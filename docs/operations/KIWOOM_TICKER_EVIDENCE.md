@@ -1,5 +1,127 @@
 # Kiwoom bulletin evidence for US ticker verification
 
+## Candidate-to-evidence pure linkage — follow-up after d385bc8f
+
+This is a separate, opt-in pure contract in `candidateLink.ts`, not a rerun of
+the prior UI/login work. Base: `d385bc8f4ad1abf82275bb4a3293a984a397b648`,
+existing detached `eeb4`. No UI, API, repository, migration, environment file,
+existing SEC resolution, or production caller was changed.
+
+### Existing candidate and linkage contract
+
+- Reuses `SecTickerResolutionEvaluation` from the existing canonical evaluator
+  (or its replay-validated reader), with `decision.id`, `decision_sha256`,
+  exact accession/source hash, issuer CIK, resolution state and summary.
+  This existing contract represents **same-security ticker-change candidates**;
+  it is not a generic corporate-action candidate store. No new listing,
+  delisting, merger or split resolution system was invented.
+- `candidateRevision()` checks decision-payload hash and summary consistency;
+  a digest of the full evaluation binds the particular input/source revision.
+  The adapter expects already validated input; it does not re-read SEC source
+  bytes or replace the existing SEC validator.
+- `ManualKiwoomRow` retains literal source cells separately from manually
+  transcribed values, market/event/date basis and any additional changes. It
+  binds candidate revision, existing review ID/case/revision, notice ID,
+  snapshot hash, image hash and exact proof locator. The reviewer must explicitly
+  identify correspondence of this row with this candidate. This is **not** an
+  assertion of legal security continuity. Broker account dates are excluded.
+- `createCandidateEvidenceLink()` preserves candidate values and observed values
+  separately, with per-field `match / conflict / unconfirmed` and an aggregate
+  comparison. Existing `ReviewDraft.facts` are candidate assertions, never the
+  independently observed row; they must agree with the linked candidate values.
+  The saved human verdict cannot turn conflicting transcribed values into a
+  match. Neither value set is corrected or overwritten.
+- A match compares old ticker, new ticker and calendar effective date only.
+  `market_open` precision is retained, not upgraded to an intraday confirmation.
+  Explicit type/class disagreement conflicts; unreported type/class remains
+  unknown and is not inferred from names or ticker spelling. A match with
+  unknown class therefore confirms only the three compared values, **not** class
+  or identity. Exact row correspondence still requires human confirmation.
+- Non-US/unconfirmed rows, compound events, unknown/broker date basis and
+  withdrawn/unclear reviews cannot produce an aggregate match. Known related
+  changes (ISIN, reverse split, exchange change, etc.) are retained as manual
+  observations and make this narrow comparison unconfirmed. No fuzzy names,
+  country inference, continuity inference or corporate-action calculation.
+- Every link has `supporting_evidence_only`, `tickerAuthority: none` and scope
+  `candidate_field_comparison_not_security_identity`. A SEC REVIEW/UNRESOLVED
+  candidate remains in that state regardless of these field comparisons.
+
+### Revision/invalidation boundary
+
+`checkCandidateEvidenceLink()` requires explicitly supplied **current**
+evaluation, snapshot, saved review and transcribed row. Missing/unreadable
+inputs fail closed; the pure helper cannot discover whether the caller passed
+the latest record. Changed candidate/source revision, notice HTML or image,
+review revision/case, withdrawal or edited transcription makes the previous
+link non-reusable and currently unconfirmed. It replays the comparison rather
+than trusting stored status. Historical link/value records remain untouched.
+An unchanged source captured at a later time does not invalidate the source.
+
+Link hashes are deterministic integrity checks, not signatures or administrator
+authentication. A future authorized integration must supply the current records
+and record explicit new manual associations, not relabel old objects as current.
+This task adds no persistence for links or automatic current-reader wiring.
+Transcription correctness is still a human responsibility: a valid image hash
+proves reference integrity, not the meaning of pixels or accuracy of typed text.
+
+### Preserved-source samples and results
+
+Manually inspected retained notice 4611, image 1 (880 × 1536). Its snapshot and
+image hashes are recorded in `candidateLink.samples.ts`; full source/image bytes
+remain outside Git. No live fetch, OCR or extraction-model call occurred.
+Year comes from the table's `효력일 (2026)` header and day from the exact merged
+date cell, not the notice posting date, coverage range or account guidance.
+The WALDW security-name cell visibly cuts off; its fixture retains that cutoff.
+
+**All SEC candidates, row-correspondence assertions and saved administrator
+reviews in these tests are synthetic.** The Kiwoom row transcriptions are from
+the preserved original. This is not confirmation of actual SEC→Kiwoom pairs,
+real authenticated reviews, or current market ticker identities.
+
+| Source row / synthetic comparison | Result | Reason |
+| --- | --- | --- |
+| PSKY → SKYD, 2026-10-06 | match | Three field values agree; identity not asserted |
+| Same source vs candidate PSKY → WRONG | conflict | New ticker differs; both values retained |
+| Same source vs candidate date 2026-10-07 | conflict | Effective date differs |
+| VACI → NSTR, 2026-10-02 | unconfirmed | Source also says ISIN change |
+| VTAK → VJET, 2026-10-05 | unconfirmed | Reverse split plus symbol change |
+| WALD → WALDF, 2026-10-05 | unconfirmed | Also NYSE → OTC |
+| Adjacent WALDW → WALWF against WALD candidate | unconfirmed | Different security row plus exchange change; ticker fields conflict |
+| HK 08026 → 08583 | unconfirmed | Non-US and reverse split; not a US candidate match |
+| AETH liquidation delisting | unconfirmed | Different event, no new ticker; no fabricated successor |
+
+Additional controls cover omitted values, different share class/warrant,
+account/unknown dates, wrong image/locator/review/case, candidate values/source
+amendment, notice HTML/image-only update, withdrawal/new review revision, missing
+current inputs, edited transcription, corrupt data and retained historical
+records. These are controlled mutations, not claims of real publisher changes.
+
+### Verification and handoff
+
+- New pure tests: **15/15**, both synthetic-snapshot mode and retained-original
+  mode. Retained-original receipt:
+  `C:/Users/PC/.codex/visualizations/kiwoom-verification-implementation-20261008/candidate-link/retained-source-tests.log`.
+- Existing canonical SEC regression: **7/7**. Existing Kiwoom source/review
+  regression: **13/13**. The normal Kiwoom verification script now includes
+  the 15 linkage tests (**28 total**). No browser/login checks repeated.
+- Commands: `npm run verify:kiwoom-evidence`;
+  `node --no-warnings --experimental-strip-types --test lib/sec-ticker-resolution/canonical.test.ts`;
+  `npx tsc --noEmit --incremental false`; `git diff --check`.
+- For retained-source reproduction, set **process-only**
+  `KIWOOM_LINK_TEST_SNAPSHOT` to the existing `live-snapshot.json` absolute path,
+  run `node --no-warnings --experimental-strip-types --test lib/ticker-verification/kiwoom/candidateLink.test.ts`,
+  then remove that test-process variable. The test checks the expected source
+  and image hashes before comparing. No product environment file changes.
+- No DB/network integration, current-record orchestration, authenticated link
+  persistence, live-source freshness or ticker mutation tested/implemented.
+  Existing UI/login/environment limits below remain unchanged and were not
+  re-investigated. No main/3110 operation, merge/push/deploy or automation.
+- Worktree completion is limited to pure linkage and offline regression; stop
+  for GPT independent review. Local `refs/heads/main`, read from this candidate,
+  is `d7347e4d2e75a5c412f69218003d2dfd407c79c5` (no main workspace command).
+  GitHub main/Vercel and DB/cron state are unqueried;
+  there is no synchronization/deployment claim.
+
 ## Scope and acceptance
 
 User request: make Kiwoom Securities' overseas-stock bulletin notices one supporting verification source. Stock Radar serves US customers. Kiwoom account posting, settlement and broker-specific trading restrictions must not determine market-effective dates or US ticker identity.
