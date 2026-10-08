@@ -1,0 +1,26 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "Evaxion A/S",
+    "cik": "0001828253",
+    "accession": "0001104659-24-008874",
+    "form": "F-1/A",
+    "filing_date": "2024-01-31"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "issuer_total",
+      "share_class": null,
+      "quantity": "40540546",
+      "as_of_date": "2024-01-29",
+      "as_of_text": "as of January 29, 2024",
+      "evidence_blocks": [
+        "d9b27b6332c88:L000417-L000448",
+        "d9b27b6332c88:L000449-L000480",
+        "d9b27b6332c88:L005185-L005216"
+      ]
+    }
+  ],
+  "review": null
+}

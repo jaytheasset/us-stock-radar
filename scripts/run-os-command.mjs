@@ -1,0 +1,10 @@
+import {spawnSync} from 'node:child_process';
+import {readdirSync} from 'node:fs';
+const mode=process.argv[2];
+if(!['test','worker'].includes(mode))throw Error('Expected test or worker');
+const args=['--no-warnings','--experimental-loader',new URL('./resolve-ts-paths.mjs',import.meta.url).href,'--experimental-strip-types'];
+if(mode==='test')args.push('--test',...readdirSync('lib/sec-os-snapshot').filter(f=>f.endsWith('.test.ts')).map(f=>'lib/sec-os-snapshot/'+f));
+else args.unshift('--env-file=.env.local');
+if(mode==='worker')args.push('scripts/run-os-snapshot-worker.ts',...process.argv.slice(3));
+const result=spawnSync(process.execPath,args,{stdio:'inherit',windowsHide:true,shell:false});
+if(result.error)throw result.error;process.exitCode=result.status??1;

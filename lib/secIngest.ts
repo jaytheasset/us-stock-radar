@@ -1,3 +1,5 @@
+import { enqueueOsSnapshot } from "./sec-os-snapshot/repository";
+import { isOsForm } from "./sec-os-snapshot/source";
 import { randomUUID } from "node:crypto";
 import { ensureSecForm25Identity } from "@/lib/sec-form25-identity/persistence";
 import {
@@ -72,6 +74,7 @@ type SecRawIngestDependencies = {
   enqueueS8Structured?: typeof enqueueS8Structured;
   enqueueTenderStructured?: typeof enqueueTenderStructured;
   enqueueProxyStructured?: typeof enqueueProxyStructured;
+  enqueueOsSnapshot?: typeof enqueueOsSnapshot;
 };
 
 export async function runSecRawIngest(
@@ -94,6 +97,7 @@ export async function runSecRawIngest(
     enqueueS8Structured: dependencies.enqueueS8Structured ?? enqueueS8Structured,
     enqueueTenderStructured: dependencies.enqueueTenderStructured ?? enqueueTenderStructured,
     enqueueProxyStructured: dependencies.enqueueProxyStructured ?? enqueueProxyStructured,
+    enqueueOsSnapshot: dependencies.enqueueOsSnapshot ?? enqueueOsSnapshot,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -105,6 +109,11 @@ export async function runSecRawIngest(
   const form25ListingStatusRecords: Form25ListingPersistenceRecord[] = [];
   const s8RegistrationRecords: Array<Record<string, unknown>> = [];
   const items: Array<Record<string, unknown>> = [];
+  async function osAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
+    if (dryRun || !isOsForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
+    try { return await runtime.enqueueOsSnapshot(rawItemId); }
+    catch (error) { return { status: "failed", reason: String(error) }; }
+  }
   async function tenderAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
     if (dryRun || !isTenderStructuredForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
     try { return await runtime.enqueueTenderStructured(rawItemId); }
@@ -306,6 +315,12 @@ export async function runSecRawIngest(
             if (!existing) stats.raw_upserted_count += 1;
             items.push({...buildExcludedRawItem(rawItem, exclusion), reason:"excluded_from_primary_tender_source_retained", raw_item_id: persisted.id,
               tender_structured: await tenderAfterRawSave(rawItem, stringValue(persisted.id))});
+          } else if (isOsForm(rawItem.raw_payload.form_type)) {
+            const existing = await runtime.findExistingRawItem(rawItem);
+            const persisted = existing && !force ? existing : await runtime.saveRawItem(rawItem, runId, existing);
+            if (!existing || force) stats.raw_upserted_count += 1;
+            items.push({ ...buildExcludedRawItem(rawItem, exclusion), raw_item_id: persisted.id,
+              os_snapshot: await osAfterRawSave(rawItem, stringValue(persisted.id)) });
           } else items.push(buildExcludedRawItem(rawItem, exclusion));
           continue;
         }
@@ -346,6 +361,7 @@ export async function runSecRawIngest(
             s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(existing.id)),
             tender_structured: await tenderAfterRawSave(rawItem, stringValue(existing.id)),
             proxy_structured: await proxyAfterRawSave(rawItem, stringValue(existing.id)),
+            os_snapshot: await osAfterRawSave(rawItem, stringValue(existing.id)),
             sec_cover_observation_persistence: secCoverObservationPersistence,
             form25_delisting: form25Delisting,
             form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(existing.id)),
@@ -388,6 +404,7 @@ export async function runSecRawIngest(
           s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(persisted.id)),
           tender_structured: await tenderAfterRawSave(rawItem, stringValue(persisted.id)),
           proxy_structured: await proxyAfterRawSave(rawItem, stringValue(persisted.id)),
+          os_snapshot: await osAfterRawSave(rawItem, stringValue(persisted.id)),
           sec_cover_observation_persistence: secCoverObservationPersistence,
           form25_delisting: form25Delisting,
           form25_listing_status: await persistForm25AfterSidecars(rawItem, stringValue(persisted.id)),

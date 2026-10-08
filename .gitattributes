@@ -11,3 +11,6 @@ scripts/tender-expiration/v6_nano_unchanged_35/run.test.mjs -whitespace
 scripts/tender-expiration/v6b_nano_unchanged_35/PLAN.md -whitespace
 scripts/tender-expiration/v6b_nano_unchanged_35/run.mjs -whitespace
 scripts/tender-expiration/v6b_nano_unchanged_35/run.test.mjs -whitespace
+# Preserve frozen contract bytes, including the schema's original CRLF endings.
+lib/sec-os-snapshot/contracts/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+lib/sec-os-snapshot/fixtures/** -text

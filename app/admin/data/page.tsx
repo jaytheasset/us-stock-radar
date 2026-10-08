@@ -3,6 +3,7 @@ import styles from "@/components/admin/AdminSection.module.css";
 import { requireAdminPermission } from "@/lib/admin/server";
 
 const tools = [
+  ["SEC O/S Snapshots", "/admin/data/os-snapshots", "Inspect automatic SEC snapshots, retained evidence, and administrator decisions."],
   ["Listing Status date review", "/admin/data/listing-status", "Review retained SEC evidence and append auditable notice / suspension date decisions."],
   [
     "SEC ticker resolution",

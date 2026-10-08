@@ -1,0 +1,38 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "TC BioPharm (Holdings) plc",
+    "cik": "0001872812",
+    "accession": "0001493152-23-044632",
+    "form": "F-1/A",
+    "filing_date": "2023-12-13"
+  },
+  "status": "REVIEW_REQUIRED",
+  "current_os": [],
+  "review": {
+    "code": "CONFLICTING_CURRENT_OS",
+    "candidates": [
+      {
+        "scope": "issuer_total",
+        "share_class": null,
+        "quantity": "13530088",
+        "as_of_date": "2023-12-06",
+        "as_of_text": "as of December 6, 2023",
+        "evidence_blocks": [
+          "d82e87172e1ba:L000193-L000224",
+          "d82e87172e1ba:L000353-L000384"
+        ]
+      },
+      {
+        "scope": "issuer_total",
+        "share_class": null,
+        "quantity": "36257361",
+        "as_of_date": "2023-12-06",
+        "as_of_text": "as of December 6, 2023",
+        "evidence_blocks": [
+          "d82e87172e1ba:L000385-L000416"
+        ]
+      }
+    ]
+  }
+}

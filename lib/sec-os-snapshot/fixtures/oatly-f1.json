@@ -1,0 +1,25 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "Oatly Group AB",
+    "cik": "0001843586",
+    "accession": "0001193125-21-121323",
+    "form": "F-1",
+    "filing_date": "2021-04-19"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "issuer_total",
+      "share_class": null,
+      "quantity": "17840959",
+      "as_of_date": "2021-04-19",
+      "as_of_text": "As of the date of this prospectus",
+      "evidence_blocks": [
+        "d4636666cb817:L002241-L002272",
+        "d4636666cb817:L000065-L000096"
+      ]
+    }
+  ],
+  "review": null
+}

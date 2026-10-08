@@ -1,0 +1,36 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "Li Auto Inc.",
+    "cik": "0001791706",
+    "accession": "0001047469-20-004077",
+    "form": "F-1",
+    "filing_date": "2020-07-10"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "class",
+      "share_class": "Class A ordinary shares",
+      "quantity": "15000000",
+      "as_of_date": null,
+      "as_of_text": "As of the date of this prospectus",
+      "evidence_blocks": [
+        "d68eee4126f12:L002529-L002560",
+        "d68eee4126f12:L000065-L000096"
+      ]
+    },
+    {
+      "scope": "class",
+      "share_class": "Class B ordinary shares",
+      "quantity": "240000000",
+      "as_of_date": null,
+      "as_of_text": "As of the date of this prospectus",
+      "evidence_blocks": [
+        "d68eee4126f12:L002529-L002560",
+        "d68eee4126f12:L000065-L000096"
+      ]
+    }
+  ],
+  "review": null
+}

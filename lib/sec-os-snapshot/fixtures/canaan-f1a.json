@@ -1,0 +1,26 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "Canaan Inc.",
+    "cik": "0001780652",
+    "accession": "0001193125-19-291117",
+    "form": "F-1/A",
+    "filing_date": "2019-11-13"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "issuer_total",
+      "share_class": null,
+      "quantity": "2222222222",
+      "as_of_date": "2019-11-13",
+      "as_of_text": "As of the date of this prospectus",
+      "evidence_blocks": [
+        "d5ea6336e2a2e:L003233-L003264",
+        "d5ea6336e2a2e:L003137-L003168",
+        "d5ea6336e2a2e:L000065-L000096"
+      ]
+    }
+  ],
+  "review": null
+}

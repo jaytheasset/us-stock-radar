@@ -1,0 +1,25 @@
+{
+  "version": "os_snapshot_v1",
+  "filing": {
+    "issuer": "Futu Holdings Ltd",
+    "cik": "0001754581",
+    "accession": "0001193125-19-051512",
+    "form": "F-1/A",
+    "filing_date": "2019-02-26"
+  },
+  "status": "PASS",
+  "current_os": [
+    {
+      "scope": "issuer_total",
+      "share_class": null,
+      "quantity": "403750000",
+      "as_of_date": "2019-02-26",
+      "as_of_text": "As of the date of this prospectus",
+      "evidence_blocks": [
+        "d9dd7e460067e:L003425-L003456",
+        "d9dd7e460067e:L000065-L000096"
+      ]
+    }
+  ],
+  "review": null
+}
