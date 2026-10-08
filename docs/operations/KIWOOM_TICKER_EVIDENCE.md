@@ -1,5 +1,8 @@
 # Kiwoom bulletin evidence for US ticker verification
 
+Separate SEC-source human judgments (automatic candidate preserved):
+[contract and actual-source validation](KIWOOM_HUMAN_EXCEPTION.md).
+
 ## Candidate-to-evidence pure linkage — follow-up after d385bc8f
 
 This is a separate, opt-in pure contract in `candidateLink.ts`, not a rerun of
