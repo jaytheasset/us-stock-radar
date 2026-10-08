@@ -5,6 +5,7 @@ import type { KiwoomSnapshot, NoticeListItem } from "@/lib/ticker-verification/k
 import type { ReviewDraft, ReviewFacts, SavedReview } from "@/lib/ticker-verification/kiwoom/review";
 import type { ReviewSummary } from "@/lib/ticker-verification/kiwoom/service";
 import styles from "./KiwoomTickerVerification.module.css";
+import { KiwoomHumanComparison } from "./KiwoomHumanComparison";
 
 const endpoint = "/api/admin/data/kiwoom-verification";
 const emptyFacts: ReviewFacts = { market: "US", kind: "symbol_change", securityName: "", oldTicker: null, newTicker: null, effectiveDate: null };
@@ -93,6 +94,7 @@ export function KiwoomTickerVerification({ canWrite }: { canWrite: boolean }) {
   }); }
   const previewLines = snapshot?.text.split(/\n+/).filter(line => line.trim() && !/잔고|예탁결제|결제|계좌|입금|매매|매도|거래가 제한|세금|과세|소수점|문의|감사|키움증권|고객|☎|https?:|접속방법|유의사항/.test(line)).slice(0, 12) ?? [];
   return <div className={styles.root}>
+    <KiwoomHumanComparison canWrite={canWrite} />
     <div className={styles.notice}>Supporting evidence for US securities. A recorded review never changes a ticker or authorizes a same-security mapping. Account settlement dates are not market effective dates.</div>
     <section className={styles.card} aria-labelledby="kiwoom-notices-heading">
       <h2 id="kiwoom-notices-heading">1. Open an official Kiwoom notice</h2>

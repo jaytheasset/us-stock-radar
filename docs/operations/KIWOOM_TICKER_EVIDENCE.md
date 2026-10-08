@@ -3,6 +3,10 @@
 Separate SEC-source human judgments (automatic candidate preserved):
 [contract and actual-source validation](KIWOOM_HUMAN_EXCEPTION.md).
 
+Candidate follow-up: [human judgment persistence/admin connection and isolated
+PostgreSQL verification](KIWOOM_HUMAN_STORAGE.md). Actual login/PostgREST E2E is
+still deferred; the pure-stage records below retain their original scope.
+
 ## Candidate-to-evidence pure linkage — follow-up after d385bc8f
 
 This is a separate, opt-in pure contract in `candidateLink.ts`, not a rerun of

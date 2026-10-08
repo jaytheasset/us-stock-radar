@@ -8,6 +8,7 @@ const result = spawnSync(process.execPath, [
   "--test", "--experimental-strip-types", "lib/ticker-verification/kiwoom/kiwoom.test.ts",
   "lib/ticker-verification/kiwoom/candidateLink.test.ts",
   "lib/ticker-verification/kiwoom/humanException.test.ts",
+  "lib/ticker-verification/kiwoom/humanAdmin.test.mjs",
 ], { cwd: root, stdio: "inherit" });
 if (result.error) { console.error(result.error.message); process.exitCode = 1; }
 else process.exitCode = result.status ?? 1;
