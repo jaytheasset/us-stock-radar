@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import test from "node:test";
-import type {
-  SecOfflineArchiveImportBundle,
-  SecOfflineArchivePreparedItem,
+import {
+  SecOfflineArchiveImportError,
+  type SecOfflineArchiveImportBundle,
+  type SecOfflineArchivePreparedItem,
 } from "./canonical.ts";
 import {
   applySecOfflineArchiveImport,
@@ -14,6 +15,22 @@ import {
 
 const ACCESSIONS = ["0001104659-26-113076", "0001104659-26-113913"] as const;
 const SHAS = ["a".repeat(64), "b".repeat(64)] as const;
+
+test("unsupported forms in a supplied bundle cannot reach repository or RPC in plan/apply", async () => {
+  for (const form of ["SC 13D", "25"]) {
+    const input = bundle(); input.items[0]!.rawItem.raw_payload.form_type = form;
+    let calls = 0;
+    const repository: SecOfflineArchiveRepository = {
+      select: async () => { calls++; throw new Error("unexpected read"); },
+      rpc: async () => { calls++; throw new Error("unexpected RPC"); },
+    };
+    const unsupported = (error: unknown) => error instanceof SecOfflineArchiveImportError
+      && error.code === "filing_form_unsupported_for_offline_import_v1";
+    await assert.rejects(planSecOfflineArchiveImport({ bundle: input, repository }), unsupported);
+    await assert.rejects(applySecOfflineArchiveImport({ bundle: input, confirmedBundleSha256: input.bundleSha256, repository }), unsupported);
+    assert.equal(calls, 0);
+  }
+});
 
 function bundle(): SecOfflineArchiveImportBundle {
   const items = ACCESSIONS.map((accession, index) => prepared(

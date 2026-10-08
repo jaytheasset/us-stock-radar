@@ -10,6 +10,7 @@ import {
 } from "../lib/sec-offline-import/canonical.ts";
 import {
   validateSecOfflineLocalEndpoints,
+  withSecOfflineLocalCredentials,
   SecOfflineLocalTargetError,
 } from "../lib/sec-offline-import/localTarget.ts";
 import {
@@ -65,22 +66,24 @@ async function main() {
     return;
   }
 
-  const target = await verifyExplicitLocalTarget(args);
-  const plan = await planSecOfflineArchiveImport({ bundle });
-  if (args.mode === "plan") {
-    await emitReceipt({ ...baseReceipt, target, plan }, args.receiptFile);
-    if (plan.status !== "ready") process.exitCode = 2;
-    return;
-  }
+  const { target, credentials } = await verifyExplicitLocalTarget(args);
+  await withSecOfflineLocalCredentials(credentials, async () => {
+    const plan = await planSecOfflineArchiveImport({ bundle });
+    if (args.mode === "plan") {
+      await emitReceipt({ ...baseReceipt, target, plan }, args.receiptFile);
+      if (plan.status !== "ready") process.exitCode = 2;
+      return;
+    }
 
-  if (!args.confirmedBundleSha256) {
-    throw new CliError("bundle_confirmation_required");
-  }
-  const result = await applySecOfflineArchiveImport({
-    bundle,
-    confirmedBundleSha256: args.confirmedBundleSha256,
+    if (!args.confirmedBundleSha256) {
+      throw new CliError("bundle_confirmation_required");
+    }
+    const result = await applySecOfflineArchiveImport({
+      bundle,
+      confirmedBundleSha256: args.confirmedBundleSha256,
+    });
+    await emitReceipt({ ...baseReceipt, target, plan, result }, args.receiptFile);
   });
-  await emitReceipt({ ...baseReceipt, target, plan, result }, args.receiptFile);
 }
 
 async function verifyExplicitLocalTarget(args: Arguments) {
@@ -103,6 +106,7 @@ async function verifyExplicitLocalTarget(args: Arguments) {
     connectionString: localStatus.DB_URL,
     connectionTimeoutMillis: 5_000,
     statement_timeout: 10_000,
+    options: "-c default_transaction_read_only=on",
   });
   try {
     await client.connect();
@@ -117,8 +121,12 @@ async function verifyExplicitLocalTarget(args: Arguments) {
       throw new CliError("database_name_mismatch");
     }
     return {
-      ...endpoints,
-      systemIdentifier: row.system_identifier,
+      target: { ...endpoints, systemIdentifier: row.system_identifier },
+      credentials: {
+        apiUrl: localStatus.API_URL,
+        secretKey: localStatus.SECRET_KEY,
+        serviceRoleKey: localStatus.SERVICE_ROLE_KEY,
+      },
     };
   } finally {
     await client.end().catch(() => undefined);
@@ -177,7 +185,7 @@ async function emitReceipt(receipt: unknown, receiptFile?: string) {
   process.stdout.write(text);
 }
 
-function readLocalSupabaseStatus(): { API_URL: string; DB_URL: string } {
+function readLocalSupabaseStatus(): { API_URL: string; DB_URL: string; SECRET_KEY?: string; SERVICE_ROLE_KEY?: string } {
   try {
     const output = execFileSync(
       process.execPath,
@@ -195,11 +203,15 @@ function readLocalSupabaseStatus(): { API_URL: string; DB_URL: string } {
         timeout: 15_000,
       },
     );
-    const value = JSON.parse(output) as { API_URL?: unknown; DB_URL?: unknown };
+    const value = JSON.parse(output) as { API_URL?: unknown; DB_URL?: unknown; SECRET_KEY?: unknown; SERVICE_ROLE_KEY?: unknown };
     if (typeof value.API_URL !== "string" || typeof value.DB_URL !== "string") {
       throw new Error("invalid local status");
     }
-    return { API_URL: value.API_URL, DB_URL: value.DB_URL };
+    return {
+      API_URL: value.API_URL, DB_URL: value.DB_URL,
+      SECRET_KEY: typeof value.SECRET_KEY === "string" ? value.SECRET_KEY : undefined,
+      SERVICE_ROLE_KEY: typeof value.SERVICE_ROLE_KEY === "string" ? value.SERVICE_ROLE_KEY : undefined,
+    };
   } catch {
     throw new CliError("local_supabase_status_unavailable");
   }

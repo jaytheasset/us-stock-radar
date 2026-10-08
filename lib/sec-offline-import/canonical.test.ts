@@ -8,7 +8,9 @@ import {
   buildSecOfflineArchiveImportBundle,
   compareSecOfflineArchiveRawItem,
   SecOfflineArchiveImportError,
+  SEC_OFFLINE_ARCHIVE_IMPORT_VERSION,
 } from "./canonical.ts";
+import { planSecOfflineArchiveImport } from "./persistence.ts";
 
 const CIK = "0002041610";
 const ACCESSIONS = ["0001104659-26-113076", "0001104659-26-113913"] as const;
@@ -91,6 +93,11 @@ test("builds deterministic canonical raw items from verified retained SEC origin
     assert.equal(first.issuerCik, CIK);
     assert.equal(first.items.length, 2);
     assert.equal(first.runId, second.runId);
+    assert.equal(first.runId, expectedUuid(`sec_offline_archive_run:${SEC_OFFLINE_ARCHIVE_IMPORT_VERSION}:${first.manifestSha256}`));
+    assert.notEqual(first.runId, expectedUuid(`sec_offline_archive_run:future-version:${first.manifestSha256}`));
+    for (const item of first.items) {
+      assert.equal(item.rawItemId, expectedUuid(`sec_offline_archive_raw:${item.accessionNumber}:${item.sourceSha256}`));
+    }
     assert.equal(first.bundleSha256, second.bundleSha256);
     assert.deepEqual(first.items.map((item) => item.rawItemId), second.items.map((item) => item.rawItemId));
 
@@ -200,4 +207,46 @@ test("treats an exact existing production raw as replay but rejects source drift
 function record(value: unknown): Record<string, unknown> {
   assert.ok(value && typeof value === "object" && !Array.isArray(value));
   return value as Record<string, unknown>;
+}
+
+test("v1 accepts 8-K and 8-K/A but rejects filer-identity forms before source read or repository calls", async () => {
+  for (const form of ["8-K", "8-K/A", "SC 13D", "25"]) {
+    const fixture = await createFixture();
+    let repositoryCalls = 0;
+    try {
+      const submissionsPath = path.join(fixture.directory, "submissions.json");
+      const submissions = JSON.parse(await fs.readFile(submissionsPath, "utf8"));
+      submissions.filings.recent.form[0] = form;
+      const body = JSON.stringify(submissions);
+      await fs.writeFile(submissionsPath, body);
+      fixture.manifest.submissions.sha256 = hash(body);
+      await writeManifest(fixture.directory, fixture.manifest);
+      const unsupported = form === "SC 13D" || form === "25";
+      // Missing source must not mask the earlier form-scope rejection.
+      if (unsupported) await fs.unlink(path.join(fixture.directory, DOCUMENTS[0]));
+      const prepareAndPlan = async () => {
+        const prepared = await buildSecOfflineArchiveImportBundle({ directory: fixture.directory });
+        assert.equal(prepared.items[0]!.rawItem.raw_payload.form_type, form);
+        return planSecOfflineArchiveImport({ bundle: prepared, repository: {
+          select: async () => { repositoryCalls++; return { ok: true, status: 200, data: [] }; },
+          rpc: async () => { repositoryCalls++; assert.fail("plan must not call RPC"); },
+        } });
+      };
+      if (unsupported) {
+        await expectCode(prepareAndPlan(), "filing_form_unsupported_for_offline_import_v1");
+        assert.equal(repositoryCalls, 0);
+      } else {
+        assert.equal((await prepareAndPlan()).status, "ready");
+        assert.equal(repositoryCalls, 1);
+      }
+    } finally { await fs.rm(fixture.directory, { recursive: true, force: true }); }
+  }
+});
+
+function expectedUuid(value: string) {
+  const hex = hash(value).slice(0, 32).split("");
+  hex[12] = "4";
+  hex[16] = ((parseInt(hex[16]!, 16) & 3) | 8).toString(16);
+  const id = hex.join("");
+  return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
 }

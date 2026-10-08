@@ -63,6 +63,8 @@ For every retained filing the builder requires:
 - an exact retained `data.sec.gov/submissions/CIK##########.json` source;
 - accession/form/filing date/acceptance timestamp/primary document present in
   retained Submissions metadata;
+- v1 form scope: only `8-K` / `8-K/A`, rejected before source preparation or
+  repository access otherwise (`filing_form_unsupported_for_offline_import_v1`);
 - strict byte-preserving UTF-8;
 - raw-byte SHA-256 equal to the manifest;
 - bounded primary-document size.
@@ -96,7 +98,9 @@ time remain linked in the raw payload/metadata.
 ### Idempotency
 
 - deterministic raw ID: accession + exact source SHA;
-- deterministic source-run ID: manifest SHA;
+- deterministic source-run ID: SHA-derived UUID of
+  `sec_offline_archive_run:${SEC_OFFLINE_ARCHIVE_IMPORT_VERSION}:${manifestSha256}`;
+- the bundle digest includes that run ID; raw IDs remain accession + exact source SHA;
 - same accession and same verified source identity/body: replay/no-op;
 - same request after successful import: no duplicate raw or source run;
 - an exact existing network-acquired raw can replay even though it has no
@@ -126,10 +130,21 @@ or source conflict leaves no partial run/raw residue.
 
 `plan` and `apply` require explicit loopback API URL, DB URL, and PostgreSQL
 `system_identifier`. They also compare both endpoints with the currently running
-local Supabase status and compare the configured Supabase API URL. The expected
+local Supabase status and, if explicitly set, compare the configured Supabase API URL. The expected
 DB URL contains no credential; the connection uses the status-provided local DB
 URL only after host/port/database match. This prevents a valid API and a valid
 SQL URL from silently referring to different local stacks.
+
+No environment file or manual credential injection is required. After endpoint
+and SQL system-identifier verification, the CLI uses status `API_URL` and
+`SECRET_KEY` (legacy `SERVICE_ROLE_KEY` fallback) in memory. A CLI-only scope
+temporarily sets the three production reader environment slots, uses the existing
+`supabaseSelect` / `supabaseRpc` boundary, then restores all prior values in
+`finally`, on success or failure. This scope is not a concurrent server API.
+Wrong-role/missing credentials fail closed. Status output is captured, never
+printed or persisted; receipts and errors contain only safe target fields/codes.
+The SQL identity connection is read-only. Explicit configured API drift, remote
+targets, status endpoint drift, and system-identifier mismatch remain rejected.
 
 ### Plan/apply separation
 
@@ -191,7 +206,7 @@ Validated inputs:
 Retained Submissions SHA:
 `f89875138e6d54305d2922d1e11f25b8aea0f6bde2be81f8efdf2ca72f39f23f`
 
-Final file-only receipt:
+Historical base-implementation file-only receipt (superseded IDs below):
 `C:/Users/PC/.codex/visualizations/kiwoom-verification-implementation-20261008/offline-import/validate-commit-ready.json`
 
 - manifest SHA: `4ee48d409a60d194d0e356454f5fb09b4c7f319a2a9fc737026bd9a49558deba`
@@ -203,7 +218,7 @@ Final file-only receipt:
 This is validation/preparation only; those deterministic IDs are not yet records
 in the shared local database.
 
-## Verification
+## Verification at the original implementation (historical, not rerun SQL)
 
 Direct tests:
 
@@ -239,9 +254,8 @@ Result: 11 checks PASS, cleanup PASS, network calls 0.
 ## Not performed / still blocked
 
 - migration not applied to the approved shared local stack;
-- shared-loopback `plan` not executed because this stage did not pass local
-  service credentials through the remote executor; target-pair behavior is
-  covered by the pure 20-test regression suite;
+- the original shared-loopback `plan` credential blocker is resolved by the
+  read-only follow-up below;
 - no `raw_items` added to that stack;
 - no `sec_structured_raw_sources` or cover/security observations generated;
 - no automatic ticker-resolution trigger called;
@@ -258,3 +272,70 @@ exact raw_item ID
   → plan/apply and replay contract
   → no automatic candidate until cover outputs are independently reviewed
 ```
+
+## Stage-1 blocker correction — 2026-10-09 KST
+
+Base: `08331f00b9a725ade3ebb38760fb0b269387e723`; same detached eeb4 worktree.
+Only credential wiring, v1 form scope, and versioned run identity were changed.
+Before modification, the official CLI plan was directly reproduced returning
+`{"ok":false,"code":"api_url_missing"}` without an environment file.
+
+After modification, the official command succeeded without URL/key environment
+injection or `.env.local`:
+
+```powershell
+npm run sec:offline-import -- `
+  --directory C:/Users/PC/.codex/visualizations/kiwoom-verification-implementation-20261008/real-sec-link `
+  --mode plan `
+  --expected-api-url http://127.0.0.1:56321 `
+  --expected-db-url postgresql://127.0.0.1:56322/postgres `
+  --expected-system-identifier 7678429483712069671
+```
+
+Verification receipt and read-only harness (outside Git):
+`C:/Users/PC/.codex/visualizations/kiwoom-verification-implementation-20261008/offline-import-stage1-fixes/plan-verification.json`
+and `verify-plan.mjs` in that directory. The harness invokes the official npm
+command with Supabase credential variables absent. A verification-only fetch
+guard allows only GET on the approved local `raw_items` endpoint; it neither
+injects credentials nor mocks responses. SQL counts use a read-only connection.
+Captured stdout/stderr and the safe receipt are checked against status keys,
+JWT secret, and the credential-bearing DB URL before output/persistence.
+
+| Check | Result |
+| --- | --- |
+| Plan | insert 2 / replay 0 / conflict 0 |
+| Exact two accessions in raw_items | 0 before / 0 after |
+| New deterministic source_run | 0 before / 0 after |
+| Historical deterministic source_run | 0 before / 0 after |
+| All SEC decisions | 0 before / 0 after |
+| Local REST calls | 1 raw_items GET |
+| RPC / apply / SEC HTTP | 0 / 0 / 0 |
+| Credential output matches | 0 |
+
+New canonical identity for the unchanged manifest/source bytes:
+
+- run ID: `fef43a8e-7792-4aec-9c4b-3d4e0b9a41ee`
+- bundle SHA: `ae83e2f827617d26d905c58288823a1f54ff150d86130b800691f6f8198b861f`
+- unchanged raw IDs: `0fbd0403-00e7-4f51-b8ed-583598049b05`,
+  `e1b21551-6925-418e-a88c-0ffe574c6b44`
+
+Regressions:
+
+- `npm run verify:sec-offline-import`: 25/25 PASS (synthetic repositories for apply).
+  Includes 8-K / 8-K/A acceptance, SC 13D / 25 rejection before source read and
+  repository/RPC, unchanged raw identity, versioned run identity, credential
+  restoration on success/failure, legacy service-role fallback, and target drift.
+- SEC parser fetch 7/7, parser/catalog 11/11, cover 11/11, ticker-resolution 51/51:
+  80/80 PASS. Use Node `--test --experimental-strip-types`, with absolute file-URL
+  `--experimental-loader` for `scripts/resolve-ts-paths.mjs` and `--import` for
+  `scripts/resolve-server-only.mjs`. Relative-loader/no-loader initial invocations
+  failed module resolution; no product/test expectations changed to bypass them.
+- `npm run typecheck`: PASS. `git diff --check`: PASS.
+
+The existing unapplied migration now rejects non-8-K forms before inserting;
+that SQL change was inspected only, **not applied or executed**. The earlier
+isolated PostgreSQL results above describe the base, not this revised SQL.
+No new migration, DB writes, raw import, cover persistence, ticker trigger,
+human comparison, or downstream replay was executed. Apply, stored-raw replay,
+automatic candidate, SEC human E2E, and merge readiness remain unverified.
+Local main/GitHub main/Vercel were not queried or changed during this correction.

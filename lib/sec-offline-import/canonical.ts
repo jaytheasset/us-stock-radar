@@ -33,6 +33,13 @@ type FilingMetadata = Readonly<{
 
 export const SEC_OFFLINE_ARCHIVE_IMPORT_VERSION = "sec-offline-archive-import-v1";
 export const SEC_OFFLINE_ARCHIVE_MANIFEST_VERSION = 1;
+export function assertSecOfflineImportForm(value: unknown): string {
+  const form = typeof value === "string" ? normalizeForm(value) : "";
+  if (form !== "8-K" && form !== "8-K/A") {
+    fail("filing_form_unsupported_for_offline_import_v1", "Offline import v1 supports only 8-K and 8-K/A");
+  }
+  return form;
+}
 const MAX_ARCHIVE_FILINGS = 100;
 const MAX_ARCHIVE_SOURCE_UTF8_BYTES = 20_000_000;
 const MAX_PRIMARY_DOCUMENT_CHARS = 2_000_000;
@@ -146,7 +153,7 @@ export async function buildSecOfflineArchiveImportBundle(input: {
     if (index < 0) {
       fail("filing_not_in_submissions", "SEC offline archive filing is absent from retained Submissions metadata");
     }
-    const formType = requiredArrayString(recent.form, index, "filing_form_missing");
+    const formType = assertSecOfflineImportForm(requiredArrayString(recent.form, index, "filing_form_missing"));
     const filingDate = requiredDate(
       requiredArrayString(recent.filingDate, index, "filing_date_missing"),
       "filing_date_invalid",
@@ -201,8 +208,10 @@ export async function buildSecOfflineArchiveImportBundle(input: {
   }
 
   const manifestSha256 = manifestSource.sha256;
+  const runId = deterministicUuid(`sec_offline_archive_run:${SEC_OFFLINE_ARCHIVE_IMPORT_VERSION}:${manifestSha256}`);
   const bundleSha256 = sha256Utf8(stableStringify({
     version: SEC_OFFLINE_ARCHIVE_IMPORT_VERSION,
+    runId,
     manifestVersion: SEC_OFFLINE_ARCHIVE_MANIFEST_VERSION,
     manifestSha256,
     submissions: {
@@ -225,7 +234,6 @@ export async function buildSecOfflineArchiveImportBundle(input: {
     })),
   }));
 
-  const runId = deterministicUuid(`sec_offline_archive_run:${manifestSha256}`);
   const items = filings.map((filing) => buildPreparedItem({
     filing,
     manifestSha256,

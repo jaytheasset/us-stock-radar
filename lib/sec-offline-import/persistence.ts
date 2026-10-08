@@ -1,5 +1,6 @@
 import {
   compareSecOfflineArchiveRawItem,
+  assertSecOfflineImportForm,
   type SecOfflineArchiveImportBundle,
   type SecOfflineArchivePreparedItem,
 } from "./canonical.ts";
@@ -83,6 +84,7 @@ export async function planSecOfflineArchiveImport(input: {
   bundle: SecOfflineArchiveImportBundle;
   repository?: SecOfflineArchiveRepository;
 }): Promise<SecOfflineArchiveImportPlan> {
+  for (const item of input.bundle.items) assertSecOfflineImportForm(item.rawItem.raw_payload.form_type);
   const repository = input.repository ?? DEFAULT_REPOSITORY;
   const accessions = input.bundle.items.map((item) => item.accessionNumber);
   const read = await repository.select("raw_items", {

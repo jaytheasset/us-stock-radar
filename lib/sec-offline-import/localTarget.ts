@@ -1,3 +1,5 @@
+import { classifySupabaseApiKey } from "../supabaseKeys.ts";
+
 export class SecOfflineLocalTargetError extends Error {
   readonly code: string;
 
@@ -24,10 +26,10 @@ export function validateSecOfflineLocalEndpoints(input: {
 }): SecOfflineLocalTarget {
   const expectedApi = normalizeApiUrl(input.expectedApiUrl);
   const expectedApiParsed = parseUrl(expectedApi, "api_url_invalid");
-  const configuredApiParsed = parseUrl(
+  const configuredApiParsed = input.configuredApiUrl.trim() ? parseUrl(
     normalizeApiUrl(input.configuredApiUrl),
     "configured_api_url_invalid",
-  );
+  ) : null;
   const statusApiParsed = parseUrl(
     normalizeApiUrl(input.statusApiUrl),
     "local_stack_api_url_invalid",
@@ -35,7 +37,7 @@ export function validateSecOfflineLocalEndpoints(input: {
   if (!isLoopback(expectedApiParsed.hostname) || expectedApiParsed.protocol !== "http:") {
     fail("non_loopback_api_target_rejected");
   }
-  if (!sameApiEndpoint(configuredApiParsed, expectedApiParsed)) {
+  if (configuredApiParsed && !sameApiEndpoint(configuredApiParsed, expectedApiParsed)) {
     fail("configured_api_target_mismatch");
   }
   if (!sameApiEndpoint(statusApiParsed, expectedApiParsed)) {
@@ -60,6 +62,36 @@ export function validateSecOfflineLocalEndpoints(input: {
     dbPort: effectivePort(expectedDb, "5432"),
     database: databaseName(expectedDb),
   };
+}
+
+/** CLI-only scope: call after endpoint and SQL system-identifier verification.
+ * Reuses production Supabase readers without retaining credentials in a receipt.
+ * Not intended for concurrent scopes in a long-running server.
+ */
+export async function withSecOfflineLocalCredentials<T>(
+  input: { apiUrl: string; secretKey?: string; serviceRoleKey?: string },
+  action: () => Promise<T>,
+  environment: Record<string, string | undefined> = process.env,
+): Promise<T> {
+  const api = parseUrl(input.apiUrl, "api_url_invalid");
+  if (!isLoopback(api.hostname) || api.protocol !== "http:") fail("non_loopback_api_target_rejected");
+  const key = input.secretKey?.trim() || input.serviceRoleKey?.trim() || "";
+  if (!["secret", "legacy-secret"].includes(classifySupabaseApiKey(key))) {
+    fail("local_service_credential_invalid");
+  }
+  const names = ["SUPABASE_URL", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"] as const;
+  const previous = names.map(name => environment[name]);
+  try {
+    environment.SUPABASE_URL = input.apiUrl;
+    environment.SUPABASE_SECRET_KEY = key;
+    delete environment.SUPABASE_SERVICE_ROLE_KEY;
+    return await action();
+  } finally {
+    names.forEach((name, index) => {
+      if (previous[index] === undefined) delete environment[name];
+      else environment[name] = previous[index];
+    });
+  }
 }
 
 function normalizeApiUrl(value: string) {

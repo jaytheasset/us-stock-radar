@@ -127,6 +127,10 @@ begin
       raise exception using errcode = '22023', message = 'SEC_OFFLINE_ARCHIVE_INPUT_INVALID';
     end if;
 
+    if coalesce(v_payload ->> 'form_type', '') not in ('8-K', '8-K/A') then
+      raise exception using errcode = '22023', message = 'filing_form_unsupported_for_offline_import_v1';
+    end if;
+
     if v_payload ->> 'accession_number' is distinct from v_accession
        or v_payload ->> 'accession_no_dashes' is distinct from pg_catalog.replace(v_accession, '-', '')
        or v_payload ->> 'cik' is null
