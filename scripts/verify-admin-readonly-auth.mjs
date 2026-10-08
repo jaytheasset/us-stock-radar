@@ -46,6 +46,7 @@ async function main() {
           assert.ok(result.fullRows[t].some(r => r[key] === actorId));
         }
         result.ledger = (await db.query("select version from supabase_migrations.schema_migrations order by version")).rows;
+        result.ledgerFingerprint = (await db.query("select count(*)::int count,md5(coalesce(string_agg(h,',' order by h),'')) hash from (select md5(to_jsonb(t)::text) h from supabase_migrations.schema_migrations t) s")).rows[0];
         result.kiwoom = {};
         for (const t of ["kiwoom_ticker_evidence_reviews", "kiwoom_sec_human_judgments", "kiwoom_sec_human_comparisons"]) {
           result.kiwoom[t] = (await db.query(`select count(*)::int count,md5(coalesce(string_agg(h,',' order by h),'')) hash from (select md5(to_jsonb(t)::text) h from public."${t}" t) s`)).rows[0];
@@ -72,7 +73,8 @@ async function main() {
     const changedTables = tables.filter(t => !equal(before.fingerprints[t], after.fingerprints[t]));
     const wholeRows = Object.fromEntries(Object.keys(before.fullRows).map(t => [t, equal(before.fullRows[t], after.fullRows[t])]));
     const report = { capturedAt: new Date().toISOString(), changedTables, protectedTableCount: tables.length,
-      wholeRows, actorCoveredInBothTables: true, ledgerUnchanged: equal(before.ledger, after.ledger),
+      wholeRows, actorCoveredInBothTables: true,
+      ledgerUnchanged: equal(before.ledger, after.ledger) && equal(before.ledgerFingerprint, after.ledgerFingerprint),
       kiwoomUnchanged: equal(before.kiwoom, after.kiwoom), auditUnchanged: equal(before.audit, after.audit) };
     report.pass = changedTables.length === 0 && Object.values(wholeRows).every(Boolean) && report.ledgerUnchanged && report.kiwoomUnchanged && report.auditUnchanged;
     save("readonly-comparison.json", report); console.log(JSON.stringify(report));
