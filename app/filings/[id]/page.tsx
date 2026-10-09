@@ -2,8 +2,6 @@ import { AnalysisDetailDocument, AnalysisDetailCard, AnalysisDetailImpact } from
 import detailStyles from "@/components/filing-analysis-v2/GenericFilingAnalysis.module.css";
 ﻿import Link from "next/link";
 import { cache } from "react";
-import {ProjectedOfferingDilution} from '@/components/filing-analysis-v2/ProjectedOfferingDilution';
-import {readProjectedFacts} from '@/lib/projected-offering-dilution/repository';
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react";
@@ -4236,7 +4234,6 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   ]);
   const allowAds = areAdsEnabledForPlan(viewerPlan);
   const filing = await resolveFilingEvent(id);
-  const projected = ['F-1','F-1/A'].includes(filing.formType) && isUuid(id) ? await readProjectedFacts(id) : null;
   const canonicalPath = filing.seo
     ? getCanonicalAnalysisPath({
         deliveryLevel: filing.deliveryLevel,
@@ -4369,7 +4366,6 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
           </div>
         ) : null}
         <GenericFilingAnalysis
-          filingFactsRenderer={projected ? <ProjectedOfferingDilution read={projected} /> : undefined}
           allowAds={allowAds}
           bodyRenderer={
             offeringRegistration ? (
@@ -4562,7 +4558,6 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <ExternalLink size={14} aria-hidden="true" />
           </a>
         </AnalysisDetailCard></>}>
-      {projected ? <ProjectedOfferingDilution read={projected} /> : null}
       {useDilutionDetail && dilutionModel ? (
         <DilutionOfferingTemplate
           eventLabel={eventBadge.label}

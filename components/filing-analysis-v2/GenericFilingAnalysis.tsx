@@ -82,7 +82,6 @@ type GenericFilingAnalysisProps = {
   eventTone: BadgeTone;
   filingId: string;
   filing: GenericFilingAnalysisData;
-  filingFactsRenderer?: ReactNode;
   initialAuthenticated?: boolean;
   initialSaved?: boolean;
   initialWatched?: boolean;
@@ -111,7 +110,6 @@ export function GenericFilingAnalysis({
   eventTone,
   filingId,
   filing,
-  filingFactsRenderer,
   initialAuthenticated = false,
   initialSaved = false,
   initialWatched = false,
@@ -337,8 +335,6 @@ export function GenericFilingAnalysis({
                 </div>
               </div>
             </header>
-
-            {filingFactsRenderer}
 
             {priceRenderer || primaryAnalysis || showSummary || hasDetailRenderer ? (
               <div

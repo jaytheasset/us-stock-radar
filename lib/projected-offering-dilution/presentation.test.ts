@@ -35,17 +35,14 @@ test('unavailable and private facts never render a zero-percent projection', () 
   assert.ok(!html.includes('0%'));
 });
 
-test('projected facts preserve both current filing layouts and follow the title', () => {
-  const route = readFileSync('app/filings/[id]/page.tsx', 'utf8');
-  const layout = readFileSync('components/filing-analysis-v2/GenericFilingAnalysis.tsx', 'utf8');
-  assert.equal((route.match(/<ProjectedOfferingDilution/g) || []).length, 2);
-  assert.match(route, /filingFactsRenderer=\{projected/);
-  assert.ok(layout.indexOf('{filingFactsRenderer}', layout.indexOf('<h1>')) > layout.indexOf('</header>', layout.indexOf('<h1>')));
-  const document = readFileSync('components/filing-analysis-v2/AnalysisDetailDocument.tsx', 'utf8');
-  assert.ok(document.indexOf('{children}') > document.indexOf('<h1>'));
-  for (const path of ['app/filings/[id]/page.tsx', 'app/filings/archive/[id]/page.tsx']) {
+test('projected feature does not attach to Primary display or ingestion', () => {
+  for (const path of [
+    'app/filings/[id]/page.tsx',
+    'app/filings/archive/[id]/page.tsx',
+    'components/filing-analysis-v2/GenericFilingAnalysis.tsx',
+    'lib/secFilingAnalysisIngest.ts',
+  ]) {
     const source = readFileSync(path, 'utf8');
-    assert.match(source, /<AnalysisDetailDocument/);
-    assert.match(source, /<\/AnalysisDetailCard><\/>}>\s*\{projected|\) : null}<\/>}>\s*\{projected/);
+    assert.doesNotMatch(source, /ProjectedOfferingDilution|readProjectedFacts|filingFactsRenderer|conditionFamily:\s*['"]projected['"]/, path);
   }
 });
