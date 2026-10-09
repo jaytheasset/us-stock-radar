@@ -5645,49 +5645,6 @@ td {
   background: #ffffff;
 }
 
-/* Detail bodies retain their layouts; the product Shell owns the page chrome. */
-html .stock-detail-page.detail-shell-page,
-html[data-theme="dark"] .stock-detail-page.detail-shell-page {
-  --detail-divider: var(--sr-color-border);
-  min-width: 0;
-  color: var(--sr-color-text-primary);
-  background: transparent;
-  overflow-wrap: anywhere;
-}
-
-.stock-detail-page.detail-shell-page .stock-detail-shell {
-  width: min(100%, 1600px);
-  grid-template-columns: minmax(0, 1fr) 300px;
-  padding: var(--sr-space-4) var(--sr-page-gutter-desktop) var(--sr-space-8);
-}
-
-.detail-shell-page .stock-detail-source-line {
-  flex-wrap: wrap;
-}
-
-.detail-shell-page .full-text-content {
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-@media (max-width: 1180px) {
-  .stock-detail-page.detail-shell-page .stock-detail-shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 760px) {
-  .stock-detail-page.detail-shell-page .stock-detail-shell {
-    padding-right: var(--sr-page-gutter-mobile);
-    padding-left: var(--sr-page-gutter-mobile);
-  }
-
-  .detail-shell-page .stock-detail-rail {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .archive-notice-panel {
   display: grid;
   align-content: start;

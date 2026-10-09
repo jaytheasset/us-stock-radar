@@ -1,4 +1,5 @@
-import { StockRadarDetailShell } from "@/components/shell/StockRadarDetailShell";
+import { AnalysisDetailDocument, AnalysisDetailCard, AnalysisDetailImpact } from "@/components/filing-analysis-v2/AnalysisDetailDocument";
+import detailStyles from "@/components/filing-analysis-v2/GenericFilingAnalysis.module.css";
 import Link from "next/link";
 import { cache } from "react";
 import type { Metadata } from "next";
@@ -139,228 +140,188 @@ export default async function FilingArchiveDetailPage({ params }: FilingArchiveD
   const sourceLink = archiveEvent.sourceUrl || archiveEvent.primaryDocumentUrl;
 
   return (
-    <StockRadarDetailShell activeNavigationItem="filings" className="stock-detail-page archive-detail-page filing-archive-detail-page">
+    <AnalysisDetailDocument navigation="filings" title={archiveEvent.title} ticker={archiveEvent.ticker === "N/A" ? undefined : archiveEvent.ticker}
+      breadcrumb={<><Link href="/filings">Filings</Link><span>/ Archive</span></>}
+      timestamp={<><span>Filed</span><time>{archiveEvent.publishedAt}</time><span>SEC Filing</span></>}
+      identity={<><strong>{archiveEvent.ticker}</strong><span>{archiveEvent.exchange}</span><span>{archiveEvent.company}</span></>}
+      badges={<><span className={detailStyles.formLabel}>{archiveEvent.formType}</span><span className={detailStyles.formLabel}>Archive</span><AnalysisDetailImpact score={archiveEvent.score} signal={archiveEvent.signal} /></>}
+      rail={<><AnalysisDetailCard kind="rail" className="detail-score-card">
+        <h2>Filing Snapshot</h2>
+        <div className="detail-score-main">
+          <strong data-score-tone={getDirectionalScoreTone(archiveEvent.score, archiveEvent.signal)}>
+            {archiveEvent.score}
+          </strong>
+          <span>Impact</span>
+        </div>
+        <MetricRow label="Source Group" value="filings" />
+        <MetricRow label="Source Type" value="SEC Filing" />
+        <MetricRow label="Event Type" value={archiveEvent.eventType} />
+        <MetricRow label="Form Type" value={archiveEvent.formType} />
+      </AnalysisDetailCard>
 
-      <div className="stock-detail-shell">
-        <article className="stock-detail-main">
-          <div className="stock-detail-kicker-row">
-            <div className="stock-detail-breadcrumb">
-              <Link href="/filings">Filings</Link>
-              <span>/</span>
-              <span>Archive</span>
-            </div>
-            <div className="stock-detail-source-line">
-              <span>SEC Filing</span>
-              <span>Filed {archiveEvent.publishedAt}</span>
+        <AnalysisDetailCard kind="rail" className="source-confidence-card">
+          <h2>Source & Evidence</h2>
+          <div className="source-confidence-top">
+            <strong>{archiveEvent.source}</strong>
+            <span>Official Filing</span>
+          </div>
+          <MetricRow label="Issuer" value={archiveEvent.company} />
+          <MetricRow label="Filed" value={archiveEvent.publishedAt} />
+          {archiveEvent.accessionNumber ? <MetricRow label="Accession" value={archiveEvent.accessionNumber} /> : null}
+          {archiveEvent.cik ? <MetricRow label="CIK" value={archiveEvent.cik} /> : null}
+          <MetricRow label="Display Payload" value={archiveEvent.displayPayloadType || "none"} />
+          {sourceLink ? (
+            <a className="source-original-link" href={sourceLink} target="_blank" rel="noreferrer">
+              <span>View Original Filing</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          ) : (
+            <MetricRow label="Source Link" value="Unavailable" />
+          )}
+          {archiveEvent.primaryDocumentUrl && archiveEvent.primaryDocumentUrl !== archiveEvent.sourceUrl ? (
+            <a className="source-original-link" href={archiveEvent.primaryDocumentUrl} target="_blank" rel="noreferrer">
+              <span>View Primary Document</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          ) : null}
+        </AnalysisDetailCard>
+
+        {archiveEvent.archiveReason ? (
+          <AnalysisDetailCard kind="rail">
+            <h2>Archive Reason</h2>
+            <p>{archiveEvent.archiveReason}</p>
+          </AnalysisDetailCard>
+        ) : null}
+
+        {archiveEvent.keyEvidence.length ? (
+          <AnalysisDetailCard kind="rail">
+            <h2>Key Evidence</h2>
+            <ul>
+              {archiveEvent.keyEvidence.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </AnalysisDetailCard>
+        ) : null}</>}>
+      {archiveEvent.priceSeries ? (
+        <section className={`${detailStyles.chartSummaryGrid} ${detailStyles.chartSummaryGridSplit}`}>
+          <AnalysisDetailCard kind="renderer"><PriceChartCard mobileCollapsible
+            change={archiveEvent.change}
+            changeAmount={archiveEvent.changeAmount}
+            price={archiveEvent.price}
+            series={archiveEvent.priceSeries}
+            ticker={archiveEvent.ticker}
+            tone={archiveEvent.signal}
+          /></AnalysisDetailCard>
+
+          <AnalysisDetailCard kind="copy">
+            <h2>Brief Summary</h2>
+            <p>{archiveEvent.briefSummary}</p>
+          </AnalysisDetailCard>
+        </section>
+      ) : (
+        <AnalysisDetailCard kind="copy">
+          <h2>Brief Summary</h2>
+          <p>{archiveEvent.briefSummary}</p>
+        </AnalysisDetailCard>
+      )}
+
+      {archiveEvent.marketContext ? (
+        <AnalysisDetailCard kind="renderer"><SectorThemeContextPanel context={archiveEvent.marketContext} ticker={archiveEvent.ticker} /></AnalysisDetailCard>
+      ) : null}
+
+      {archiveEvent.proxyProposals.length ? <AnalysisDetailCard kind="renderer"><ArchiveProxyProposalAgenda proposals={archiveEvent.proxyProposals} /></AnalysisDetailCard> : null}
+
+      <AnalysisDetailCard kind="original" className="full-text-card archive-original-section">
+        <div className="card-heading-row">
+          <div>
+            <h2>Original Filing Text / Source Text</h2>
+            <p>{archiveEvent.sourceAvailabilityNote}</p>
+          </div>
+          {sourceLink ? (
+            <a href={sourceLink} target="_blank" rel="noreferrer">
+              View SEC Filing <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          ) : null}
+        </div>
+        {archiveEvent.originalHtml ? (
+          <SecFilingHtmlViewer
+            html={archiveEvent.originalHtml}
+            sourceUrl={archiveEvent.primaryDocumentUrl || archiveEvent.sourceUrl}
+            title={`${archiveEvent.formType} original SEC filing`}
+          />
+        ) : (
+          <SecFilingHtmlViewer html="" />
+        )}
+      </AnalysisDetailCard>
+
+      {archiveEvent.attachmentSnippets.length ? (
+        <AnalysisDetailCard kind="original" className="full-text-card archive-original-section">
+          <div className="card-heading-row">
+            <div>
+              <h2>Selected Attachment Snippets</h2>
+              <p>Available attachment text preserved from the SEC raw item.</p>
             </div>
           </div>
-
-          <section className="stock-detail-hero archive-detail-hero">
-            <div className="stock-detail-title-block">
-              <h1>{archiveEvent.title}</h1>
-              <div className="stock-detail-meta">
-                <span className="ticker-chip">
-                  {archiveEvent.exchange}:{archiveEvent.ticker}
-                </span>
-                <span>{archiveEvent.company}</span>
-                <span className="filing-form-pill">{archiveEvent.formType}</span>
-                <span className="delivery-badge archive">Archive</span>
-                <span className={`source-badge impact-badge ${archiveEvent.signal}`}>
-                  Impact{" "}
-                  <span data-score-tone={getDirectionalScoreTone(archiveEvent.score, archiveEvent.signal)}>
-                    {archiveEvent.score}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {archiveEvent.priceSeries ? (
-            <section className="stock-detail-top-grid">
-              <PriceChartCard
-                change={archiveEvent.change}
-                changeAmount={archiveEvent.changeAmount}
-                price={archiveEvent.price}
-                series={archiveEvent.priceSeries}
-                ticker={archiveEvent.ticker}
-                tone={archiveEvent.signal}
-              />
-
-              <section className="stock-detail-card archive-notice-panel">
-                <div>
-                  <h2>Brief Summary</h2>
-                  <p>{archiveEvent.briefSummary}</p>
-                </div>
+          <div className="full-text-content filing-text-content">
+            {archiveEvent.attachmentSnippets.map((snippet) => (
+              <section key={`${snippet.label}-${snippet.url}`}>
+                <h3>{snippet.label}</h3>
+                <p>{snippet.text}</p>
+                {snippet.url ? (
+                  <p>
+                    <a href={snippet.url} target="_blank" rel="noreferrer">
+                      Open attachment
+                    </a>
+                  </p>
+                ) : null}
               </section>
-            </section>
-          ) : (
-            <section className="stock-detail-card archive-notice-panel">
-              <div>
-                <h2>Brief Summary</h2>
-                <p>{archiveEvent.briefSummary}</p>
-              </div>
-            </section>
-          )}
+            ))}
+          </div>
+        </AnalysisDetailCard>
+      ) : null}
 
-          {archiveEvent.marketContext ? (
-            <SectorThemeContextPanel context={archiveEvent.marketContext} ticker={archiveEvent.ticker} />
-          ) : null}
-
-          {archiveEvent.proxyProposals.length ? <ArchiveProxyProposalAgenda proposals={archiveEvent.proxyProposals} /> : null}
-
-          <section className="stock-detail-card full-text-card archive-original-section">
-            <div className="card-heading-row">
-              <div>
-                <h2>Original Filing Text / Source Text</h2>
-                <p>{archiveEvent.sourceAvailabilityNote}</p>
-              </div>
-              {sourceLink ? (
-                <a href={sourceLink} target="_blank" rel="noreferrer">
-                  View SEC Filing <ExternalLink size={14} aria-hidden="true" />
-                </a>
-              ) : null}
+      {archiveEvent.documents.length ? (
+        <AnalysisDetailCard kind="original" className="full-text-card filing-original-card">
+          <div className="card-heading-row">
+            <div>
+              <h2>Attachment / Source Inventory</h2>
+              <p>Documents captured from the SEC filing detail page.</p>
             </div>
-            {archiveEvent.originalHtml ? (
-              <SecFilingHtmlViewer
-                html={archiveEvent.originalHtml}
-                sourceUrl={archiveEvent.primaryDocumentUrl || archiveEvent.sourceUrl}
-                title={`${archiveEvent.formType} original SEC filing`}
-              />
-            ) : (
-              <SecFilingHtmlViewer html="" />
-            )}
-          </section>
-
-          {archiveEvent.attachmentSnippets.length ? (
-            <section className="stock-detail-card full-text-card archive-original-section">
-              <div className="card-heading-row">
-                <div>
-                  <h2>Selected Attachment Snippets</h2>
-                  <p>Available attachment text preserved from the SEC raw item.</p>
-                </div>
-              </div>
-              <div className="full-text-content filing-text-content">
-                {archiveEvent.attachmentSnippets.map((snippet) => (
-                  <section key={`${snippet.label}-${snippet.url}`}>
-                    <h3>{snippet.label}</h3>
-                    <p>{snippet.text}</p>
-                    {snippet.url ? (
-                      <p>
-                        <a href={snippet.url} target="_blank" rel="noreferrer">
-                          Open attachment
+          </div>
+          <div className="full-text-content filing-text-content filing-template-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archiveEvent.documents.map((document) => (
+                  <tr key={`${document.label}-${document.url}`}>
+                    <td>
+                      {document.url ? (
+                        <a href={document.url} target="_blank" rel="noreferrer">
+                          {document.label}
                         </a>
-                      </p>
-                    ) : null}
-                  </section>
+                      ) : (
+                        document.label
+                      )}
+                      {document.isPrimary ? " (primary)" : ""}
+                      {document.description ? <small>{document.description}</small> : null}
+                    </td>
+                    <td>{document.type || "SEC document"}</td>
+                    <td>{document.textStatus}</td>
+                  </tr>
                 ))}
-              </div>
-            </section>
-          ) : null}
-
-          {archiveEvent.documents.length ? (
-            <section className="stock-detail-card full-text-card filing-original-card">
-              <div className="card-heading-row">
-                <div>
-                  <h2>Attachment / Source Inventory</h2>
-                  <p>Documents captured from the SEC filing detail page.</p>
-                </div>
-              </div>
-              <div className="full-text-content filing-text-content filing-template-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Document</th>
-                      <th>Type</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {archiveEvent.documents.map((document) => (
-                      <tr key={`${document.label}-${document.url}`}>
-                        <td>
-                          {document.url ? (
-                            <a href={document.url} target="_blank" rel="noreferrer">
-                              {document.label}
-                            </a>
-                          ) : (
-                            document.label
-                          )}
-                          {document.isPrimary ? " (primary)" : ""}
-                          {document.description ? <small>{document.description}</small> : null}
-                        </td>
-                        <td>{document.type || "SEC document"}</td>
-                        <td>{document.textStatus}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ) : null}
-        </article>
-
-        <aside className="stock-detail-rail">
-          <section className="stock-detail-card detail-score-card">
-            <h2>Filing Snapshot</h2>
-            <div className="detail-score-main">
-              <strong data-score-tone={getDirectionalScoreTone(archiveEvent.score, archiveEvent.signal)}>
-                {archiveEvent.score}
-              </strong>
-              <span>Impact</span>
-            </div>
-            <MetricRow label="Source Group" value="filings" />
-            <MetricRow label="Source Type" value="SEC Filing" />
-            <MetricRow label="Event Type" value={archiveEvent.eventType} />
-            <MetricRow label="Form Type" value={archiveEvent.formType} />
-          </section>
-
-          <section className="stock-detail-card source-confidence-card">
-            <h2>Source & Evidence</h2>
-            <div className="source-confidence-top">
-              <strong>{archiveEvent.source}</strong>
-              <span>Official Filing</span>
-            </div>
-            <MetricRow label="Issuer" value={archiveEvent.company} />
-            <MetricRow label="Filed" value={archiveEvent.publishedAt} />
-            {archiveEvent.accessionNumber ? <MetricRow label="Accession" value={archiveEvent.accessionNumber} /> : null}
-            {archiveEvent.cik ? <MetricRow label="CIK" value={archiveEvent.cik} /> : null}
-            <MetricRow label="Display Payload" value={archiveEvent.displayPayloadType || "none"} />
-            {sourceLink ? (
-              <a className="source-original-link" href={sourceLink} target="_blank" rel="noreferrer">
-                <span>View Original Filing</span>
-                <ExternalLink size={14} aria-hidden="true" />
-              </a>
-            ) : (
-              <MetricRow label="Source Link" value="Unavailable" />
-            )}
-            {archiveEvent.primaryDocumentUrl && archiveEvent.primaryDocumentUrl !== archiveEvent.sourceUrl ? (
-              <a className="source-original-link" href={archiveEvent.primaryDocumentUrl} target="_blank" rel="noreferrer">
-                <span>View Primary Document</span>
-                <ExternalLink size={14} aria-hidden="true" />
-              </a>
-            ) : null}
-          </section>
-
-          {archiveEvent.archiveReason ? (
-            <section className="stock-detail-card summary-card">
-              <h2>Archive Reason</h2>
-              <p>{archiveEvent.archiveReason}</p>
-            </section>
-          ) : null}
-
-          {archiveEvent.keyEvidence.length ? (
-            <section className="stock-detail-card summary-card">
-              <h2>Key Evidence</h2>
-              <ul>
-                {archiveEvent.keyEvidence.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </aside>
-      </div>
-    </StockRadarDetailShell>
+              </tbody>
+            </table>
+          </div>
+        </AnalysisDetailCard>
+      ) : null}
+    </AnalysisDetailDocument>
   );
 }
 

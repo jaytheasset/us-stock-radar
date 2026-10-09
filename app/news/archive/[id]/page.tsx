@@ -1,4 +1,5 @@
-import { StockRadarDetailShell } from "@/components/shell/StockRadarDetailShell";
+import { AnalysisDetailDocument, AnalysisDetailCard, AnalysisDetailImpact } from "@/components/filing-analysis-v2/AnalysisDetailDocument";
+import detailStyles from "@/components/filing-analysis-v2/GenericFilingAnalysis.module.css";
 import Link from "next/link";
 import { cache } from "react";
 import type { Metadata } from "next";
@@ -89,166 +90,129 @@ export default async function NewsArchiveDetailPage({ params }: NewsArchiveDetai
   const relatedNewsItems = dbPayload.relatedNews;
 
   return (
-    <StockRadarDetailShell activeNavigationItem="news" className="stock-detail-page archive-detail-page">
-
-      <div className="stock-detail-shell">
-        <article className="stock-detail-main">
-          <div className="stock-detail-kicker-row">
-            <div className="stock-detail-breadcrumb">
-              <Link href="/news">News</Link>
-              <span>/</span>
-              <span>Archive</span>
-            </div>
-            <div className="stock-detail-source-line">
-              <span>{archiveEvent.source}</span>
-              <span>{archiveEvent.publishedAt}</span>
-            </div>
+    <AnalysisDetailDocument navigation="news" title={archiveEvent.title} ticker={archiveEvent.ticker === "N/A" ? undefined : archiveEvent.ticker}
+      breadcrumb={<><Link href="/news">News</Link><span>/ Archive</span></>}
+      timestamp={<><time>{archiveEvent.publishedAt}</time><span>{archiveEvent.source}</span></>}
+      identity={<><strong>{archiveEvent.ticker}</strong><span>{archiveEvent.exchange}</span><span>{archiveEvent.company}</span></>}
+      badges={<><span className={detailStyles.formLabel}>Archive</span><AnalysisDetailImpact score={archiveEvent.impact} signal={archiveEvent.signal} /></>}
+      rail={<><AnalysisDetailCard kind="rail" className="recent-filings-card">
+        <div className="card-heading-row">
+          <div>
+            <h2>Recent Filings</h2>
+            <p>{archiveEvent.ticker} filings context</p>
           </div>
-
-          <section className="stock-detail-hero archive-detail-hero">
-            <div className="stock-detail-title-block">
-              <h1>{archiveEvent.title}</h1>
-              <div className="stock-detail-meta">
-                <span className="ticker-chip">
-                  {archiveEvent.exchange}:{archiveEvent.ticker}
-                </span>
-                <span>{archiveEvent.company}</span>
-                <span className="delivery-badge archive">Archive</span>
-                <span className={`source-badge impact-badge ${archiveEvent.signal}`}>
-                  Impact{" "}
-                  <span data-score-tone={getDirectionalScoreTone(archiveEvent.impact, archiveEvent.signal)}>
-                    {archiveEvent.impact}
-                  </span>
+          <Link href="/filings">View all</Link>
+        </div>
+        <div className={detailStyles.recentList}>
+          {recentFilingItems.map((filing) => (
+            <Link href="/filings" key={`${filing.form}-${filing.title}`}>
+              <span className={detailStyles.formLabel}>{filing.form}</span>
+              <div>
+                <strong>{filing.title}</strong>
+                <span>
+                  {filing.eventType} - {filing.filedAt}
                 </span>
               </div>
-            </div>
-          </section>
+              <b>{filing.score}</b>
+            </Link>
+          ))}
+        </div>
+      </AnalysisDetailCard>
 
-          <section className="stock-detail-top-grid">
-            <PriceChartCard
-              change={archiveEvent.change}
-              changeAmount={archiveEvent.changeAmount}
-              price={archiveEvent.price}
-              series={null}
-              ticker={archiveEvent.ticker}
-              tone={archiveEvent.signal}
-            />
+        <AnalysisDetailCard kind="rail" className="detail-score-card">
+          <h2>Event Snapshot</h2>
+          <div className="detail-score-main">
+            <strong data-score-tone={getDirectionalScoreTone(archiveEvent.impact, archiveEvent.signal)}>
+              {archiveEvent.impact}
+            </strong>
+            <span>Impact</span>
+          </div>
+          <MetricRow label="Source Group" value={archiveEvent.sourceGroup} />
+          <MetricRow label="Event Type" value={archiveEvent.eventType} />
+          <MetricRow label="Signal" value={archiveEvent.signal} />
+        </AnalysisDetailCard>
 
-            <section className="stock-detail-card archive-notice-panel">
-              <div>
-                <h2>Brief Summary</h2>
-                <p>{archiveEvent.archiveNote}</p>
-              </div>
-            </section>
-          </section>
+        <AnalysisDetailCard kind="rail" className="related-news-card">
+          <div className="card-heading-row">
+            <h2>Related News</h2>
+            <Link href="/news">View all</Link>
+          </div>
+          <div className={detailStyles.newsList}>
+            {relatedNewsItems.map((story) => (
+              <Link className={detailStyles.newsListItem} href="/news" key={story.title}>
+                <strong>{story.title}</strong>
+                <span>
+                  {story.source} - {story.age}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </AnalysisDetailCard>
 
-          {archiveEvent.marketContext ? (
-            <SectorThemeContextPanel context={archiveEvent.marketContext} ticker={archiveEvent.ticker} />
-          ) : null}
+        <AnalysisDetailCard kind="rail" className="alert-card">
+          <span>Premium</span>
+          <h2>Real-time alerts for this event type</h2>
+          <p>Track higher-impact news while archived items remain available in ticker history.</p>
+          <button type="button">Upgrade to Premium</button>
+        </AnalysisDetailCard>
 
-          <section className="stock-detail-card full-text-card archive-original-section">
-            <div className="card-heading-row">
-              <div>
-                <h2>Original Release Text</h2>
-                <p>Full source text preserved for reader review.</p>
-              </div>
-            </div>
-            {archiveEvent.originalHtml ? (
-              <div
-                className="full-text-content"
-                dangerouslySetInnerHTML={{ __html: archiveEvent.originalHtml }}
-              />
-            ) : (
-              <div className="full-text-content">
-                <p>
-                  The original article text is currently unavailable. Use the
-                  source link to view the publisher&apos;s copy.
-                </p>
-              </div>
-            )}
-          </section>
-        </article>
+        <AnalysisDetailCard kind="rail" className="source-confidence-card">
+          <h2>Source & Evidence</h2>
+          <div className="source-confidence-top">
+            <strong>{archiveEvent.source}</strong>
+            <span>{archiveEvent.sourceReleaseType}</span>
+          </div>
+          <MetricRow label="Source Type" value={archiveEvent.sourceType} />
+          <MetricRow label="Issuer" value={archiveEvent.company} />
+          <MetricRow label="Published" value={archiveEvent.publishedAt} />
+          <MetricRow label="Verification" value="Original source linked" />
+          <a className="source-original-link" href={archiveEvent.sourceUrl}>
+            <span>View Original Source</span>
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+        </AnalysisDetailCard></>}>
+      <section className={`${detailStyles.chartSummaryGrid} ${detailStyles.chartSummaryGridSplit}`}>
+        <AnalysisDetailCard kind="renderer"><PriceChartCard mobileCollapsible
+          change={archiveEvent.change}
+          changeAmount={archiveEvent.changeAmount}
+          price={archiveEvent.price}
+          series={null}
+          ticker={archiveEvent.ticker}
+          tone={archiveEvent.signal}
+        /></AnalysisDetailCard>
 
-        <aside className="stock-detail-rail">
-          <section className="stock-detail-card recent-filings-card">
-            <div className="card-heading-row">
-              <div>
-                <h2>Recent Filings</h2>
-                <p>{archiveEvent.ticker} filings context</p>
-              </div>
-              <Link href="/filings">View all</Link>
-            </div>
-            <div className="recent-filings-list">
-              {recentFilingItems.map((filing) => (
-                <Link href="/filings" key={`${filing.form}-${filing.title}`}>
-                  <span className="filing-form-chip">{filing.form}</span>
-                  <div>
-                    <strong>{filing.title}</strong>
-                    <span>
-                      {filing.eventType} - {filing.filedAt}
-                    </span>
-                  </div>
-                  <b>{filing.score}</b>
-                </Link>
-              ))}
-            </div>
-          </section>
+        <AnalysisDetailCard kind="copy">
+          <h2>Brief Summary</h2>
+          <p>{archiveEvent.archiveNote}</p>
+        </AnalysisDetailCard>
+      </section>
 
-          <section className="stock-detail-card detail-score-card">
-            <h2>Event Snapshot</h2>
-            <div className="detail-score-main">
-              <strong data-score-tone={getDirectionalScoreTone(archiveEvent.impact, archiveEvent.signal)}>
-                {archiveEvent.impact}
-              </strong>
-              <span>Impact</span>
-            </div>
-            <MetricRow label="Source Group" value={archiveEvent.sourceGroup} />
-            <MetricRow label="Event Type" value={archiveEvent.eventType} />
-            <MetricRow label="Signal" value={archiveEvent.signal} />
-          </section>
+      {archiveEvent.marketContext ? (
+        <AnalysisDetailCard kind="renderer"><SectorThemeContextPanel context={archiveEvent.marketContext} ticker={archiveEvent.ticker} /></AnalysisDetailCard>
+      ) : null}
 
-          <section className="stock-detail-card related-news-card">
-            <div className="card-heading-row">
-              <h2>Related News</h2>
-              <Link href="/news">View all</Link>
-            </div>
-            <div className="related-news-list">
-              {relatedNewsItems.map((story) => (
-                <Link href="/news" key={story.title}>
-                  <strong>{story.title}</strong>
-                  <span>
-                    {story.source} - {story.age}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section className="stock-detail-card alert-card">
-            <span>Premium</span>
-            <h2>Real-time alerts for this event type</h2>
-            <p>Track higher-impact news while archived items remain available in ticker history.</p>
-            <button type="button">Upgrade to Premium</button>
-          </section>
-
-          <section className="stock-detail-card source-confidence-card">
-            <h2>Source & Evidence</h2>
-            <div className="source-confidence-top">
-              <strong>{archiveEvent.source}</strong>
-              <span>{archiveEvent.sourceReleaseType}</span>
-            </div>
-            <MetricRow label="Source Type" value={archiveEvent.sourceType} />
-            <MetricRow label="Issuer" value={archiveEvent.company} />
-            <MetricRow label="Published" value={archiveEvent.publishedAt} />
-            <MetricRow label="Verification" value="Original source linked" />
-            <a className="source-original-link" href={archiveEvent.sourceUrl}>
-              <span>View Original Source</span>
-              <ExternalLink size={14} aria-hidden="true" />
-            </a>
-          </section>
-        </aside>
-      </div>
-    </StockRadarDetailShell>
+      <AnalysisDetailCard kind="original" className="full-text-card archive-original-section">
+        <div className="card-heading-row">
+          <div>
+            <h2>Original Release Text</h2>
+            <p>Full source text preserved for reader review.</p>
+          </div>
+        </div>
+        {archiveEvent.originalHtml ? (
+          <div
+            className="full-text-content"
+            dangerouslySetInnerHTML={{ __html: archiveEvent.originalHtml }}
+          />
+        ) : (
+          <div className="full-text-content">
+            <p>
+              The original article text is currently unavailable. Use the
+              source link to view the publisher&apos;s copy.
+            </p>
+          </div>
+        )}
+      </AnalysisDetailCard>
+    </AnalysisDetailDocument>
   );
 }
 

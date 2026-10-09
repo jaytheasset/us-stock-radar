@@ -1,4 +1,5 @@
-import { StockRadarDetailShell } from "@/components/shell/StockRadarDetailShell";
+import { AnalysisDetailDocument, AnalysisDetailCard, AnalysisDetailImpact } from "@/components/filing-analysis-v2/AnalysisDetailDocument";
+import detailStyles from "@/components/filing-analysis-v2/GenericFilingAnalysis.module.css";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
@@ -579,199 +580,159 @@ export default async function StockNewsDetailPage({ params }: StockDetailPagePro
   const showBullBearCases = shouldShowBullBearCases(event, profile);
 
   return (
-    <StockRadarDetailShell activeNavigationItem="news" className="stock-detail-page">
-
-      <div className="stock-detail-shell">
-        <article className="stock-detail-main">
-          <div className="stock-detail-kicker-row">
-            <div className="stock-detail-breadcrumb">
-              <Link href="/news">News</Link>
-              <span>/</span>
-              <span>Analysis</span>
+    <AnalysisDetailDocument navigation="news" title={event.title} ticker={isRealTicker(event.ticker) ? event.ticker : undefined}
+      breadcrumb={<><Link href="/news">News</Link><span>/ Analysis</span></>}
+      timestamp={<><time>{profile.detectedAt}</time><span>{event.source}</span></>}
+      identity={<>{getDetailIdentityChips(event, profile).map((chip, index) => index === 0 ? <strong key={chip}>{chip}</strong> : <span key={`${chip}-${index}`}>{chip}</span>)}</>}
+      badges={<AnalysisDetailImpact score={event.score} signal={event.signal} />}
+      rail={<>{!isNasdaqCorporateAction ? (
+        <AnalysisDetailCard kind="rail" className="recent-filings-card">
+          <div className="card-heading-row">
+            <div>
+              <h2>Recent Filings</h2>
+              <p>{event.ticker} filings context</p>
             </div>
-            <div className="stock-detail-source-line">
-              <span>{event.source}</span>
-              <span>{profile.detectedAt}</span>
-            </div>
+            <Link href="/filings">View all</Link>
           </div>
-
-          <section className="stock-detail-hero">
-            <div className="stock-detail-title-block">
-              <h1>{event.title}</h1>
-              <div className="stock-detail-meta">
-                {getDetailIdentityChips(event, profile).map((chip, index) => (
-                  <span className={index === 0 ? "ticker-chip" : undefined} key={`${chip}-${index}`}>
-                    {chip}
-                  </span>
-                ))}
-                <span className={`signal-badge ${event.signal}`}>{event.signal}</span>
-                <span className={`source-badge impact-badge ${event.signal}`}>
-                  Impact{" "}
-                  <span data-score-tone={getDirectionalScoreTone(event.score, event.signal)}>
-                    {event.score}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </section>
-
-          {useDilutionOfferingTemplate ? (
-            <NewsDilutionOfferingTemplate event={event} profile={profile} />
-          ) : (
-            <>
-              <section className="stock-detail-top-grid">
-                <PriceChartCard
-                  change={profile.change}
-                  changeAmount={profile.changeAmount}
-                  mobileCollapsible
-                  price={profile.price}
-                  series={profile.priceSeries}
-                  ticker={event.ticker}
-                  tone={event.signal}
-                />
-
-                <div className="stock-detail-card quick-analysis-panel">
-                  <div className="quick-take-card quick-take-block">
-                    <div className="card-heading-row">
-                      <h2>Quick Take</h2>
-                      <span>{profile.theme}</span>
-                    </div>
-                    <p>{profile.quickTake}</p>
-                    <div className="detail-chip-row">
-                      <span>{eventBadge.label}</span>
-                      <span>{event.impact} impact</span>
-                      <span>{event.deliveryLevel}</span>
-                    </div>
-                  </div>
-
-                  {showBullBearCases ? (
-                    <div className="quick-case-grid">
-                      <CaseList title="Positive" tone="bullish" items={profile.bullCase} />
-                      <CaseList title="Negative" tone="bearish" items={profile.bearCase} />
-                    </div>
-                  ) : null}
+          <div className={detailStyles.recentList}>
+            {profile.recentFilings.slice(0, 4).map((filing) => (
+              <Link href="/filings" key={`${filing.form}-${filing.title}`}>
+                <span className={detailStyles.formLabel}>{filing.form}</span>
+                <div>
+                  <strong>{filing.title}</strong>
+                  <span>{filing.eventType} - {filing.filedAt}</span>
                 </div>
-              </section>
+                <b>{filing.score}</b>
+              </Link>
+            ))}
+          </div>
+        </AnalysisDetailCard>
+      ) : null}
 
-              <section className="stock-detail-card-grid two-up insight-summary-grid">
-                <AnalysisCard title="Why It Matters" body={profile.whyItMatters} />
-                <section className="stock-detail-card summary-card">
-                  <h2>Summary</h2>
-                  <p>{profile.summary}</p>
-                </section>
-              </section>
+        <AnalysisDetailCard kind="rail" className="detail-score-card">
+          <h2>Event Snapshot</h2>
+          <div className="detail-score-main">
+            <strong data-score-tone={getDirectionalScoreTone(event.score, event.signal)}>
+              {event.score}
+            </strong>
+            <span>Impact</span>
+          </div>
+          <MetricRow label="Source Group" value={event.sourceGroup} />
+          <MetricRow label="Event Type" value={eventBadge.label} />
+          <MetricRow label="Signal" value={event.signal} />
+        </AnalysisDetailCard>
 
-              <section className="stock-detail-card-grid two-up insight-summary-grid">
-                <AnalysisList title="Key Evidence" items={profile.keyEvidence} />
-                <AnalysisList title="What To Watch Next" numbered items={profile.watchNext} />
-              </section>
-
-              {!isNasdaqCorporateAction ? <SectorThemeContextPanel context={profile.context} ticker={event.ticker} /> : null}
-            </>
-          )}
-
-        </article>
-
-        <aside className="stock-detail-rail">
-          {!isNasdaqCorporateAction ? (
-          <section className="stock-detail-card recent-filings-card">
-            <div className="card-heading-row">
-              <div>
-                <h2>Recent Filings</h2>
-                <p>{event.ticker} filings context</p>
-              </div>
-              <Link href="/filings">View all</Link>
-            </div>
-            <div className="recent-filings-list">
-              {profile.recentFilings.slice(0, 4).map((filing) => (
-                <Link href="/filings" key={`${filing.form}-${filing.title}`}>
-                  <span className="filing-form-chip">{filing.form}</span>
-                  <div>
-                    <strong>{filing.title}</strong>
-                    <span>{filing.eventType} - {filing.filedAt}</span>
-                  </div>
-                  <b>{filing.score}</b>
-                </Link>
-              ))}
-            </div>
-          </section>
-          ) : null}
-
-          <section className="stock-detail-card detail-score-card">
-            <h2>Event Snapshot</h2>
-            <div className="detail-score-main">
-              <strong data-score-tone={getDirectionalScoreTone(event.score, event.signal)}>
-                {event.score}
-              </strong>
-              <span>Impact</span>
-            </div>
-            <MetricRow label="Source Group" value={event.sourceGroup} />
-            <MetricRow label="Event Type" value={eventBadge.label} />
-            <MetricRow label="Signal" value={event.signal} />
-          </section>
-
-          {!isNasdaqCorporateAction ? (
-          <section className="stock-detail-card related-news-card">
+        {!isNasdaqCorporateAction ? (
+          <AnalysisDetailCard kind="rail" className="related-news-card">
             <div className="card-heading-row">
               <h2>Related News</h2>
               <Link href="/news">View all</Link>
             </div>
-            <div className="related-news-list">
+            <div className={detailStyles.newsList}>
               {profile.relatedNews.slice(0, 4).map((story) => (
-                <Link href="/news" key={story.title}>
+                <Link className={detailStyles.newsListItem} href="/news" key={story.title}>
                   <strong>{story.title}</strong>
                   <span>{story.source} - {story.age}</span>
                 </Link>
               ))}
             </div>
-          </section>
-          ) : null}
+          </AnalysisDetailCard>
+        ) : null}
 
-          {!isNasdaqCorporateAction ? (
-          <section className="stock-detail-card alert-card">
+        {!isNasdaqCorporateAction ? (
+          <AnalysisDetailCard kind="rail" className="alert-card">
             <span>Premium</span>
             <h2>Real-time alerts for this event type</h2>
             <p>Track similar high-impact stock news, source changes, and follow-up catalysts.</p>
             <button type="button">Upgrade to Premium</button>
+          </AnalysisDetailCard>
+        ) : null}
+
+        <AnalysisDetailCard kind="rail" className="source-confidence-card">
+          <h2>Source & Evidence</h2>
+          <div className="source-confidence-top">
+            <strong>{event.source}</strong>
+            <span>{profile.sourceReleaseType}</span>
+          </div>
+          <MetricRow label="Source Type" value={profile.sourceType} />
+          <MetricRow label="Issuer" value={profile.issuer} />
+          <MetricRow label="Published" value={profile.publishedAt} />
+          <MetricRow label="Verification" value={profile.verification} />
+          <a className="source-original-link" href={profile.sourceUrl} target="_blank" rel="noreferrer">
+            <span>View Original Source</span>
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+        </AnalysisDetailCard></>}
+      original={profile.fullTextHtml ? (
+        <AnalysisDetailCard kind="original" className="full-text-card">
+          <div className="card-heading-row">
+            <div>
+              <h2>Original Release Text</h2>
+              <p>Full source text preserved for reader review. This section is not used for LLM analysis.</p>
+            </div>
+            <a href={profile.fullTextSourceUrl || profile.sourceUrl} target="_blank" rel="noreferrer">
+              Source
+            </a>
+          </div>
+          <div
+            className="full-text-content"
+            dangerouslySetInnerHTML={{ __html: profile.fullTextHtml }}
+          />
+        </AnalysisDetailCard>
+      ) : null}>
+      {useDilutionOfferingTemplate ? (
+        <NewsDilutionOfferingTemplate event={event} profile={profile} />
+      ) : (
+        <>
+          <section className={`${detailStyles.chartSummaryGrid} ${detailStyles.chartSummaryGridSplit}`}>
+            <AnalysisDetailCard kind="renderer"><PriceChartCard
+              change={profile.change}
+              changeAmount={profile.changeAmount}
+              mobileCollapsible
+              price={profile.price}
+              series={profile.priceSeries}
+              ticker={event.ticker}
+              tone={event.signal}
+            /></AnalysisDetailCard>
+
+            <AnalysisDetailCard>
+              <div className="card-heading-row">
+                <h2>Quick Take</h2>
+                <span>{profile.theme}</span>
+              </div>
+              <p>{profile.quickTake}</p>
+              <div className={detailStyles.classification}>
+                <span className={detailStyles.formLabel}>{eventBadge.label}</span>
+                <span className={detailStyles.formLabel}>{event.impact} impact</span>
+                <span className={detailStyles.formLabel}>{event.deliveryLevel}</span>
+              </div>
+            </AnalysisDetailCard>
           </section>
+
+          {showBullBearCases ? (
+            <section className={detailStyles.caseGrid}>
+              <CaseList title="Positive" tone="bullish" items={profile.bullCase} />
+              <CaseList title="Negative" tone="bearish" items={profile.bearCase} />
+            </section>
           ) : null}
 
-          <section className="stock-detail-card source-confidence-card">
-            <h2>Source & Evidence</h2>
-            <div className="source-confidence-top">
-              <strong>{event.source}</strong>
-              <span>{profile.sourceReleaseType}</span>
-            </div>
-            <MetricRow label="Source Type" value={profile.sourceType} />
-            <MetricRow label="Issuer" value={profile.issuer} />
-            <MetricRow label="Published" value={profile.publishedAt} />
-            <MetricRow label="Verification" value={profile.verification} />
-            <a className="source-original-link" href={profile.sourceUrl} target="_blank" rel="noreferrer">
-              <span>View Original Source</span>
-              <ExternalLink size={14} aria-hidden="true" />
-            </a>
+          <section className={detailStyles.analysisGrid}>
+            <AnalysisCard title="Why It Matters" body={profile.whyItMatters} />
+            <AnalysisDetailCard kind="copy">
+              <h2>Summary</h2>
+              <p>{profile.summary}</p>
+            </AnalysisDetailCard>
           </section>
-        </aside>
 
-        {profile.fullTextHtml ? (
-          <section className="stock-detail-card full-text-card">
-            <div className="card-heading-row">
-              <div>
-                <h2>Original Release Text</h2>
-                <p>Full source text preserved for reader review. This section is not used for LLM analysis.</p>
-              </div>
-              <a href={profile.fullTextSourceUrl || profile.sourceUrl} target="_blank" rel="noreferrer">
-                Source
-              </a>
-            </div>
-            <div
-              className="full-text-content"
-              dangerouslySetInnerHTML={{ __html: profile.fullTextHtml }}
-            />
+          <section className={detailStyles.analysisGrid}>
+            <AnalysisList title="Key Evidence" items={profile.keyEvidence} />
+            <AnalysisList title="What To Watch Next" numbered items={profile.watchNext} />
           </section>
-        ) : null}
-      </div>
-    </StockRadarDetailShell>
+
+          {!isNasdaqCorporateAction ? <AnalysisDetailCard kind="renderer"><SectorThemeContextPanel context={profile.context} ticker={event.ticker} /></AnalysisDetailCard> : null}
+        </>
+      )}
+    </AnalysisDetailDocument>
   );
 }
 
@@ -812,8 +773,8 @@ function NewsDilutionOfferingTemplate({ event, profile }: { event: FeedItem; pro
 
   return (
     <>
-      <section className="stock-detail-top-grid">
-        <PriceChartCard
+      <section className={`${detailStyles.chartSummaryGrid} ${detailStyles.chartSummaryGridSplit}`}>
+        <AnalysisDetailCard kind="renderer"><PriceChartCard
           change={profile.change}
           changeAmount={profile.changeAmount}
           mobileCollapsible
@@ -821,33 +782,29 @@ function NewsDilutionOfferingTemplate({ event, profile }: { event: FeedItem; pro
           series={profile.priceSeries}
           ticker={event.ticker}
           tone={event.signal}
-        />
+        /></AnalysisDetailCard>
 
         <NewsDilutionSnapshotCard model={model} />
       </section>
 
-      <section className="stock-detail-card dilution-long-summary">
+      <AnalysisDetailCard kind="copy">
         <h2>Dilution Summary</h2>
         {model.summaryParagraphs.map((paragraph) => (
           <p key={paragraph}>{paragraph}</p>
         ))}
-      </section>
+      </AnalysisDetailCard>
 
-      <NewsShareOverhangCard model={model} />
+      <AnalysisDetailCard kind="renderer"><NewsShareOverhangCard model={model} /></AnalysisDetailCard>
 
-      <SectorThemeContextPanel context={profile.context} ticker={event.ticker} />
+      <AnalysisDetailCard kind="renderer"><SectorThemeContextPanel context={profile.context} ticker={event.ticker} /></AnalysisDetailCard>
     </>
   );
 }
 
 function NewsDilutionSnapshotCard({ model }: { model: ReturnType<typeof buildNewsDilutionOfferingModel> }) {
   return (
-    <section className="stock-detail-card dilution-investor-card dilution-snapshot-panel">
-      <div className="dilution-investor-header">
-        <div>
-          <h2>Dilution Snapshot</h2>
-        </div>
-      </div>
+    <AnalysisDetailCard kind="copy" className="dilution-investor-card dilution-snapshot-panel">
+      <h2>Dilution Snapshot</h2>
 
       <div className="dilution-impact-metrics">
         {model.impactMetrics.map((metric) => (
@@ -858,7 +815,7 @@ function NewsDilutionSnapshotCard({ model }: { model: ReturnType<typeof buildNew
       <div className="dilution-warning-strip">
         <p>{model.investorTakeaway}</p>
       </div>
-    </section>
+    </AnalysisDetailCard>
   );
 }
 
@@ -3002,10 +2959,10 @@ function getExchange(ticker: string) {
 
 function AnalysisCard({ title, body }: { title: string; body: string }) {
   return (
-    <section className="stock-detail-card analysis-card">
+    <AnalysisDetailCard kind="copy">
       <h2>{title}</h2>
       <p>{body}</p>
-    </section>
+    </AnalysisDetailCard>
   );
 }
 
@@ -3023,17 +2980,17 @@ function AnalysisList({
   const ToneIcon = tone === "bullish" ? TrendingUp : tone === "bearish" ? TrendingDown : null;
 
   return (
-    <section className={`stock-detail-card analysis-card${tone ? ` ${tone}` : ""}`}>
+    <AnalysisDetailCard className={tone ? detailStyles[tone] : undefined}>
       <h2 className={ToneIcon ? `analysis-title ${tone}` : undefined}>
-        {ToneIcon ? <ToneIcon aria-hidden="true" strokeWidth={2.2} /> : null}
+        {ToneIcon ? <ToneIcon aria-hidden="true" size={18} strokeWidth={2.2} /> : null}
         <span>{title}</span>
       </h2>
-      <ol className={numbered ? "numbered" : undefined}>
+      <ol className={numbered ? detailStyles.numberedList : detailStyles.textList}>
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}
       </ol>
-    </section>
+    </AnalysisDetailCard>
   );
 }
 
@@ -3041,17 +2998,17 @@ function CaseList({ title, items, tone }: { title: string; items: string[]; tone
   const ToneIcon = tone === "bullish" ? TrendingUp : TrendingDown;
 
   return (
-    <div className={`case-list ${tone}`}>
-      <h2 className={`analysis-title ${tone}`}>
-        <ToneIcon aria-hidden="true" strokeWidth={2.2} />
+    <section className={`${detailStyles.card} ${detailStyles.caseCard} ${detailStyles[tone]}`}>
+      <h2>
+        <ToneIcon aria-hidden="true" size={18} strokeWidth={2.2} />
         <span>{title}</span>
       </h2>
-      <ol>
+      <ul>
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}
-      </ol>
-    </div>
+      </ul>
+    </section>
   );
 }
 
