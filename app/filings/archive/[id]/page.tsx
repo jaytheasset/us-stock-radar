@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { cache } from "react";
+import { ProjectedOfferingDilution } from '@/components/filing-analysis-v2/ProjectedOfferingDilution';
+import { readProjectedFacts } from '@/lib/projected-offering-dilution/repository';
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
@@ -136,6 +138,7 @@ export default async function FilingArchiveDetailPage({ params }: FilingArchiveD
   const archiveEvent = await loadArchiveFilingEvent(id);
   if (!archiveEvent) notFound();
   const sourceLink = archiveEvent.sourceUrl || archiveEvent.primaryDocumentUrl;
+  const projected = ['F-1','F-1/A'].includes(archiveEvent.formType) ? await readProjectedFacts(id) : null;
 
   return (
     <main className="feed-page stock-detail-page archive-detail-page filing-archive-detail-page">
@@ -238,6 +241,7 @@ export default async function FilingArchiveDetailPage({ params }: FilingArchiveD
             <SectorThemeContextPanel context={archiveEvent.marketContext} ticker={archiveEvent.ticker} />
           ) : null}
 
+          {projected ? <ProjectedOfferingDilution read={projected} /> : null}
           {archiveEvent.proxyProposals.length ? <ArchiveProxyProposalAgenda proposals={archiveEvent.proxyProposals} /> : null}
 
           <section className="stock-detail-card full-text-card archive-original-section">

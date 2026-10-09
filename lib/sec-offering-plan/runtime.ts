@@ -7,7 +7,10 @@ export interface OfferingProvider {journalId?:string;run(binding:Binding,attempt
 /** Same ai_runs lease/checkpoint protocol as O/S; the domain validator is separate. */
 export async function processOfferingPlan(id:string,provider:OfferingProvider,supplied?:Repository){
  const repo=supplied??await repository();
- const claimed=await rpc(repo,'sec_offering_plan_transition',{p_id:id,p_action:'claim'});if(!claimed.claimed)return {status:claimed.status};
+ const claimed=await rpc(repo,'sec_offering_plan_transition',{p_id:id,p_action:'claim'});if(!claimed.claimed){
+  if(!supplied&&['PASS','REVIEW_REQUIRED'].includes(claimed.status))await (await import('../projected-offering-dilution/repository.ts')).refreshProjectedForRun(id);
+  return {status:claimed.status};
+ }
  const token=String(claimed.token),transition=(action:string,value?:unknown)=>rpc(repo,'sec_offering_plan_transition',{p_id:id,p_action:action,p_token:token,p_value:value??null});
  let leaseError:unknown;const heartbeat=setInterval(()=>{void transition('heartbeat').catch(e=>{leaseError=e;});},20000);
  try{
@@ -28,6 +31,8 @@ export async function processOfferingPlan(id:string,provider:OfferingProvider,su
    const cp={status,raw:result.raw,rawHash:sha(result.rawBytesBase64?Buffer.from(result.rawBytesBase64,'base64'):result.raw),validated:validation?.value??null,validation,provider:result,evidenceRefs:validation?.value?evidenceRefs(validation.value):[]};
    if(leaseError)throw leaseError;await transition('checkpoint',cp);
   }
-  const saved=await transition('finish');return {status:saved.status};
+  const saved=await transition('finish');
+  if(!supplied&&['PASS','REVIEW_REQUIRED'].includes(saved.status))await (await import('../projected-offering-dilution/repository.ts')).refreshProjectedForRun(id);
+  return {status:saved.status};
  }finally{clearInterval(heartbeat);}
 }

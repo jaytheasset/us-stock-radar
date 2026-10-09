@@ -2,6 +2,7 @@ import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } fr
 import type { NtLifecycleReadResult } from "./ntLifecycleRuntime.ts";
 import type { TenderMonitorFacts } from "./tenderStructuredFacts.ts";
 import type { ProxyMonitorFacts } from "./proxyStructuredFacts.ts";
+import type { ReadResult as ProjectedFacts } from '../projected-offering-dilution/repository.ts';
 import { readEventFilingMetadata, registrationFilingAlertText, type EventFilingMetadata, type RegistrationFilingForm } from "./eventFilingMetadata.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "../sec-form25-identity/consumption.ts";
 import {
@@ -88,6 +89,7 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 }>;
 
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
+  readProjectedFacts?(eventId:string):Promise<ProjectedFacts>;
   readFilingMetadata?(eventId: string): Promise<EventFilingMetadata>;
   readEffectFacts?(eventId: string): Promise<EffectFacts>;
   readTenderFacts?(eventId: string): Promise<TenderMonitorFacts>;
@@ -116,6 +118,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
     ntAlert?: "notice" | "report";
     tenderAlert?: boolean;
     proxyAlert?: boolean;
+    projectedAlert?: {factId:string;conditions:unknown;scenario:string};
     filingForm?: RegistrationFilingForm;
     effectEvidence?: EffectEvidence;
   }>): Promise<ListingMonitorAlertWriteResult>;
@@ -146,11 +149,11 @@ const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
  * diagnostic and never prevent valid monitors from running.
  */
 export async function consumeListingMonitorAlertsForEvent(
-  input: Readonly<{ eventId: string; alertEventId?: string; conditionFamily?: "proxy" | "tender" | "filing" }>,
+  input: Readonly<{ eventId: string; alertEventId?: string; conditionFamily?: "proxy" | "tender" | "filing" | "projected" }>,
   dependencies: ListingMonitorAlertConsumerDependencies = defaultDependencies,
 ): Promise<ListingMonitorAlertConsumerResult> {
   const allMonitors = await dependencies.listActiveMonitors();
-  const listingMonitors = (input.conditionFamily === "proxy" || input.conditionFamily === "tender") ? { ...allMonitors,
+  const listingMonitors = (input.conditionFamily === "projected" || input.conditionFamily === "proxy" || input.conditionFamily === "tender") ? { ...allMonitors,
     monitors: allMonitors.monitors.filter(m => m.conditions.some(c => getReadyMonitorCondition(c.key)?.family === input.conditionFamily)) }
     : input.conditionFamily === "filing" ? { ...allMonitors,
       monitors: allMonitors.monitors.filter(m => m.conditions.some(c => c.key === "event.sec_form")) } : allMonitors;
@@ -178,6 +181,9 @@ export async function consumeListingMonitorAlertsForEvent(
     ? `sec_amendment_current_state_${amendmentState.reason}`
     : "";
   const readers: MonitorFactReaders = {
+    projected: input.conditionFamily === 'projected' && allConditions.some(c=>c.key.startsWith('projected.'))
+      ? await safeReadFacts(currentEventId,dependencies.readProjectedFacts??(await import('../projected-offering-dilution/repository.ts')).readProjectedFacts)
+      : {status:'not_ready',reason:'reader_not_requested'},
     filing: allConditions.some(c => c.key === "event.sec_form")
       ? await safeReadFacts(currentEventId, dependencies.readFilingMetadata ?? readEventFilingMetadata)
       : { status: "not_ready", reason: "reader_not_requested" },
@@ -318,6 +324,10 @@ export async function consumeListingMonitorAlertsForEvent(
           monitorId: evaluation.monitor.id,
           userId: evaluation.monitor.userId,
           createdAt: lineage.persistedAt,
+          ...(readers.projected?.status==='available' && evaluation.monitor.conditions.some(c=>c.key.startsWith('projected.'))
+            ? {projectedAlert:{factId:readers.projected.sourceExecutionId,conditions:evaluation.monitor.conditions,
+              scenario:evaluation.monitor.conditions.some(c=>c.key.endsWith('full_overallotment'))
+                ? evaluation.monitor.conditions.some(c=>c.key.endsWith('_base'))?'combined':'full_overallotment':'base'}} : {}),
           ...(evaluation.monitor.conditions.some(c => c.key === "event.sec_form") && readers.filing?.status === "available"
             ? { filingForm: readers.filing.facts.form } : {}),
           ...(readers.effect && hasEffect(evaluation.monitor.conditions)
@@ -446,6 +456,7 @@ function matchingLineage(
   readers: MonitorFactReaders,
   conditions: readonly Readonly<{ key: string }>[],
 ) {
+  if(conditions.some(c=>c.key.startsWith('projected.')))return readers.projected?.status==='available'?readers.projected:null;
   if (conditions.some(condition => condition.key === "event.sec_form")) {
     return readers.filing?.status === "available" ? readers.filing : null;
   }
@@ -505,10 +516,18 @@ export async function createListingMonitorAlert(input: Readonly<{
   ntAlert?: "notice" | "report";
   tenderAlert?: boolean;
   proxyAlert?: boolean;
+  projectedAlert?: {factId:string;conditions:unknown;scenario:string};
   filingForm?: RegistrationFilingForm;
   effectEvidence?: EffectEvidence;
 }>): Promise<ListingMonitorAlertWriteResult> {
   const repository = await import("../supabase.ts");
+  if(input.projectedAlert){
+    const saved=await repository.supabaseRpc('create_projected_offering_alert',{p_monitor_id:input.monitorId,p_event_id:input.eventId,
+      p_fact_id:input.projectedAlert.factId,p_conditions:input.projectedAlert.conditions,p_scenario:input.projectedAlert.scenario});
+    const row=Array.isArray(saved.data)?saved.data[0]:null;
+    if(!saved.ok||!row?.alert_id)return {status:'failed',monitorId:input.monitorId,error:saved.error??'Projected alert write failed'};
+    return {status:row.created_new?'created':'existing',monitorId:input.monitorId,alertId:String(row.alert_id)};
+  }
   if (input.effectEvidence) {
     const saved = await repository.supabaseRpc("create_effect_monitor_alert", {
       p_monitor_id: input.monitorId, p_event_id: input.eventId, p_evidence: input.effectEvidence,

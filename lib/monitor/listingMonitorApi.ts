@@ -37,6 +37,7 @@ export type ListingMonitorUpdateInput = Readonly<{
 }>;
 
 export type ListingMonitorAlertItem = Readonly<{
+  projectedScenario?: string;
   effectEvidence?: import("../sec-effect/reader.ts").EffectEvidence | null;
   id: string;
   monitorId: string | null;
@@ -214,11 +215,11 @@ async function resolveAlertRepository(): Promise<ListingMonitorAlertRepository> 
     list: ({ ownerId, monitorId, limit, offset }) => supabase.supabaseSelect(
       "user_alert_deliveries",
       {
-        select: "id,alert_event_id,listing_monitor_id,created_at,listing_match_evidence,effect_match_evidence",
+        select: "id,alert_event_id,listing_monitor_id,created_at,listing_match_evidence,effect_match_evidence,projected_monitor_id,projected_scenario",
         user_id: `eq.${ownerId}`,
         alert_domain: "eq.listing",
         alert_lane: "eq.listing_monitor",
-        ...(monitorId ? { listing_monitor_id: `eq.${monitorId}` } : {}),
+        ...(monitorId ? { or: `(listing_monitor_id.eq.${monitorId},projected_monitor_id.eq.${monitorId})` } : {}),
         order: "delivered_at.desc,id.desc",
         limit: String(limit),
         offset: String(offset),
@@ -283,10 +284,11 @@ function mapAlertRow(row: Record<string, unknown>): ListingMonitorAlertItem[] {
   if (typeof row.created_at !== "string" || !Number.isFinite(Date.parse(row.created_at))) return [];
   return [{
     id: row.id,
-    monitorId: typeof row.listing_monitor_id === "string" ? row.listing_monitor_id : null,
+    monitorId: typeof row.listing_monitor_id === "string" ? row.listing_monitor_id : typeof row.projected_monitor_id==='string'?row.projected_monitor_id:null,
     eventId: typeof row.alert_event_id === "string" ? row.alert_event_id : null,
     createdAt: row.created_at,
     matchEvidence: parseStoredForm4PurchaseMatchEvidence(row.listing_match_evidence),
+    ...(typeof row.projected_scenario==='string'?{projectedScenario:row.projected_scenario}:{}),
     ...(validEffectEvidence(row.effect_match_evidence) ? { effectEvidence: row.effect_match_evidence } : {}),
   }];
 }

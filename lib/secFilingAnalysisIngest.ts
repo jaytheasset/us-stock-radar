@@ -353,6 +353,12 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
     : null;
   const effectMonitorExecution = primaryPromptKey === "sec_effect_deterministic" && !options.suppressAlerts
     ? await runOwnershipMonitorConditionExecution(stringValue(persistedEvent.id)) : null;
+  // A public pair may have finished before Primary created its event. Retry only the saved fact's internal Alert.
+  // The reader requires persisted current O/S + Offering; no extraction, calculation fallback or enqueue here.
+  if(!options.suppressAlerts && ['F-1','F-1/A'].includes(String(proxyRecord(rawResult.rawItem.raw_payload).form_type))){
+    await consumeListingMonitorAlertsForEvent({eventId:stringValue(persistedEvent.id),conditionFamily:'projected'})
+      .catch(error=>({status:'failed',reason:String(error)}));
+  }
   const offeringMonitorRegistryExecution = stringValue(persistedEvent.event_type) === "offering"
     ? await runOfferingMonitorSiteAnalysisExecution({
         eventId: stringValue(persistedEvent.id),

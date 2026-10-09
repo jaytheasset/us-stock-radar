@@ -605,7 +605,14 @@ export function ListingMonitorManagement() {
             <ul>
               {alerts.map((alert) => (
                 <li className={alert.effectEvidence ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
-                  {alert.effectEvidence ? (
+                  {alert.projectedScenario ? (
+                    <>
+                      <strong>예상 O/S 증가·희석 — 공모 계획 기준</strong>
+                      <span>{alert.projectedScenario==='base'?'기본 시나리오':alert.projectedScenario==='combined'?'기본 및 초과배정 시나리오':'초과배정 전량 행사 시나리오'}</span>
+                      <span>실제 공모 완료 또는 실제 발행주식 수 증가를 의미하지 않습니다.</span>
+                      {alert.eventId?<Link href={`/filings/${alert.eventId}#projected-offering-dilution`}>예상값·원문 근거 보기</Link>:null}
+                    </>
+                  ) : alert.effectEvidence ? (
                     <>
                       <strong>Registration EFFECT confirmed</strong>
                       <span>{alert.effectEvidence.registrationForm} · {alert.effectEvidence.fileNumber} · CIK {alert.effectEvidence.cik}</span>
@@ -659,7 +666,7 @@ function ConditionDomainCards({
   }>[];
 }>) {
   const groups = groupListingMonitorConditionsByDomain(conditions);
-  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect"] as const).filter((id) =>
+  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect", "projected"] as const).filter((id) =>
     groups.some((group) => group.id === id) || (id === "corporate-actions" && proposals.length > 0),
   );
   const titles = {
@@ -668,6 +675,7 @@ function ConditionDomainCards({
     "listing-risk": "Listing Risk",
     "proxy": "Proxy",
     "effect": "Registration EFFECT",
+    "projected": "예상 공모 희석",
   } as const;
 
   return (

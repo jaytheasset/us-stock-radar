@@ -50,7 +50,7 @@ const EXPECTED = [
 ] as const;
 
 test("Monitor recommendations preserve existing presets and add the typed Proxy preset", () => {
-  const catalog = getMonitorPresetCatalog();
+  const catalog = getMonitorPresetCatalog().filter(p=>p.id!=='projected-offering-dilution');
   assert.equal(catalog.length, 4);
   assert.deepEqual(catalog.map(({ id, conditions }) => ({ id, conditions })), EXPECTED);
   assert.deepEqual(catalog.map((preset) => preset.title), [
@@ -73,7 +73,7 @@ test("Monitor recommendations preserve existing presets and add the typed Proxy 
 });
 
 test("each preset creates the exact direct Draft, Registry preview, and ready Review", () => {
-  const catalog = getMonitorPresetCatalog();
+  const catalog = getMonitorPresetCatalog().filter(p=>p.id!=='projected-offering-dilution');
   const expectedPreviews = [
     ["Price — Below $1", "Corporate action — Reverse stock split"],
     ["Price — Below $1", "Listing event — Listing deficiency notice"],
@@ -99,7 +99,7 @@ test("each preset creates the exact direct Draft, Registry preview, and ready Re
 });
 
 test("Add condition catalog exposes only the curated Common and domain choices", () => {
-  const groups = getMonitorAddConditionCatalog();
+  const groups = getMonitorAddConditionCatalog().filter(g=>g.id!=='projected');
   assert.deepEqual(groups.map(({ title, options }) => ({ title, count: options.length })), [
     { title: "Common", count: 1 },
     { title: "Corporate Actions", count: 1 },

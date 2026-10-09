@@ -3,6 +3,7 @@ import type { NtLifecycleReadResult } from "./monitor/ntLifecycleRuntime.ts";
 import type { S8MonitorFacts } from "./monitor/s8StructuredFacts.ts";
 import type { TenderMonitorFacts } from "./monitor/tenderStructuredFacts.ts";
 import type { ProxyMonitorFacts } from "./monitor/proxyStructuredFacts.ts";
+import type { ReadResult as ProjectedFacts } from './projected-offering-dilution/repository.ts';
 import { readEventFilingMetadata, type EventFilingMetadata } from "./monitor/eventFilingMetadata.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
@@ -106,6 +107,7 @@ export type ListingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type ListingMonitorMatcherDependencies = Readonly<{
+  readProjectedFacts?(eventId:string):Promise<ProjectedFacts>;
   readFilingMetadata?(eventId: string): Promise<EventFilingMetadata>;
   readTenderFacts?(eventId: string): Promise<TenderMonitorFacts>;
   readProxyFacts?(eventId: string): Promise<ProxyMonitorFacts>;
@@ -121,6 +123,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 }>;
 
 export type MonitorFactReaders = Readonly<{
+  projected?: ProjectedFacts;
   filing?: EventFilingMetadata;
   effect?: EffectFacts;
   tender?: TenderMonitorFacts;
@@ -291,6 +294,9 @@ export async function evaluateListingMonitorEvent(
     "read_current_event_ownership_facts",
   ));
   const readers: MonitorFactReaders = {
+    projected: conditions.some(c=>conditionUsesReader(c,'read_projected_offering_dilution'))
+      ? await safeReadFacts(input.eventId,dependencies.readProjectedFacts??(await import('./projected-offering-dilution/repository.ts')).readProjectedFacts)
+      : {status:'not_ready',reason:'reader_not_requested'},
     filing: conditions.some(condition => conditionUsesReader(condition, "read_event_filing_metadata"))
       ? await safeReadFacts(input.eventId, dependencies.readFilingMetadata ?? readEventFilingMetadata)
       : { status: "not_ready", reason: "reader_not_requested" },
@@ -393,13 +399,15 @@ function evaluateCondition(
     );
   }
   if (
-    (definition.source.reader !== "read_event_filing_metadata" && definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8" && definition.family !== "proxy" && definition.family !== "tender")
+    (definition.source.reader !== "read_event_filing_metadata" && definition.family !== "projected" && definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8" && definition.family !== "proxy" && definition.family !== "tender")
     || !definition.source.jsonPath
   ) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
   const current = definition.source.reader === "read_event_filing_metadata"
     ? readers.filing ?? { status: "not_ready" as const, reason: "reader_not_requested" }
+    : definition.family === "projected"
+    ? readers.projected ?? { status: "not_ready" as const, reason: "reader_not_requested" }
     : definition.family === "tender"
     ? readers.tender ?? { status: "not_ready" as const, reason: "reader_not_requested" }
     : definition.family === "proxy"
@@ -437,7 +445,7 @@ function evaluateCondition(
     return conditionResult(key, "ineligible", "reader_not_applicable");
   }
   const facts = current.facts;
-  if ((definition.family === "nt" || definition.family === "tender") && valueAtPath(facts, definition.source.jsonPath) === null) {
+  if ((definition.family === "projected" || definition.family === "nt" || definition.family === "tender") && valueAtPath(facts, definition.source.jsonPath) === null) {
     return conditionResult(key, "ineligible", "fact_unavailable");
   }
   const eligibilityError = factEligibilityError(facts, definition);

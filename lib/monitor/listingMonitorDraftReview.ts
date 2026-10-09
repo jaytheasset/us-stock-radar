@@ -206,6 +206,7 @@ export function formatListingMonitorConditionPreview(
 }
 
 export type ListingMonitorConditionDomain =
+  | "projected"
   | "effect"
   | "market"
   | "corporate-actions"
@@ -214,7 +215,7 @@ export type ListingMonitorConditionDomain =
 
 export type ListingMonitorConditionDomainGroup = Readonly<{
   id: ListingMonitorConditionDomain;
-  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Registration EFFECT";
+  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Registration EFFECT" | "예상 공모 희석";
   items: readonly Readonly<{
     condition: CanonicalListingMonitorCondition;
     index: number;
@@ -242,6 +243,7 @@ const CONDITION_DOMAIN_DEFINITIONS: readonly Readonly<{
     matches: (condition) => condition.key.startsWith("listing."),
   },
   { id: "proxy", title: "Proxy", matches: condition => condition.key.startsWith("proxy.") },
+  { id: "projected", title: "예상 공모 희석", matches: condition => condition.key.startsWith("projected.") },
   { id: "effect", title: "Registration EFFECT", matches: condition => condition.key.startsWith("effect.") },
 ];
 

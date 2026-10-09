@@ -97,7 +97,7 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect" | "projected";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -115,6 +115,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_tender_structured"
       | "read_event_filing_metadata"
       | "read_effect_registration"
+      | "read_projected_offering_dilution"
       | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
@@ -156,6 +157,23 @@ const publicCorporateActionStages = monitorableCorporateActionVocabulary(
 );
 
 const registry = [
+  ...([
+    ['issuer_new_shares_base','예상 신규 발행 주식 수 (공모 계획 기준)'],
+    ['projected_increase_percent_base','예상 O/S 증가율 (%)'],
+    ['projected_increase_percent_full_overallotment','초과배정 전량 행사 시 예상 O/S 증가율 (%)'],
+  ] as const).map<MonitorConditionDefinition>(([field,label])=>({
+    key:`projected.${field}`,valueType:'number',allowedOperators:['gte'],family:'projected',domain:'projected',monitorDomains:['listing'],
+    display:{label,numberFormat:{style:'decimal',maximumFractionDigits:4},operatorValueTemplates:{gte:'{value} 이상'}},description:label,numberValidation:{minimum:0},
+    source:{subject:'event',reader:'read_projected_offering_dilution',jsonPath:[field]},qualityCapability:['derived'],status:'READY',
+  })),
+  ...([
+    ['resale_only','기존 주주 재판매만 포함'],['has_prefunded_warrants','Pre-funded warrant 포함'],
+    ['has_warrants','Warrant 잠재 희석 포함'],['calculation_issue','계산 불가·일부 미확인 또는 직접값 충돌'],
+  ] as const).map<MonitorConditionDefinition>(([field,label])=>({
+    key:`projected.${field}`,valueType:'boolean',allowedOperators:['eq'],family:'projected',domain:'projected',monitorDomains:['listing'],
+    display:{label,booleanValueLabels:{true:'예',false:'아니오'}},description:`공모 계획 기준 ${label}`,
+    source:{subject:'event',reader:'read_projected_offering_dilution',jsonPath:[field]},qualityCapability:['derived'],status:'READY',
+  })),
   {
     key: "event.sec_form", valueType: "text", allowedOperators: ["eq", "in"],
     enumValues: ["S-4", "S-4/A", "F-4", "F-4/A"],
