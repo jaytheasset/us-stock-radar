@@ -5,6 +5,8 @@ import {buildSource as offeringSource} from '../sec-offering-plan/source.ts';
 import {PROJECTED_RETIRED_REASON} from './repository.ts';
 import {readOfferingImpact,readProjectedAlertForOwner} from './history.ts';
 import type {Repository} from '../sec-os-snapshot/repository.ts';
+import {readMatchingOfferingRun} from '../sec-os-snapshot/repository.ts';
+import {sha} from '../sec-os-snapshot/contract.ts';
 
 const id=(n:number)=>`00000000-0000-4000-a000-${String(n).padStart(12,'0')}`;
 async function fixture(){
@@ -90,4 +92,28 @@ test('unmaterialized peer lookup never substitutes a newer Offering run, another
   const rpc=f.calls.filter(c=>c.kind==='rpc');assert.equal(rpc.length,1);
   assert.deepEqual(rpc[0].query,{p_raw_id:id(1)});
  }
+});
+
+test('O/S peer navigation retains the exact selected run and raw identity without calculating',async()=>{
+ const f=await fixture(),run=f.runs[0];
+ assert.equal(await readMatchingOfferingRun(run,f.repo),id(3));
+ f.input.os.id=id(44);assert.equal(await readMatchingOfferingRun(run,f.repo),null);
+ f.input.os.id=id(2);f.input.raw={...f.raw,id:id(45)};
+ assert.equal(await readMatchingOfferingRun(run,f.repo),null);
+ assert.ok(f.calls.every(c=>c.kind==='rpc'&&c.name==='read_projected_offering_inputs'));
+});
+
+test('combined O/S peer navigation requires the original common invocation and immutable output',async()=>{
+ const raw='{"original":"Pré — £"}',checkpoint={raw,rawHash:sha(raw)};
+ const parent={id:'parent',raw_item_id:'raw',metadata:{combinedStatus:'COMPLETE',binding:{osRunId:'os',offeringRunId:'offering'},combinedCheckpoint:checkpoint}};
+ const run={id:'os',raw_item_id:'raw',prompt_key:'sec_os_snapshot',metadata:{executionKind:'derived_domain_view',combinedInvocationId:'parent'}};
+ const output=structuredClone(checkpoint);
+ const repo:Repository={async select(table,q){
+  if(table==='ai_runs'){assert.equal(q.id,'eq.parent');return {ok:true,data:[parent]};}
+  assert.equal(table,'ai_outputs');assert.equal(q.ai_run_id,'eq.parent');return {ok:true,data:[{payload:output}]};
+ },async rpc(){throw Error('Peer navigation must not calculate or write');}};
+ assert.equal(await readMatchingOfferingRun(run,repo),'offering');
+ run.id='different';await assert.rejects(readMatchingOfferingRun(run,repo),/combined_history_/);
+ run.id='os';run.raw_item_id='different';await assert.rejects(readMatchingOfferingRun(run,repo),/combined_history_/);
+ run.raw_item_id='raw';output.raw='changed';await assert.rejects(readMatchingOfferingRun(run,repo),/combined_history_/);
 });

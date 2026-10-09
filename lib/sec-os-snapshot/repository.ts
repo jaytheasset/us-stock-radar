@@ -56,3 +56,13 @@ export async function readSnapshot(id: string, repo?: Repository) {
   } catch { /* Missing/unready current raw is not proof of absence. */ }
   return {run,decisions,current};
 }
+
+/** Exact selected-run navigation only; no calculation or amendment fallback. */
+export async function readMatchingOfferingRun(run:Record<string,any>,repo:Repository):Promise<string|null>{
+  if(run.metadata?.executionKind==='derived_domain_view'){
+    const common=await (await import('../sec-combined-offering/repository.ts')).readCommonInvocation(run,repo);
+    return common.offeringRunId;
+  }
+  const pair=await rpc(repo,'read_projected_offering_inputs',{p_raw_id:run.raw_item_id});
+  return pair.raw?.id===run.raw_item_id&&pair.os?.id===run.id&&typeof pair.offering?.id==='string'?pair.offering.id:null;
+}

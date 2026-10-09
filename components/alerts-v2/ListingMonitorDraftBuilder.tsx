@@ -18,7 +18,7 @@ import {
 } from "@/lib/monitor/listingMonitorDraftReview";
 import type { ListingMonitorAlertItem } from "@/lib/monitor/listingMonitorApi";
 import type { CanonicalListingMonitorCondition, ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
-import type { MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
+import { hasRetiredMonitorConditions, type MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
 import {
   createMonitorPresetDraft,
@@ -483,6 +483,10 @@ export function ListingMonitorManagement() {
   }, []);
 
   async function setMonitorActive(monitor: ListingMonitor, isActive: boolean) {
+    if (isActive && hasRetiredMonitorConditions(monitor.conditions)) {
+      setMessage('This condition is retired and cannot be resumed.');
+      return;
+    }
     setActionId(monitor.id);
     setMessage("");
     try {
@@ -545,13 +549,15 @@ export function ListingMonitorManagement() {
         <p className={styles.emptyState}>No monitors yet. Open Custom alerts to create your first one.</p>
       ) : null}
       <div className={styles.monitorRows}>
-        {monitors.map((monitor) => (
-          <article key={monitor.id}>
+        {monitors.map((monitor) => {
+          const retired = hasRetiredMonitorConditions(monitor.conditions);
+          return <article key={monitor.id} data-retired={retired ? 'true' : undefined}>
             <div className={styles.monitorStatus}>
               <strong>{monitor.kind === "form4_insider_purchase" ? "Form 4 purchase alert" : "Custom alerts"}</strong>
-              <span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span>
+              <span data-active={!retired && monitor.isActive ? "true" : "false"}>{retired ? 'Retired condition' : monitor.isActive ? "Active" : "Paused"}</span>
             </div>
-            {monitor.kind === "form4_insider_purchase" ? (
+            {retired && <p>This condition no longer runs or creates alerts. Its saved settings are kept for reference.</p>}
+            {monitor.kind === "form4_insider_purchase" && !retired ? (
               <Form4PurchaseMonitorSummary
                 busy={actionId === monitor.id}
                 editing={editingId === monitor.id}
@@ -573,14 +579,14 @@ export function ListingMonitorManagement() {
             )}
             <div className={styles.monitorActions}>
               <span>Created {formatMonitorDate(monitor.createdAt)}</span>
-              <button
+              {(!retired || monitor.isActive) && <button
                 disabled={actionId === monitor.id}
                 onClick={() => void setMonitorActive(monitor, !monitor.isActive)}
                 type="button"
               >
                 {monitor.isActive ? <Pause aria-hidden="true" size={15} /> : <Play aria-hidden="true" size={15} />}
                 {monitor.isActive ? "Pause" : "Resume"}
-              </button>
+              </button>}
               <button
                 className={styles.deleteMonitor}
                 disabled={actionId === monitor.id}
@@ -590,8 +596,8 @@ export function ListingMonitorManagement() {
                 <Trash2 aria-hidden="true" size={15} /> Delete
               </button>
             </div>
-          </article>
-        ))}
+          </article>;
+        })}
       </div>
 
       {!authRequired ? (
@@ -605,7 +611,7 @@ export function ListingMonitorManagement() {
           ) : (
             <ul>
               {alerts.map((alert) => (
-                <li className={alert.effectEvidence ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
+                <li className={alert.effectEvidence || alert.projectedScenario ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
                   {alert.projectedScenario ? (
                     <ProjectedAlertDetails id={alert.id} scenario={alert.projectedScenario}/>
                   ) : alert.effectEvidence ? (

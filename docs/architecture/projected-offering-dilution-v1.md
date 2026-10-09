@@ -1,6 +1,38 @@
 # F-1 projected offering dilution v1
 
-## Current stage — automatic calculations retired, 2026-10-10
+## Current stage — direct values and historical UI, 2026-10-10
+
+Stage base: `d8bb3931df18d995671c1cb63ae86bc1f008e1bd`, existing detached candidate. This stage completes the authorized UI cleanup only. The calculation retirement below remains in force. **Actual authenticated journeys remain unverified, so this is not merge-ready.**
+
+- Existing administrator Offering/O/S exact-run pages retain direct values, original evidence, candidates and independent decision controls/history. The current calculation panel and calculation-conflict guidance are removed. Peer navigation uses the existing read-only same-filing binding; the added reverse O/S reader rejects substituted selected runs/raw IDs and validates the immutable common invocation for combined results. No amendment fallback or calculation occurs.
+- `OfferingPlanCard` shows literal quantities, prices, units, scenarios and individual evidence for components, depositary relationships, over-allotment, directly stated post-O/S and proceeds. Its ATM section shows recorded current/prior kinds, amounts, currencies, dates/text, qualification, basis and exact referenced securities. It performs no arithmetic. Missing historical `atm_terms`, an explicitly empty array, blank/not-stated quantities and actual zero remain distinct. Conditional warrant/pre-funded/resale wording is preserved.
+- Saved retired Monitor sets remain visible with a retired label, never an active label. Resume and mixed-set editing are absent; existing pause/delete controls are retained without changing stored state. General user copy stays English and retains `Custom alerts`; `News & filing alerts` is unchanged. No Primary page is used or modified.
+- Historical Projected Alerts render `recorded` values, original inputs, verified evidence and recorded approval references. The original zero/precision is retained with explicit historical/incomplete-or-incorrect warnings. No missing value becomes zero. Missing/unverifiable evidence is stated without substituting a newer source; absent approval is not described as administrator acceptance.
+
+Verification for this UI stage:
+
+| Check | Result |
+| --- | --- |
+| Projected + Monitor/Registry/Primary and new UI/reader regression | 364 PASS, 4 existing optional skips |
+| O/S / Offering / Combined | 37 / 45 / 25 PASS |
+| Alert / Filing UI | 76 / 46 PASS |
+| Compiler, other Monitor families and Alert management / Tender | 151 / 18 PASS |
+| Typecheck / normal Turbopack production build | PASS / PASS |
+| Current, staged and cumulative-main diff check | PASS |
+| Production component render fixtures, CSS viewports 1440×900, 900×900, 390×900 | PASS; no horizontal overflow or clipped content found |
+| Isolated browser fixture console warnings/errors | 0 / 0 |
+
+Test selections overlap and must not be summed. Tests and the production build ran with an external network guard; only the candidate build worker's exact loopback IPC was permitted. New render/reader tests cover individual evidence, literal zero and precision, r2 absence, conditional securities, exact peers, existing administrator gates/decisions and retired active/paused/mixed controls. React review retained immutable inputs, existing CSS, native accessible disclosures and type-only contract imports.
+
+Browser evidence is **isolated rendering, not authenticated E2E**. A temporary loopback server on `127.0.0.1:3132` rendered the actual administrator pages/AdminShell and actual Monitor/Alert components with existing shell theme CSS. Only auth/repository/GET boundaries were stubbed outside Git. The user app header/footer and real session/plan context were not exercised. Its CSP denied network connections and forms; no mutation control was submitted. Retained CAVA, PureCycle, Silvaco, Shimmick and iBio direct results/source excerpts were read unchanged; separate local-only fixtures covered reviews and archived Alerts. No source collection or re-extraction occurred. Full-page captures supplement IAB's physically clipped desktop viewport captures; CSS viewport sizes were measured separately from image pixels.
+
+Evidence: `C:/Users/PC/AppData/Local/Temp/projected-ui-retirement-1f6c-20261010/` (`REPORT.md`, screenshots, DOM snapshots, viewport metrics, input hashes, logs and reproducible external harness). The first incomplete theme harness capture is excluded from final acceptance. Actual logged-in Operations/non-admin/anonymous, owner/other-owner and Free/Pro journeys remain unverified: existing listing GET routes call `getOptionalCurrentUserId` → `ensureUserBootstrap`, which may write. The existing candidate tab was read once before being blanked; dev hot reload may have retriggered its GET effects, so no DB-write-zero audit is claimed for that earlier observation. No mutation command or DB audit was executed. This stage does not change authentication to bypass the restriction.
+
+No schema, prompt, migration, Registry, Primary, market O/S, auth, `.env`, shared configuration or DB state was intentionally changed. Actual GPT/provider/Offering Worker/O/S Worker/SEC collection calls: **0**. No calculation, approval save, Monitor save/pause/delete, new Alert or delivery was requested. Candidate server `3121` was left running; only the temporary fixture server `3132` was started and stopped. Port `3110` and DB ports `56322/56462/56562` were not operated.
+
+Handoff: permanent main `C:/Users/PC/Documents/Codex/US-Stock Radar` remains locked to `main`; local main ref `a1ee8ac75ecbe075b9a3e2a814cee41a21a84515`, cached `origin/main` `7fa1de18a5c9b6dc9454862c1d195ea6a773cefa`. Live GitHub and Vercel SHA/status/equality, DB migration state, external services and cron remain unverified and unchanged. No merge/push/deploy authorization. Stop after the local UI candidate commit for independent main review; do not restart retired calculation/Alert E2E.
+
+## Prior stage — automatic calculations retired, 2026-10-10
 
 This section supersedes the historical calculation/publication behavior below. Stage base: `597d0b3f1a2a1d3d3c69deac3d0af87c61accbc4`, existing detached candidate. This stage only disconnects execution and verifies offline boundaries; it does not complete the product UI or authorize integration.
 

@@ -3,7 +3,7 @@ import styles from '@/components/admin/AdminSection.module.css';
 import ui from '@/components/admin/OsSnapshotActions.module.css';
 import { requireAdminPermission } from '@/lib/admin/server';
 import { rolesHavePermission } from '@/lib/admin/policy';
-import { listSnapshots, readSnapshot } from '@/lib/sec-os-snapshot/repository';
+import { listSnapshots, readSnapshot, readMatchingOfferingRun, repository } from '@/lib/sec-os-snapshot/repository';
 import type { Block, OsRecord } from '@/lib/sec-os-snapshot/contract';
 import { OsSnapshotActions } from '@/components/admin/OsSnapshotActions';
 import { OsSnapshotRecord } from '@/components/admin/OsSnapshotRecord';
@@ -23,6 +23,7 @@ export default async function OsSnapshotsPage({ searchParams }: { searchParams: 
   const m = selected?.run.metadata, cp = m?.osCheckpoint, source = m?.binding.source;
   const candidates: OsRecord[] = cp?.validated?.review?.candidates ?? [];
   const latest = selected?.decisions.at(-1);
+  const offeringRunId = selected ? await readMatchingOfferingRun(selected.run, await repository()).catch(() => null) : null;
   const blocks: Block[] = source?.blocks ?? [];
   const recordCard = (row: OsRecord, index = 0) => <OsSnapshotRecord key={index} record={row} blocks={blocks.filter(b => row.evidence_blocks.includes(b.id))} />;
   return <div className={styles.page} style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
@@ -36,7 +37,8 @@ export default async function OsSnapshotsPage({ searchParams }: { searchParams: 
         <p><strong>분석 결과: {labels[m.osStatus] ?? '확인 필요'}</strong></p>
         {!selected.current && <p>현재 공시 원문과 일치하는지 확인이 필요합니다.</p>}
       </header>
-      {m.commonInvocation&&<p>공통 호출 {m.commonInvocation.id}의 O/S 결과입니다. <Link href={`/admin/data/offering-plans?id=${m.commonInvocation.offeringRunId}`}>대응 Offering 및 예상 증가량 보기</Link></p>}
+      {m.commonInvocation&&<p>공통 호출 {m.commonInvocation.id}의 O/S 직접 추출 결과입니다.</p>}
+      {offeringRunId&&<p><Link href={`/admin/data/offering-plans?id=${offeringRunId}`}>같은 공시의 Offering 직접 추출 결과 보기</Link></p>}
       <div className={ui.notice} aria-label="최근 관리자 결정">
         <strong>최근 검토: {latest ? actions[latest.action] ?? latest.action : '아직 없음'}</strong>
         {latest && <>{latest.action === 'approve' && <p>{candidateNames(latest.candidate_indexes)}</p>}<p>{latest.reason}</p><small>{displayTime(latest.created_at)}</small></>}

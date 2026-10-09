@@ -3,12 +3,10 @@ import styles from '@/components/admin/AdminSection.module.css';
 import ui from '@/components/admin/OsSnapshotActions.module.css';
 import {requireAdminPermission} from '@/lib/admin/server';
 import {rolesHavePermission} from '@/lib/admin/policy';
-import {listOfferingPlans,readOfferingPlan} from '@/lib/sec-offering-plan/repository';
+import {listOfferingPlans,readOfferingPlan,readMatchingOsRun,repository} from '@/lib/sec-offering-plan/repository';
 import type {Plan,Block} from '@/lib/sec-offering-plan/contract';
 import {OfferingPlanCard} from '@/components/admin/OfferingPlanCard';
 import {OfferingPlanActions} from '@/components/admin/OfferingPlanActions';
-import {readOfferingImpact} from '@/lib/projected-offering-dilution/history';
-import {ProjectedOfferingImpact} from '@/components/monitor/ProjectedOfferingImpact';
 export const dynamic='force-dynamic';
 const labels:Record<string,string>={ALL:'전체',QUEUED:'대기 중',RUNNING:'분석 중',PASS:'분석 완료',REVIEW_REQUIRED:'검토 필요',NO_DIRECT_OFFERING_PLAN:'직접 기재된 계획 없음',VALIDATION_FAILED:'검증 실패',TECHNICAL_FAILED:'실행 실패'};
 const actions:Record<string,string>={approve:'승인',hold:'보류',reject:'거절',retry:'재시도'};
@@ -17,7 +15,7 @@ export default async function OfferingPlansPage({searchParams}:{searchParams:Pro
  const [entries,selected]=await Promise.all([listOfferingPlans().catch(()=>null),params.id?readOfferingPlan(params.id).catch(()=>null):null]);
  const m=selected?.run.metadata,cp=m?.offeringCheckpoint,source=selected?.source,identity=selected?.identity,blocks=source?.blocks??[];
  const candidates:Plan[]=cp?.validated?.review?.candidates??[];
- const impact=selected?await readOfferingImpact(selected.run.id).catch(()=>null):null;
+ const osRunId=selected?await readMatchingOsRun(selected.run,await repository()).catch(()=>null):null;
  return <div className={styles.page} style={{minWidth:0,overflowWrap:'anywhere'}}>
   <header><h1>SEC Offering 계획 검토</h1><Link href="/admin/data">데이터 운영으로</Link><p>각 공시에 직접 기재된 계획·수정 조건입니다. 실제 판매나 closing 완료를 뜻하지 않습니다.</p></header>
   <nav className={ui.filters} aria-label="분석 상태 필터">{Object.entries(labels).map(([k,v])=><Link key={k} href={k==='ALL'?'?':`?status=${k}`} aria-current={(params.status??'ALL')===k?'page':undefined}>{v}</Link>)}</nav>
@@ -33,15 +31,7 @@ export default async function OfferingPlansPage({searchParams}:{searchParams:Pro
    {m.offeringStatus==='VALIDATION_FAILED'&&<p>원본 결과를 보존했습니다. 아래 검증 기록을 확인해 주세요.</p>}
    <OfferingPlanActions key={selected.run.id} id={selected.run.id} status={m.offeringStatus} candidateCards={candidates.map((p,i)=><OfferingPlanCard key={i} plan={p} blocks={blocks}/>)} canWrite={rolesHavePermission(access.roles,'data.run')} retrySafe={cp?.provider?.retrySafe===true}/>
    <section><h3>관리자 결정 이력</h3>{selected.decisions.length?selected.decisions.map(d=><article className={styles.card} key={d.id}><strong>{actions[d.action]}</strong><p>{d.reason}</p>{d.action==='approve'&&<p>승인 후보 {d.candidate_indexes.map((i:number)=>i+1).join(', ')}</p>}<small>{d.created_at} · {d.actor_user_id}</small></article>):<p>아직 없음</p>}</section>
-   <section aria-label="Projected offering impact">
-    {impact?.osRunId&&<p><Link href={`/admin/data/os-snapshots?id=${impact.osRunId}`}>View matching O/S record</Link></p>}
-    {impact?.history?<>
-     {!impact.history.current&&<p>This recorded estimate is currently ineligible for new matches.</p>}
-     {!impact.history.evidenceAvailable&&<p>Original evidence is currently unavailable; historical values are preserved.</p>}
-     <ProjectedOfferingImpact read={impact.history.read} appearance="admin"/>
-    </>:<><h3>Projected offering impact</h3><p>No eligible calculated pair has been saved for this Offering record. Review the matching inputs using the existing decisions above.</p></>}
-    <p>Input approval selects a candidate. It does not override a calculation conflict.</p>
-   </section>
+   {osRunId&&<p><Link href={`/admin/data/os-snapshots?id=${osRunId}`}>같은 공시의 O/S 직접 추출 결과 보기</Link></p>}
    <section><h3>같은 등록신고서의 공시별 조건</h3><p>{m.binding.family.key??(m.binding.family.status==='conflicting'?'등록번호 충돌: 연결하지 않음':'공식 등록번호 미확인: 연결하지 않음')}</p>
     <div className={ui.cards}>{selected.family.map(r=><article className={ui.record} key={r.id}><h4><Link href={`?id=${r.id}`}>{r.filing.form} · {r.filing.accession}</Link></h4><p>{r.filing.filing_date} · {labels[r.status]}</p>{r.plan&&<OfferingPlanCard plan={r.plan}/>}</article>)}</div>
    </section>
