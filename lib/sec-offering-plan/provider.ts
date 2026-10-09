@@ -30,17 +30,20 @@ async function capture(dir:string):Promise<Pick<ProviderResult,'raw'|'rawBytesBa
 /** Durable host-local process journal. Never infer "uncalled" from an expired DB lease. */
 export class CodexCliOfferingProvider implements OfferingProvider {
   executable: string; root: string; runner: RunProcess; journalId: string;
-  constructor(options:{executable:string;root:string;runner?:RunProcess}) {
+  namespace: string; contract: (binding:Binding)=>{schemaText:string;promptText:string};
+  constructor(options:{executable:string;root:string;runner?:RunProcess;execution?:{namespace:'combined';contract:(binding:Binding)=>{schemaText:string;promptText:string}}}) {
     if (!isAbsolute(options.executable) || !isAbsolute(options.root)) throw Error('offering_absolute_provider_paths_required');
     if (/\.(cmd|ps1|bat)$/i.test(options.executable)) throw Error('offering_native_executable_required');
     this.executable=options.executable;this.root=resolve(options.root);this.runner=options.runner??runProcess;
     this.journalId=hostname()+':'+this.root;
+    this.namespace=options.execution?.namespace??'offering';
+    this.contract=options.execution?.contract??(binding=>getContract(binding.contractVersion,binding));
     const repo=resolve(process.cwd());if(this.root===repo || this.root.startsWith(repo+ '\\') || this.root.startsWith(repo+'/')) throw Error('offering_journal_must_be_outside_repository');
   }
   async run(binding: Binding, attempt: number, recoverOnly=false): Promise<ProviderResult> {
-    const {schemaText,promptText}=getContract(binding.contractVersion,binding);
+    const {schemaText,promptText}=this.contract(binding);
     if(binding.providerProfile!==PROFILE) return {raw:'',stdout:'',stderr:'Provider profile unavailable; retained job was not executed.',exitCode:null,cliVersion:'not_started',startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),technicalError:'provider_profile_mismatch',retrySafe:false};
-    const dir=join(this.root,'offering',binding.id,String(attempt)), resultPath=join(dir,'result.json');
+    const dir=join(this.root,this.namespace,binding.id,String(attempt)), resultPath=join(dir,'result.json');
     await mkdir(dir,{recursive:true});
     if(await exists(resultPath)) {
       const saved:ProviderResult=JSON.parse(await readFile(resultPath,'utf8'));
@@ -76,7 +79,7 @@ export class CodexCliOfferingProvider implements OfferingProvider {
     await handle.writeFile(JSON.stringify({host:hostname(),workerPid:process.pid,marker:markerPath}));await handle.sync();await handle.close();
     try {
       if(attempt>1) {
-        const prior=JSON.parse(await readFile(join(this.root,'offering',binding.id,String(attempt-1),'result.json'),'utf8'));
+        const prior=JSON.parse(await readFile(join(this.root,this.namespace,binding.id,String(attempt-1),'result.json'),'utf8'));
         if(prior.raw || prior.rawBytesBase64 || !prior.retrySafe) throw Error('offering_retry_forbidden');
       }
       let cliVersion='not_started';

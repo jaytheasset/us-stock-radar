@@ -61,3 +61,24 @@ test('warrant-only offer has zero immediate issuance and unavailable potential, 
  const i=input(fixture('nucana-f1a'));i.offering.value.plan.components=i.offering.value.plan.components.filter(c=>c.security_type==='warrants'||c.security_type==='prefunded_warrants');
  const f=calculate(i.os,i.offering)!;assert.equal(f.issuer_new_shares_base,0);assert.equal(f.potential_warrant_shares,null);assert.equal(f.resale_only,false);
 });
+
+test('official domestic common_stock calculates issuer and resale separately; unsupported aliases remain unavailable',()=>{
+ const i=input(fixture('birkenstock-f1a'));
+ i.os.value.filing.form='S-1';i.offering.value.filing.form='S-1';
+ for(const c of i.offering.value.plan.components)c.security_type='common_stock';
+ const f=calculate(i.os,i.offering)!;assert.equal(f.issuer_new_shares_base,10752688);assert.equal(f.resale_shares,21505376);
+ assert.equal(f.calculation_contract_version,'projected_offering_dilution_v1-calc-r2');
+ i.offering.value.plan.components[0].security_type='common_shares';assert.equal(calculate(i.os,i.offering)!.issuer_new_shares_base,null);
+ i.os.value.filing.form='424B2';i.offering.value.filing.form='424B2';assert.equal(calculate(i.os,i.offering),null);
+});
+test('exact scenario conflict gates its percentage only; unknown scenario and unlike units are never guessed',()=>{
+ const i=input(fixture('birkenstock-f1a')),c=i.offering.value.plan.components[0];
+ i.offering.value.plan.post_offering_os=[{security_label:c.security_label,quantity:'777',unit:c.quantity.unit,scenario:'base',evidence_blocks:['s']}];
+ let f=calculate(i.os,i.offering)!;
+ assert.equal(f.calculation_status,'CONFLICT');assert.ok(f.ineligible_numeric_fields!.includes('projected_increase_percent_base'));
+ assert.ok(!f.ineligible_numeric_fields!.includes('issuer_new_shares_base'));
+ i.offering.value.plan.post_offering_os[0].scenario='after potential warrant exercise';f=calculate(i.os,i.offering)!;
+ assert.notEqual(f.calculation_status,'CONFLICT');assert.ok(f.unavailable_reason.includes('direct_post_scenario_not_comparable'));
+ i.offering.value.plan.post_offering_os[0].scenario='base';i.offering.value.plan.post_offering_os[0].unit='ADS';
+ assert.notEqual(calculate(i.os,i.offering)!.calculation_status,'CONFLICT');
+});

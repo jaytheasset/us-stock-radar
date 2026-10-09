@@ -165,3 +165,54 @@ GitHub main, deployed Vercel commit/equality, current local/remote migrations,
 environment/external services and cron are unverified and unchanged this stage.
 No DB writes, server/3110 operations, merge, push or deployment. Main independently
 reviews acceptance and changed files before integration; push/deploy are not authorized.
+
+
+## C1 — durable execution and common calculation boundary (2026-10-10)
+
+Base `f4ab8696`; retains A/B and the four restored Primary files. SEC raw ingestion
+routes only the six supported domestic forms to one common invocation; F1 keeps
+its two independent paths. A complete normal primary is reused; extra retained
+HTML is stored only when the normal primary was truncated. No Primary hook,
+canonical share-count write, Registry apply, cron or queue scan was introduced.
+
+The common parent reuses ai_runs/ai_outputs, the shared provider lock, durable
+lease, invocation intent, frozen UTF-8 output and journal recovery. Uncertain
+invocations cannot be recalled. Its two terminal domain views explicitly carry
+executionKind=derived_domain_view and the common invocation identity; they are
+not two extractions. Readers verify exact role/child ID, contract and source
+binding, parent checkpoint/output/hash, independent validation and exact domain
+projection/output equality. One invalid domain cannot publish a Projected pair.
+A latest pending/failed parent cannot fall back to an older successful pair.
+
+Projected retains fact kind projected_offering_dilution_v1, with immutable
+calculation revision projected_offering_dilution_v1-calc-r2. This revision is in
+the fact ID and Alert key; old facts are not overwritten. Official common_stock
+is supported. An exact-class/unit direct value is comparable only for exact
+base/full_overallotment scenario labels (plus legacy null); free scenario prose
+is never interpreted. A conflict gates the affected post-O/S/percentage fields,
+while independent known issuance remains usable. Approval cannot clear it.
+Existing generic/filing evaluation can read an already materialized Projected
+fact for late events, without a Primary save hook or read-time writes.
+
+Migrations 20261009175018 and 20261009180530 were iterated as SQL only on the
+candidate-owned DB56462; no history entries were written there. Fresh isolated
+DB56562 (project offering-migration-1f6c-20261010) applied all 141 repository
+migrations in order, with history confirmed and seven function definitions,
+invoker flags and grants equal to the iteration DB. CLI post-start diagnostic
+reported an internal loopback connection error; it is not an advisors PASS.
+Direct migration-history/object verification passed. No shared56322/remote DB
+was used. Existing fixture rows and unresolved invocation journals remain.
+
+Validation: focused unit selection 60 PASS; Offering45 PASS; O/S37 PASS;
+Projected/Monitor/Registry/Primary334 PASS +4 skips; typecheck and diff check PASS.
+New isolated report: combined-durable-1f6c-gELUf6 under the host temp directory:
+five new local-only raw fixtures, three mock invocations, actual GPT0. It verifies
+100+20=120, resale5, increase20%, three saves yielding one fact, independent
+invalid-domain exclusion, parent recovery, latest-parent exclusion, private RPC
+roles and immutable outputs. An initial rerun hit an existing synthetic accession
+before inserting anything; the verifier now allocates unused local fixture
+accessions instead of deleting old evidence.
+
+Product admin/Alert integration, live extraction, authenticated current-code E2E
+and final production build are still pending C2; earlier UI evidence is not
+current acceptance evidence. Evidence: host temp offering-product-1f6c-20261010.

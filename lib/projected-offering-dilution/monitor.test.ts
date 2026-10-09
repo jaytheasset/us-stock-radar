@@ -23,13 +23,24 @@ test('existing matcher compares available values; null/fingerprint/review gate c
  assert.equal(evaluateMonitorConditions({...readers,projected:{...available,facts:{...facts,projected_increase_percent_base:null}}},[{...conditions[0],value:0}],{evaluationDate:'2026-10-09'}).status,'ineligible');
  assert.equal(evaluateMonitorConditions({...readers,projected:notReady},conditions,{evaluationDate:'2026-10-09'}).status,'ineligible');
 });
-test('existing consumer evaluates only explicit publication trigger, propagates fact/scenario and retries idempotently',async()=>{
+
+test('direct-post conflict cannot match affected percentage, while known issuance and issue flags remain usable',()=>{
+ const projected={...available,facts:{...facts,calculation_status:'CONFLICT' as const,ineligible_numeric_fields:['projected_increase_percent_base']}};
+ const readers={projected,listing:notReady,corporateAction:notReady,ownership:notReady};
+ const check=(key:string,value:number|boolean)=>evaluateMonitorConditions(readers,[{key,operator:typeof value==='number'?'gte':'eq',value}],{evaluationDate:'2026-10-09'});
+ assert.equal(check('projected.projected_increase_percent_base',0).status,'ineligible');
+ assert.equal(check('projected.projected_increase_percent_full_overallotment',10).status,'match');
+ assert.equal(check('projected.issuer_new_shares_base',10).status,'match');
+ assert.equal(check('projected.calculation_issue',true).status,'match');
+});
+test('existing consumer evaluates publication and late event with the same fact/scenario and idempotent writer',async()=>{
  let current:ReadResult=available;let reads=0;const seen=new Set<string>();
  const deps:ListingMonitorAlertConsumerDependencies={readProjectedFacts:async()=>{reads++;return current;},
   listActiveMonitors:async()=>({monitors:[{id:'condition',userId:'owner',domain:'listing',conditions,isActive:true,createdAt:'2026-01-01',updatedAt:'2026-01-01'}],diagnostics:[]}),
   createAlert:async i=>{assert.equal(i.projectedAlert?.factId,'derived-fact');assert.equal(i.projectedAlert?.scenario,'base');assert.deepEqual(i.projectedAlert?.conditions,conditions);const exists=seen.has(i.monitorId);seen.add(i.monitorId);return {status:exists?'existing':'created',monitorId:i.monitorId};},now:()=>new Date('2026-10-09')};
- assert.equal((await consumeListingMonitorAlertsForEvent({eventId:'event'},deps)).createdCount,0);assert.equal(reads,0);
- assert.equal((await consumeListingMonitorAlertsForEvent({eventId:'event',conditionFamily:'projected'},deps)).createdCount,1);
+ assert.equal((await consumeListingMonitorAlertsForEvent({eventId:'event',conditionFamily:'filing'},deps)).createdCount,1);assert.equal(reads,1);
+ assert.equal((await consumeListingMonitorAlertsForEvent({eventId:'event'},deps)).existingCount,1);
+ assert.equal((await consumeListingMonitorAlertsForEvent({eventId:'event',conditionFamily:'projected'},deps)).existingCount,1);
  assert.equal((await consumeListingMonitorAlertsForEvent({eventId:'event',conditionFamily:'projected'},deps)).existingCount,1);
  current=notReady;assert.equal((await consumeListingMonitorAlertsForEvent({eventId:'event',conditionFamily:'projected'},deps)).writes.length,0);
 });

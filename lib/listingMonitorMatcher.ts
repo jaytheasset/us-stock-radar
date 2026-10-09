@@ -445,6 +445,13 @@ function evaluateCondition(
     return conditionResult(key, "ineligible", "reader_not_applicable");
   }
   const facts = current.facts;
+  if (definition.family === 'projected') {
+    const f=facts as unknown as {ineligible_numeric_fields?:string[];calculation_status?:string};
+    const field=key.slice('projected.'.length);
+    if(f.ineligible_numeric_fields?.includes(field)
+      ||(!f.ineligible_numeric_fields&&f.calculation_status==='CONFLICT'&&field.startsWith('projected_increase_percent_')))
+      return conditionResult(key,'ineligible','fact_unavailable');
+  }
   if ((definition.family === "projected" || definition.family === "nt" || definition.family === "tender") && valueAtPath(facts, definition.source.jsonPath) === null) {
     return conditionResult(key, "ineligible", "fact_unavailable");
   }

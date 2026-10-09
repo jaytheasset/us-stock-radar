@@ -1,3 +1,5 @@
+import {enqueueCombinedOffering} from './sec-combined-offering/repository';
+import {isCombinedForm} from './sec-combined-offering/eligibility';
 import { enqueueOsSnapshot } from "./sec-os-snapshot/repository";
 import { enqueueOfferingPlan } from "./sec-offering-plan/repository";
 import { isOsForm } from "./sec-os-snapshot/source";
@@ -77,6 +79,7 @@ type SecRawIngestDependencies = {
   enqueueProxyStructured?: typeof enqueueProxyStructured;
   enqueueOsSnapshot?: typeof enqueueOsSnapshot;
   enqueueOfferingPlan?: typeof enqueueOfferingPlan;
+  enqueueCombinedOffering?: typeof enqueueCombinedOffering;
 };
 
 export async function runSecRawIngest(
@@ -101,6 +104,7 @@ export async function runSecRawIngest(
     enqueueProxyStructured: dependencies.enqueueProxyStructured ?? enqueueProxyStructured,
     enqueueOsSnapshot: dependencies.enqueueOsSnapshot ?? enqueueOsSnapshot,
     enqueueOfferingPlan: dependencies.enqueueOfferingPlan ?? enqueueOfferingPlan,
+    enqueueCombinedOffering: dependencies.enqueueCombinedOffering ?? enqueueCombinedOffering,
   };
   const dryRun = Boolean(options.dryRun);
   const force = Boolean(options.force);
@@ -118,8 +122,10 @@ export async function runSecRawIngest(
     catch (error) { return { status: "failed", reason: String(error) }; }
   }
   async function offeringAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
-    if (dryRun || !isOsForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
-    try { return await runtime.enqueueOfferingPlan(rawItemId); }
+    if (dryRun) return {status:"not_applicable"};
+    if(isCombinedForm(rawItem.raw_payload.form_type)){try{return await runtime.enqueueCombinedOffering(rawItemId);}catch(error){return {status:"failed",reason:String(error)};}}
+    if(!isOsForm(rawItem.raw_payload.form_type))return {status:"not_applicable"};
+    try {return await runtime.enqueueOfferingPlan(rawItemId);}
     catch (error) { return { status: "failed", reason: String(error) }; }
   }
   async function tenderAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
@@ -323,7 +329,7 @@ export async function runSecRawIngest(
             if (!existing) stats.raw_upserted_count += 1;
             items.push({...buildExcludedRawItem(rawItem, exclusion), reason:"excluded_from_primary_tender_source_retained", raw_item_id: persisted.id,
               tender_structured: await tenderAfterRawSave(rawItem, stringValue(persisted.id))});
-          } else if (isOsForm(rawItem.raw_payload.form_type)) {
+          } else if (isOsForm(rawItem.raw_payload.form_type) || isCombinedForm(rawItem.raw_payload.form_type)) {
             const existing = await runtime.findExistingRawItem(rawItem);
             const persisted = existing && !force ? existing : await runtime.saveRawItem(rawItem, runId, existing);
             if (!existing || force) stats.raw_upserted_count += 1;

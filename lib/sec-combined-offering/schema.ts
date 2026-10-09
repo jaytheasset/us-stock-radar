@@ -5,7 +5,8 @@ export const REVISION = 'combined_offering_v1-output-r1';
 export const OFFERING_REVISION = 'offering_plan_v1-output-r3';
 export const OS_REVISION = 'os_snapshot_v1-prompt-r2';
 // Deliberately limited to this adapter; isOsForm and automatic ingest are unchanged.
-export const FORMS = ['S-1', 'S-1/A', 'S-3', 'S-3/A', '424B3', '424B5'] as const;
+import {FORMS} from './eligibility.ts';
+export {FORMS};
 
 /** Compose existing domain definitions, including the shared ATM definition. No per-form copies. */
 export function combinedSchema() {

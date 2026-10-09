@@ -156,7 +156,7 @@ export async function consumeListingMonitorAlertsForEvent(
   const listingMonitors = (input.conditionFamily === "projected" || input.conditionFamily === "proxy" || input.conditionFamily === "tender") ? { ...allMonitors,
     monitors: allMonitors.monitors.filter(m => m.conditions.some(c => getReadyMonitorCondition(c.key)?.family === input.conditionFamily)) }
     : input.conditionFamily === "filing" ? { ...allMonitors,
-      monitors: allMonitors.monitors.filter(m => m.conditions.some(c => c.key === "event.sec_form")) } : allMonitors;
+      monitors: allMonitors.monitors.filter(m => m.conditions.some(c => c.key === "event.sec_form" || c.key.startsWith('projected.'))) } : allMonitors;
   const processingAttemptId = crypto.randomUUID();
   const currentEventId = input.alertEventId || input.eventId;
   const identity = dependencies.readEventIdentity
@@ -181,7 +181,7 @@ export async function consumeListingMonitorAlertsForEvent(
     ? `sec_amendment_current_state_${amendmentState.reason}`
     : "";
   const readers: MonitorFactReaders = {
-    projected: input.conditionFamily === 'projected' && allConditions.some(c=>c.key.startsWith('projected.'))
+    projected: allConditions.some(c=>c.key.startsWith('projected.'))
       ? await safeReadFacts(currentEventId,dependencies.readProjectedFacts??(await import('../projected-offering-dilution/repository.ts')).readProjectedFacts)
       : {status:'not_ready',reason:'reader_not_requested'},
     filing: allConditions.some(c => c.key === "event.sec_form")

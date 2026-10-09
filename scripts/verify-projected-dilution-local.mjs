@@ -24,6 +24,7 @@ try{
  create table ${schema}.events(id uuid primary key,raw_item_id uuid,source_code text);
  create table ${schema}.user_alert_deliveries(id uuid primary key default gen_random_uuid(),user_id uuid,alert_event_id uuid,title text,category text,source_type text,source_label text,alert_lane text,delivered_channels text[],delivery_status text,delivered_at timestamptz,alert_domain text,listing_source_execution_id uuid,scheduled_for timestamptz,sent_at timestamptz,attempted_at timestamptz);`);
  await db.query(sql);
+ await db.query(readFileSync('supabase/migrations/20261009180530_projected_offering_common_inputs.sql','utf8').replaceAll('public.',schema+'.'));
  const raw={id:rawId,source_code:'sec_edgar',source_unique_id:'0001234567-26-000001',source_url:'https://www.sec.gov/Archives/edgar/data/1234567/test.htm',raw_payload:{accession_number:'0001234567-26-000001',form_type:'F-1/A',cik:'0001234567',company_name:'Synthetic projected dilution fixture',filing_date:'2026-10-09',primary_document_html:'<p>Ordinary shares: 100 issued. Offering 20 new shares. Pré-funded £ “Unicode”.</p>',primary_document_html_truncated:false}};
  await db.query(`insert into ${schema}.raw_items values($1,$2,$3,$4,$5)`,[rawId,raw.source_code,raw.source_unique_id,raw.raw_payload,raw.source_url]);
  await db.query(`insert into ${schema}.events values($1,$2,'sec_edgar')`,[eventId,rawId]);
@@ -47,7 +48,7 @@ try{
  await db.query(`insert into ${schema}.listing_monitors values($1,$2,true,$3)`,[monitorId,actor,JSON.stringify(conditions)]);
  const alert=()=>pool.query(`select * from ${schema}.create_projected_offering_alert($1,$2,$3,$4,'base')`,[monitorId,eventId,p.id,JSON.stringify(conditions)]);
  const writes=await Promise.all(Array.from({length:12},alert));assert.equal(writes.filter(r=>r.rows[0].created_new).length,1);assert.equal((await alert()).rows[0].created_new,false);
- const a=(await db.query(`select * from ${schema}.user_alert_deliveries`)).rows[0];assert.match(a.title,/예상/);assert.match(a.title,/공모 계획 기준/);assert.deepEqual(a.delivered_channels,[]);assert.equal(a.delivery_status,'queued');
+ const a=(await db.query(`select * from ${schema}.user_alert_deliveries`)).rows[0];assert.match(a.title,/Projected/);assert.match(a.title,/based on offering plans/);assert.deepEqual(a.delivered_channels,[]);assert.equal(a.delivery_status,'queued');
  await assert.rejects(db.query(`update ${schema}.user_alert_deliveries set scheduled_for=now()`),/projected_internal_alert_shape/);
  await assert.rejects(pool.query(`select * from ${schema}.create_projected_offering_alert($1,$2,$3,$4,null)`,[monitorId,eventId,p.id,JSON.stringify(conditions)]),/identity_conflict/);
  await db.query(`update ${schema}.listing_monitors set is_active=false`);await assert.rejects(alert(),/identity_conflict/);

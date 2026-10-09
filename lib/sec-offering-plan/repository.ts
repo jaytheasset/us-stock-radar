@@ -24,7 +24,14 @@ export async function readOfferingPlan(id:string,repo?:Repository){
  const familyKey=run.metadata.binding.family.key;
  const family=familyKey?summaries(await select(repo,'ai_runs',{prompt_key:`eq.${PURPOSE}`,'metadata->binding->family->>key':`eq.${familyKey}`,select:summary,limit:'100'})).sort((a,b)=>a.filing.filing_date.localeCompare(b.filing.filing_date)||a.filing.accession.localeCompare(b.filing.accession)):[];
  let source=null,sourceError:string|null=null;
- try{source=(await loadOfferingSource(run.metadata.binding,repo)).source;}catch{sourceError='source_unavailable_or_mismatch';}
+ let commonInvocation:null|{id:string;raw:string;rawHash:string}=null;
+ try{
+  if(run.metadata.executionKind==='derived_domain_view'){
+   const combined=await (await import('../sec-combined-offering/repository.ts')).readCombinedDomainSource(run,repo);
+   source=combined.source;const cp=combined.parent.metadata.combinedCheckpoint;
+   commonInvocation={id:combined.parent.id,raw:cp.raw,rawHash:cp.rawHash};
+  }else source=(await loadOfferingSource(run.metadata.binding,repo)).source;
+ }catch{sourceError='source_unavailable_or_mismatch';}
  // Separate accession snapshots; no current/latest value composition or carry-forward.
- return {run,decisions,family,identity:bindingIdentity(run.metadata.binding),source,sourceError};
+ return {run,decisions,family,identity:bindingIdentity(run.metadata.binding),source,sourceError,commonInvocation};
 }

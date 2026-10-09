@@ -1,12 +1,11 @@
 import {renderS4F4SourceHtml} from '../sources/sec/forms/s4-f4/sourceSelector.ts';
 import {sha,stable,type Block} from '../sec-os-snapshot/contract.ts';
 import type {Source} from '../sec-offering-plan/contract.ts';
-import {FORMS} from './schema.ts';
+import {isCombinedForm} from './eligibility.ts';
+export {isCombinedForm};
 
 export const SOURCE_REVISION = 'combined_offering_source_v1';
 export type CombinedSource = Source & {sourceVersion: typeof SOURCE_REVISION};
-export const isCombinedForm = (form: unknown): form is typeof FORMS[number] =>
-  typeof form === 'string' && (FORMS as readonly string[]).includes(form);
 const dateValid = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
   && !Number.isNaN(Date.parse(s)) && new Date(s).toISOString().slice(0,10) === s;
 const optionalText = (s: unknown) => typeof s === 'string' && s.trim() ? s : null;
@@ -23,13 +22,14 @@ export function buildCombinedSource(raw: Record<string, any>) {
     || typeof p.cik !== 'string' || !/^\d{10}$/.test(p.cik) || /^0+$/.test(p.cik) || !dateValid(p.filing_date)) {
     return unavailable('official_filing_metadata_incomplete_or_invalid');
   }
-  if (typeof p.primary_document_html !== 'string' || !p.primary_document_html.length || p.primary_document_html_truncated !== false) {
+  const retained=optionalText(p.combined_offering_primary_html);
+  if (!retained && (typeof p.primary_document_html !== 'string' || !p.primary_document_html.length || p.primary_document_html_truncated !== false)) {
     return unavailable('complete_primary_source_required');
   }
   const filing = {issuer: p.company_name, cik: p.cik, accession: p.accession_number, form: p.form_type,
     filing_date: p.filing_date, accepted_at: optionalText(p.accepted_at), file_number: optionalText(p.file_number),
     registration_number: optionalText(p.registration_number)};
-  const original = p.primary_document_html, text = renderS4F4SourceHtml(original);
+  const original = retained??p.primary_document_html, text = renderS4F4SourceHtml(original);
   if (!text.trim()) return unavailable('empty_source');
   const id = `${filing.accession}:combined-primary:${sha(original).slice(0,16)}`;
   const document = {id, url: optionalText(p.primary_document_url) ?? optionalText(raw.source_url) ?? '', original, text,
