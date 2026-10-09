@@ -46,15 +46,79 @@ checked only; it was not executed because DB writes are outside this stage.
 Approval provenance tests use a mock repository, not a new authenticated DB E2E.
 No UI changed; browser/auth review is not claimed for A.
 
-## B — next adapter stage
+## B — domestic one-response adapter
 
-Implement a separate domestic source/input/response adapter and injected provider
-boundary. One response, independently validated O/S and Offering domains, shared
-identity and evidence, immutable original bytes. F1 still uses its two independent
-paths. No automatic enqueue, durable domestic domain storage, migration, Worker,
-real provider/SEC network invocation, Primary or Registry/Monitor expansion.
-Original experiment refs/metadata must not be rewritten to pass the new product
-contract. Retained experiment r1/r2 validation is a separate evidence exercise.
+A was committed separately as `d4c563f9` before beginning B. B adds only
+`lib/sec-combined-offering`, offline verification scripts and contract byte rules.
+There is no UI, DB, enqueue, Primary, Registry or Monitor wiring change.
+
+`combined_offering_v1-output-r1` composes O/S r2 and Offering r3 definitions into
+one envelope with a common exact filing identity. The shared ATM definition is
+referenced through Offering r3; no per-form schema copy. Supported adapter forms
+are S-1/S-1/A, S-3/S-3/A, 424B3 and 424B5; other 424B forms are explicitly unsupported
+at this stage. Amendment variants have synthetic shape coverage, not actual new
+extraction quality approval. Existing `isOsForm`, F1 source fingerprints and the
+two independent F1 provider/runtime paths are unchanged.
+
+The new source builder requires complete primary bytes and official issuer, CIK,
+accession, form and filing date. Missing/invalid metadata returns UNAVAILABLE
+before provider invocation. It renders all lines in sequence under a distinct
+source version and accession/hash/line IDs. The descriptor contains only raw ID,
+accession, source fingerprint and domain/envelope contract versions/hashes. Full
+source exists only as transient input; no persistence path was added.
+
+The provider must be injected. Each analysis invokes it once, without retry or a
+default live implementation. Raw returned JSON text and its hash are retained
+exactly; sections are validated independently against their composed schemas and
+original evidence IDs. A valid section survives an invalid peer. Common identity,
+contract or source-binding errors reject both. Results report NOT_ASSESSED for
+meaning: structural/reference validation never approves semantic interpretation.
+No field calculation, repair, inference, default ATM array or reference rewrite.
+
+### Retained evidence, separate from product execution
+
+Read-only verifier:
+
+```powershell
+node --no-warnings --experimental-strip-types scripts/verify-combined-offering-retained.mjs <combined-offering-quality-3f45d533> <combined-offering-atm-6ca7e401>
+```
+
+It checks frozen experimental schema/prompt/input/request/output hashes, exact
+filing identity, original SEC primary bytes and neutral rendering, complete block
+line coverage, reference IDs and component links. It reads candidate fixture copies
+and external retained HTML, never runs external scripts or writes their files.
+All five cases passed the original experimental format/source/reference checks:
+
+| Retained case | Observations retained without changes | Product boundary |
+| --- | --- | --- |
+| CAVA S-1 (experiment r1) | Current class O/S 567745; offered quantity/price blank; ATM field absent | Input build possible; old response revision rejected |
+| PureCycle S-3 (experiment r1) | O/S 173491740; resale and conditional exercise proceeds separated | Input build possible; old response rejected; source `$` versus output `USD` semantic review **still on hold** |
+| Silvaco 424B5 (experiment r2) | O/S 32688557; ATM 35000000 limit, 20000000 increase, 30668720 remaining; share quantity absent | UNAVAILABLE: retained official filing date missing |
+| Shimmick 424B5 (experiment r2) | NO_DIRECT_CURRENT_OS; prior 7800000/current 4986750; no calculated decrease | UNAVAILABLE: retained official filing date missing |
+| iBio 424B3 (experiment r2) | O/S 32540942; resale 1408481 and conditional underlying 9653257; direct conditional post 42194199; ATM `[]` | UNAVAILABLE: retained official filing date missing |
+
+These outputs use original `D1-B...` IDs and are not converted into product run
+outputs. New product source IDs are exercised only with clearly synthetic response
+fixtures. No absent filing date/ATM field is filled. No new GPT quality test of the
+new product prompt/input was performed. Original retained files were unchanged.
+
+### B validation and outstanding boundary
+
+- Combined adapter: 17 PASS, including one-call count, domain-isolated failures,
+  exact binding/evidence checks, no-direct/review, missing metadata, no repair,
+  shared ATM identity and F1's separate two-runtime calls with mocks.
+- Offering: 45 PASS; O/S: 37 PASS.
+- Projected/Monitor/Registry/Primary selection: 331 PASS, 4 optional skips.
+- Alert: 76 PASS; filing UI regression: 46 PASS.
+- Typecheck, production build and `git diff --check` PASS.
+- Actual GPT/provider extraction calls: 0; actual O/S/Offering Workers: 0;
+  SEC network requests: 0; DB writes/migration applications: 0.
+
+Evidence logs and retained verifier JSON are outside the repository:
+`C:\Users\PC\AppData\Local\Temp\offering-common-1f6c-20261010`.
+No screenshots: there is no UI change in A/B. Real authenticated admin persistence,
+domestic durable domain storage, automatic execution and product E2E remain
+unconnected/unverified. This adapter is not proof of a live extraction or rollout.
 
 ## C — main's deferred Projected integration decision (not implemented here)
 
