@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **SEC / Kiwoom ticker verification — final local architecture and runbook** — independent A/B/C evidence, append-only comparison, current-state semantics and completed local/isolated verification boundaries: [architecture/TICKER_VERIFICATION.md](architecture/TICKER_VERIFICATION.md), [operations/TICKER_VERIFICATION_RUNBOOK.md](operations/TICKER_VERIFICATION_RUNBOOK.md). Earlier stage documents remain historical; no ticker authority or push/deploy claim.
+
 - **Offering Structured v1 candidate** — frozen ten-filing gate, single-call output transport, immutable snapshots, shared worker, registration history and administrator review: [`operations/OFFERING_PLAN_V1_CANDIDATE.md`](operations/OFFERING_PLAN_V1_CANDIDATE.md).
 
 - **Tender Evidence v1 candidate** — SC 14D9 Recommendation coverage, source-only local MCP search/read, eleven live SEC question groups, provenance/isolation and source-versus-retrieval limits: [`EVIDENCE_HANDOFF.md`](../lib/sources/sec/forms/tender/EVIDENCE_HANDOFF.md).

@@ -47,6 +47,8 @@ Architecture Map은 합의한 서비스 모델과 앞으로 확인할 실제 구
 
 현재 존재하는 문서:
 
+- [SEC / Kiwoom ticker verification](../TICKER_VERIFICATION.md) / [운영 runbook](../../operations/TICKER_VERIFICATION_RUNBOOK.md) — 현재 A/B/C·append-only·current reader 구조와 완료된 로컬/격리 검증. 과거 단계 기록 보존, ticker authority 없음, push/deploy 미실행.
+
 - [00 Service Model](00-service-model.md) — `SERVICE MODEL`: 네 서비스 축과 용어집, 개념도 1개.
 - [01 Primary Analysis — SEC](01-primary-analysis.md) — 기존 3단계-A 기록 + 2026-10-05 Proxy local main 업데이트. Proxy shared discovery source의 Primary/Structured 분기와 internal Monitor Alert 연결을 기존 Mermaid 한 곳에서 관리; 다른 family 및 production 미검증 범위는 유지.
 - [01b Primary Analysis — News](01b-news-primary.md) — `VERIFIED AS-IS`: 3단계-B의 VERIFIED CODE. 뉴스 저장 표본·production 활성화·E2E는 UNKNOWN.
