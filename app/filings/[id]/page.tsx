@@ -1,3 +1,4 @@
+import { StockRadarDetailShell } from "@/components/shell/StockRadarDetailShell";
 ﻿import Link from "next/link";
 import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -4477,40 +4478,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   }
 
   return (
-    <main className="feed-page stock-detail-page filing-detail-page">
-      <header className="feed-nav">
-        <Link className="brand-lockup" href="/" aria-label="US Stock Radar home">
-          <span className="brand-mark">SR</span>
-          <span>STOCK RADAR</span>
-        </Link>
-        <nav className="feed-nav-links" aria-label="Primary">
-          {[
-            { label: "Live Feed", href: "/feed" },
-            { label: "Watchlist", href: "/watchlist" },
-            { label: "News", href: "/news" },
-            { label: "Filings", href: "/filings" },
-            { label: "Alerts", href: "#" },
-            { label: "Premium", href: "#" },
-          ].map((item) => (
-            <Link className={item.label === "Filings" ? "active" : ""} href={item.href} key={item.label}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="feed-search" role="search">
-          <span aria-hidden="true">/</span>
-          <input aria-label="Search" placeholder="Search tickers, companies, or keywords" />
-        </div>
-        <div className="feed-actions">
-          <button className="icon-button" type="button" aria-label="Notifications">
-            <span aria-hidden="true">!</span>
-            <span className="notification-dot">3</span>
-          </button>
-          <button className="avatar-button" type="button" aria-label="User menu">
-            N
-          </button>
-        </div>
-      </header>
+    <StockRadarDetailShell activeNavigationItem="filings" className="stock-detail-page filing-detail-page">
 
       <div className="stock-detail-shell">
         <article className="stock-detail-main">
@@ -4665,7 +4633,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
           </section>
         </aside>
       </div>
-    </main>
+    </StockRadarDetailShell>
   );
 }
 
