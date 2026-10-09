@@ -4528,7 +4528,7 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
           </div>
           <div className={detailStyles.newsList}>
             {filing.relatedNews.slice(0, 4).map((story) => (
-              <Link href={story.href || "/news"} key={story.title}>
+              <Link className={detailStyles.newsListItem} href={story.href || "/news"} key={story.title}>
                 <strong>{story.title}</strong>
                 <span>{story.source} - {story.age}</span>
               </Link>
