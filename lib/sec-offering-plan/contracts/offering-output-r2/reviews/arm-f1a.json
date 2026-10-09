@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "reviewer": "current Codex task; no second extraction",
+  "outputSha256": "96566a10763d350f51584d65a7b02fa3a0982355bdbbeb3a26b900857ff2257c",
+  "checks": [
+    {
+      "field": "components[0]",
+      "sourceLines": [
+        146,
+        152,
+        154
+      ],
+      "finding": "95,500,000 ADS; selling shareholder only; proposed USD47–51; 1 ordinary share per ADS"
+    },
+    {
+      "field": "over_allotment[0]",
+      "sourceLines": [
+        184,
+        10782
+      ],
+      "finding": "7,000,000 additional shareholder ADS option; not added to base quantity"
+    },
+    {
+      "field": "post_offering_os",
+      "sourceSections": [
+        "The Offering",
+        "Capitalization"
+      ],
+      "finding": "1,026,078,866 September basis and 1,025,661,064 June as-adjusted basis are directly stated; distinct scenarios retained; neither labeled current actual OS"
+    },
+    {
+      "field": "proceeds",
+      "sourceSection": "Use of Proceeds",
+      "finding": "Explicit issuer no-proceeds only; no quantity-times-price gross amount generated"
+    }
+  ],
+  "outputEdited": false,
+  "providerInvocations": 1
+}

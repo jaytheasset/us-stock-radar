@@ -1,0 +1,126 @@
+{
+  "version": "offering_plan_v1",
+  "filing": {
+    "issuer": "Amer Sports, Inc.",
+    "cik": "0001988894",
+    "accession": "0001104659-24-007307",
+    "form": "F-1/A",
+    "filing_date": "2024-01-26",
+    "accepted_at": "2024-01-26T21:45:21.000Z",
+    "file_number": "333-276370",
+    "registration_number": "333-276370"
+  },
+  "status": "PASS",
+  "plan": {
+    "components": [
+      {
+        "id": "c1",
+        "seller_type": "issuer",
+        "security_type": "ordinary_shares",
+        "security_label": "Ordinary Shares",
+        "quantity": {
+          "status": "stated",
+          "value": "100000000",
+          "unit": "ordinary shares"
+        },
+        "price": {
+          "status": "range",
+          "qualification": "proposed",
+          "value": null,
+          "low": "16.00",
+          "high": "18.00",
+          "currency": "USD",
+          "per_unit": "ordinary share"
+        },
+        "scenario": "Initial public offering, excluding the underwriters’ over-allotment option; reflects the planned reclassification into a single class of ordinary shares and 3.3269-for-1 share split.",
+        "depositary": null,
+        "evidence_blocks": [
+          "0001104659-24-007307:primary:722ed92302e76265:L161",
+          "0001104659-24-007307:primary:722ed92302e76265:L401",
+          "0001104659-24-007307:primary:722ed92302e76265:L1001",
+          "0001104659-24-007307:primary:722ed92302e76265:L1521"
+        ]
+      }
+    ],
+    "over_allotment": [
+      {
+        "component_ids": [
+          "c1"
+        ],
+        "seller_type": "issuer",
+        "security_label": "ordinary shares",
+        "quantity": {
+          "status": "stated",
+          "value": "15000000",
+          "unit": "ordinary shares"
+        },
+        "scenario": "Underwriters may purchase up to this number of additional shares within 30 days from the prospectus date to cover over-allotments, at the initial public offering price less underwriting discounts and commissions.",
+        "evidence_blocks": [
+          "0001104659-24-007307:primary:722ed92302e76265:L201",
+          "0001104659-24-007307:primary:722ed92302e76265:L9801"
+        ]
+      }
+    ],
+    "post_offering_os": [
+      {
+        "security_label": "ordinary shares",
+        "quantity": "484499607",
+        "unit": "ordinary shares",
+        "scenario": "After the offering, assuming no exercise of the over-allotment option and an offering price of $17.00 per share; gives effect to the Reclassification and 3.3269-for-1 Share Split and excludes shares issuable under outstanding options and reserved under equity incentive plans.",
+        "evidence_blocks": [
+          "0001104659-24-007307:primary:722ed92302e76265:L1521",
+          "0001104659-24-007307:primary:722ed92302e76265:L1561",
+          "0001104659-24-007307:primary:722ed92302e76265:L1601"
+        ]
+      },
+      {
+        "security_label": "ordinary shares",
+        "quantity": "499499607",
+        "unit": "ordinary shares",
+        "scenario": "After the offering, assuming full exercise of the over-allotment option and an offering price of $17.00 per share; gives effect to the Reclassification and 3.3269-for-1 Share Split and excludes shares issuable under outstanding options and reserved under equity incentive plans.",
+        "evidence_blocks": [
+          "0001104659-24-007307:primary:722ed92302e76265:L1521",
+          "0001104659-24-007307:primary:722ed92302e76265:L1561",
+          "0001104659-24-007307:primary:722ed92302e76265:L1601"
+        ]
+      }
+    ],
+    "proceeds": [
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "1600000000",
+        "currency": "USD",
+        "scenario": "Approximately, assuming an initial public offering price of $17.00 per ordinary share and no exercise of the over-allotment option, after estimated underwriting discounts and commissions and offering expenses payable by the issuer.",
+        "evidence_blocks": [
+          "0001104659-24-007307:primary:722ed92302e76265:L401",
+          "0001104659-24-007307:primary:722ed92302e76265:L1561",
+          "0001104659-24-007307:primary:722ed92302e76265:L3361"
+        ]
+      },
+      {
+        "kind": "net",
+        "recipient": "issuer",
+        "amount": "1800000000",
+        "currency": "USD",
+        "scenario": "Approximately, assuming an initial public offering price of $17.00 per ordinary share and full exercise of the over-allotment option, after estimated underwriting discounts and commissions and offering expenses payable by the issuer.",
+        "evidence_blocks": [
+          "0001104659-24-007307:primary:722ed92302e76265:L401",
+          "0001104659-24-007307:primary:722ed92302e76265:L3361"
+        ]
+      },
+      {
+        "kind": "gross",
+        "recipient": "issuer",
+        "amount": "1700000000",
+        "currency": "USD",
+        "scenario": "Total consideration to be paid to the issuer by new investors for 100,000,000 ordinary shares at an assumed initial public offering price of $17.00 per share, before estimated underwriting discounts and commissions and offering expenses.",
+        "evidence_blocks": [
+          "0001104659-24-007307:primary:722ed92302e76265:L401",
+          "0001104659-24-007307:primary:722ed92302e76265:L3681"
+        ]
+      }
+    ]
+  },
+  "review": null
+}

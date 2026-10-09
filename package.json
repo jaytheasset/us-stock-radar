@@ -160,7 +160,9 @@
     "typecheck": "tsc --noEmit",
     "verify:os-snapshot": "node scripts/run-os-command.mjs test",
     "verify:os-snapshot:local": "node --no-warnings --experimental-strip-types scripts/verify-os-snapshot-local.mjs",
-    "os-snapshot:worker": "node scripts/run-os-command.mjs worker"
+    "os-snapshot:worker": "node scripts/run-os-command.mjs worker",
+    "verify:offering-plan": "node scripts/run-offering-tests.mjs",
+    "verify:offering-plan:local": "node --no-warnings --experimental-strip-types scripts/verify-offering-plan-local.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",

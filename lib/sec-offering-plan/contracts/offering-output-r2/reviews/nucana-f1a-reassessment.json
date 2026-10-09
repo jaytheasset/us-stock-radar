@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "classification": "CORRECTED_CRITERIA_REASSESSMENT",
+  "criteriaSha256": "f6c7bd1d8602b39ecd6bd2df8b62c73c066350c0c7da73f093e45098315c0f96",
+  "outputSha256": "09e9497796c5dc22877539691d6a4ff9001e0a06790fef5b0dbbd7e34fbda979",
+  "additionalGptCalls": 0,
+  "outputModified": false,
+  "transport": "PASS",
+  "structural": "PASS",
+  "semantic": "PASS",
+  "findings": [
+    "GBP 0.01 is a correct normalized representation of the stated pound amount.",
+    "Nominal value 0.0004 GBP is not mandatory in the minimal contract; omission is not a failure.",
+    "Blank price preserved; core seller/security/quantity/ADS relation and direct post-offering/proceeds scenarios checked against source as recorded in review.json.",
+    "No calculated price/proceeds, closing inference, carry-forward or parser correction."
+  ],
+  "priorReviewPreserved": true
+}

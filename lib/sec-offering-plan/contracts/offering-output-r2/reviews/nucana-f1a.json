@@ -1,0 +1,56 @@
+{
+  "status": "NOT_PASSED",
+  "category": "REQUIRED_LITERAL_UNICODE_REGRESSION_NOT_SATISFIED",
+  "accession": "0001193125-25-110310",
+  "reviewer": "current Codex task; direct review after freeze; no reviewer GPT",
+  "outputSha256": "09e9497796c5dc22877539691d6a4ff9001e0a06790fef5b0dbbd7e34fbda979",
+  "providerInvocationsThisRevision": 1,
+  "structuralValidation": "PASS",
+  "transportIntegrity": "PASS",
+  "rawBytesEqualCliFinalFile": true,
+  "parsedPoundCodePoints": 0,
+  "parsedReplacementCharacters": 0,
+  "parsedQuestionMarks": 0,
+  "curlyQuotationMarkPreserved": "U+201C",
+  "requiredRegressionChecks": [
+    {
+      "check": "scenario retains pound amount",
+      "source": "£0.01",
+      "sourceLines": [176, 484],
+      "outputField": "plan.components[id=c4].scenario",
+      "actual": "GBP 0.01",
+      "semanticCurrencyAndAmount": "CORRECT",
+      "literalPoundPreservation": "NOT_SATISFIED"
+    },
+    {
+      "check": "underlying description retains £0.0004",
+      "sourceLines": [192, 572],
+      "outputFields": ["plan.components[id=c1].depositary.underlying_share_class", "plan.components[id=c5].depositary.underlying_share_class"],
+      "actual": "ordinary shares",
+      "finding": "Nominal value omitted. The share class and 25:1 ratio are correct; the unchanged minimal semantic contract does not require nominal value. This omission cannot validate the specifically requested £0.0004 regression.",
+      "literalPoundPreservation": "NOT_SATISFIED"
+    },
+    {
+      "check": "JSON.parse produces actual U+00A3",
+      "result": "NOT_SATISFIED",
+      "finding": "The model final response contains no literal pound or escaped pound. The writer therefore has no pound to preserve. Do not infer a fresh transport encoding failure."
+    },
+    {
+      "check": "price.status=blank",
+      "result": "PASS",
+      "sourceLines": [206, 219, 220],
+      "actual": "blank"
+    }
+  ],
+  "sourceComparison": [
+    "Issuer primary sale, current ADS and warrant components, 12497768 base ADSs, assumed 0.5601 USD package price and 25 ordinary shares per ADS match source lines 154-192 and the Offering summary.",
+    "559275129 underlying ADSs and 13981878225 underlying ordinary shares are directly written at line 162, not host-calculated totals.",
+    "18234940 ADSs and 464338974 ordinary shares are directly stated post-offering values with assumptions at lines 556 and 564, not current actual O/S.",
+    "5500000, 3900000, 2400000 and 800000 USD net proceeds are direct scenario amounts at line 902. No gross proceeds multiplication was introduced.",
+    "No historical amendment input, closing-completion claim, output repair or parser semantic selection was used."
+  ],
+  "adjudication": "The requested literal NuCana Unicode checks are not all met. This is neither demonstrated transport corruption nor a proven seller/quantity/currency semantic error. The current instructions require NuCana regression success before the remaining eight cases, so stop without relaxing the criteria.",
+  "outputEdited": false,
+  "retryPerformed": false,
+  "nextAction": "STOP; remaining eight not invoked; no product integration"
+}

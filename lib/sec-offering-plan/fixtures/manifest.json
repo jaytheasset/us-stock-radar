@@ -1,0 +1,85 @@
+{
+  "kind": "gate-passed-outputs-with-sparse-reference-fixtures",
+  "fixtures": [
+    {
+      "id": "arm-f1a",
+      "accession": "0001193125-23-228059",
+      "url": "https://www.sec.gov/Archives/edgar/data/1973239/000119312523228059/d393891df1a.htm",
+      "rawHash": "96566a10763d350f51584d65a7b02fa3a0982355bdbbeb3a26b900857ff2257c",
+      "sourceOriginalSha256": "a5e9122f1fc366270a846eccd5eb618b9280be889c85ad183f5398d2875a352b",
+      "review": "PASS"
+    },
+    {
+      "id": "birkenstock-f1",
+      "accession": "0001193125-23-233488",
+      "url": "https://www.sec.gov/Archives/edgar/data/1977102/000119312523233488/d541624df1.htm",
+      "rawHash": "e54d652484075c75c726a009bd7848638566cf7b880707ad5bd63c5f717d0b72",
+      "sourceOriginalSha256": "12ed94b22fa867e9bf843120ac3e8b9822c953cef351d8495fe43d8574358b2e",
+      "review": "PASS"
+    },
+    {
+      "id": "birkenstock-f1a",
+      "accession": "0001193125-23-250555",
+      "url": "https://www.sec.gov/Archives/edgar/data/1977102/000119312523250555/d507917df1a.htm",
+      "rawHash": "663ccb4cdb5b1f217057a6fa2a20c02ca55850da98434b098ded45fc24769aba",
+      "sourceOriginalSha256": "5a100b0db2f95389ee6879dc964054591cb1bbf16d26b2e02a63752af604af77",
+      "review": "PASS"
+    },
+    {
+      "id": "viking-f1",
+      "accession": "0001193125-24-087969",
+      "url": "https://www.sec.gov/Archives/edgar/data/1745201/000119312524087969/d496227df1.htm",
+      "rawHash": "089257538bfe54e4fc170946b9c8bffe4fea67db74dec4e0b9d7b22368fe915c",
+      "sourceOriginalSha256": "8bd8c9d1e3f1fdfa22da71c385654d147c67db3d7daaedffbaa3af47b63a5bfe",
+      "review": "PASS"
+    },
+    {
+      "id": "viking-f1a",
+      "accession": "0001193125-24-119708",
+      "url": "https://www.sec.gov/Archives/edgar/data/1745201/000119312524119708/d496227df1a.htm",
+      "rawHash": "2aaf2aec23a404a2a0b595f0bcefb4e851c5616a5c0846263988fd81f959960c",
+      "sourceOriginalSha256": "8d8dceb068bf9ebcd72be4e29a303b38cb163bed547bd0e34953d12dc3d58830",
+      "review": "PASS"
+    },
+    {
+      "id": "amer-f1",
+      "accession": "0001104659-24-001168",
+      "url": "https://www.sec.gov/Archives/edgar/data/1988894/000110465924001168/tm2322981-10_f1.htm",
+      "rawHash": "119c4c785666067f6e09c580623b76995d24f1293cedb62280ad411b99313133",
+      "sourceOriginalSha256": "706c716322edcdfb9d36893011726ecd0f1144b2455a6f3c9a914f91594b5a33",
+      "review": "PASS"
+    },
+    {
+      "id": "amer-f1a",
+      "accession": "0001104659-24-007307",
+      "url": "https://www.sec.gov/Archives/edgar/data/1988894/000110465924007307/tm2322981-15_f1a.htm",
+      "rawHash": "e30ce09727208f32000bfcfcde5bcee0e7c98ee5cd3f51be6a7b22874deaf441",
+      "sourceOriginalSha256": "722ed92302e7626510509d27b90dcc5dd2199d5dc8b969d7d72a965c9a669cf0",
+      "review": "PASS"
+    },
+    {
+      "id": "on-f1",
+      "accession": "0001193125-21-253415",
+      "url": "https://www.sec.gov/Archives/edgar/data/1858985/000119312521253415/d175570df1.htm",
+      "rawHash": "08e28e55ec8da611b1c48f5350cf2f3922d579ec48b466f5fbdda6bdfdbdc409",
+      "sourceOriginalSha256": "548321e04b379c3bbb01abad9bd24fe08e0aadf808131d1a3ae0f3c2c80cf643",
+      "review": "PASS"
+    },
+    {
+      "id": "on-f1a",
+      "accession": "0001193125-21-270834",
+      "url": "https://www.sec.gov/Archives/edgar/data/1858985/000119312521270834/d175570df1a.htm",
+      "rawHash": "4308be7e753067f6086a9c0082410c314e82da91026459bb0784e8f47461f2a5",
+      "sourceOriginalSha256": "122837b5d1cfe88b8e2d7b166678fc24b9c8f7af9126e2d100cf51f6cf84f40d",
+      "review": "PASS"
+    },
+    {
+      "id": "nucana-f1a",
+      "accession": "0001193125-25-110310",
+      "url": "https://www.sec.gov/Archives/edgar/data/1709626/000119312525110310/d906809df1a.htm",
+      "rawHash": "09e9497796c5dc22877539691d6a4ff9001e0a06790fef5b0dbbd7e34fbda979",
+      "sourceOriginalSha256": "893488390fe3bd854a97e1d260c8cd8d6580f8306e2622e5ca7b54d01a990cf3",
+      "review": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "reviewer": "current Codex task, direct source review after freeze",
+  "outputSha256": "e54d652484075c75c726a009bd7848638566cf7b880707ad5bd63c5f717d0b72",
+  "criteria": "corrected-gate-criteria.md",
+  "checks": [
+    {"sourceLines": [166,168,1773,1783,1795], "finding": "Ordinary shares offered separately by issuer and selling shareholder; both quantities and price endpoints explicitly blank; no invented quantities or range."},
+    {"sourceLines": [166,1795,11238], "finding": "Issuer and shareholder over-allotment options separately stated, blank quantities, 30-day term."},
+    {"sourceLines": [1805,3858,3860,3862,10700], "finding": "Post-offering outstanding counts and net proceeds amounts blank; sensitivity increments not extracted as offering amounts. Explicit issuer no-proceeds from shareholder sale retained."},
+    {"sourceLines": [407,409], "finding": "Seller identity and USD normalization supported. Accents and curly apostrophe survive; evidence blocks retain source bytes."}
+  ],
+  "transport": "PASS",
+  "semantic": "PASS",
+  "outputEdited": false,
+  "providerInvocations": 1
+}

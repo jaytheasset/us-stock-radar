@@ -1,0 +1,23 @@
+{
+  "protocol": "offering-output-r2",
+  "semanticSchema": "offering_plan_v1",
+  "promptRevision": "offering_plan_v1-output-r2",
+  "frozenAt": "2026-10-08T20:32:17.278Z",
+  "profile": "codex-cli:gpt-6-astra:high:v1",
+  "base": "8d21d3196468a16d07a9c1f97c1ca3cbb7146780",
+  "files": {
+    "output-writer.mjs": "43768994030648e475a1c98524490599901ae3405d52084db48ecd9f5e3bbf6c",
+    "unicode-test.mjs": "3ab2a0826dd1b9171a076a07d527cd5b32ae602961de045acc6d8026a0cc391d",
+    "unicode-test-result.json": "c5f5b56b6ad1987652be062e61e09ed757ecb22fc7e626fa8a4da919c078fe6e",
+    "extraction-instructions.md": "d3860dadab45d8c02cc30c174a8a781ee4a4a663b55fbb472984c2e2cf4578bb",
+    "offering-plan-v1.schema.json": "861dac72eb8ccfb57fea01faf57ac875cd23daa7ff929314ec17c8d0717122bb",
+    "run-one.mjs": "63c348809487fe28bc2afae6497d7ae42cbaa169dbbb09442e5d5fd257db2b3b",
+    "setup.mjs": "543d94747e1f41f0cefdea539b743ce812501d17c81930f23e39b8d47e8efb5d",
+    "arm-transport.mjs": "9360cb9c149f1c2e0fc74db9f30f03b390a7802e2237fab7bf5680aeaf12dd4a",
+    "freeze-protocol.mjs": "8b97fdd8dc38feeaeea99b29cc23f91b73f3d3d2d59c0fc8167ec185ad9cb26f",
+    "selection.json": "1ac6d552ff7ff5e873153d355b5f768d8d3f3b6b6babfc8fcd07c77e529736bc",
+    "acceptance.json": "7068afc34d14a003ef16e077d962f21b84e33b1547351b8af9b693d29f98559d",
+    "semantic-prefix.json": "de6ca7eea212194d070304bd0fe510beaf90b3a0f935cc16aecd3d25e2841965",
+    "r1-preservation-manifest.json": "70ad8fc3d233ae8b8a3b696ce224e72c52e92b1be8c5813c6f0be1752dc9531c"
+  }
+}

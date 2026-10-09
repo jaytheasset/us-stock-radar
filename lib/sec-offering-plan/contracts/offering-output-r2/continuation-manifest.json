@@ -1,0 +1,12 @@
+{
+  "revision": "offering-gate-adjudication-r3",
+  "outputProtocol": "offering-output-r2",
+  "frozenAt": "2026-10-08T20:48:01.421Z",
+  "files": {
+    "corrected-gate-criteria.md": "f6c7bd1d8602b39ecd6bd2df8b62c73c066350c0c7da73f093e45098315c0f96",
+    "continue-gate.mjs": "7fabf132c35d56ec66008db03a3d893555abe40216c41e53dbd12d422bb2f0f5",
+    "prepare-continuation.mjs": "a181a68bca8d9f468f1b5a681c581d1d5bc983c328e68a908d5782b1ff445ede",
+    "cases/nucana-f1a/reassessment-corrected-criteria.json": "ffa08512e6b401141816e2518452801a6b2f71269c8ecde0e5c46cb3633710e3",
+    "protocol-manifest.json": "d0c3b15fd3393f36caafd236f925df96fb30a7f7d937adbd96aabafe47f46d1b"
+  }
+}
