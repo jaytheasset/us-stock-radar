@@ -158,20 +158,20 @@ const publicCorporateActionStages = monitorableCorporateActionVocabulary(
 
 const registry = [
   ...([
-    ['issuer_new_shares_base','예상 신규 발행 주식 수 (공모 계획 기준)'],
-    ['projected_increase_percent_base','예상 O/S 증가율 (%)'],
-    ['projected_increase_percent_full_overallotment','초과배정 전량 행사 시 예상 O/S 증가율 (%)'],
+    ['issuer_new_shares_base','Projected issuer new shares (offering plan)'],
+    ['projected_increase_percent_base','Projected O/S increase (%)'],
+    ['projected_increase_percent_full_overallotment','Projected O/S increase with full over-allotment (%)'],
   ] as const).map<MonitorConditionDefinition>(([field,label])=>({
     key:`projected.${field}`,valueType:'number',allowedOperators:['gte'],family:'projected',domain:'projected',monitorDomains:['listing'],
-    display:{label,numberFormat:{style:'decimal',maximumFractionDigits:4},operatorValueTemplates:{gte:'{value} 이상'}},description:label,numberValidation:{minimum:0},
+    display:{label,numberFormat:{style:'decimal',maximumFractionDigits:4},operatorValueTemplates:{gte:'at least {value}'}},description:label,numberValidation:{minimum:0},
     source:{subject:'event',reader:'read_projected_offering_dilution',jsonPath:[field]},qualityCapability:['derived'],status:'READY',
   })),
   ...([
-    ['resale_only','기존 주주 재판매만 포함'],['has_prefunded_warrants','Pre-funded warrant 포함'],
-    ['has_warrants','Warrant 잠재 희석 포함'],['calculation_issue','계산 불가·일부 미확인 또는 직접값 충돌'],
+    ['resale_only','Resale only'],['has_prefunded_warrants','Pre-funded warrants included'],
+    ['has_warrants','Potential warrant dilution included'],['calculation_issue','Calculation unavailable, partial or conflicting'],
   ] as const).map<MonitorConditionDefinition>(([field,label])=>({
     key:`projected.${field}`,valueType:'boolean',allowedOperators:['eq'],family:'projected',domain:'projected',monitorDomains:['listing'],
-    display:{label,booleanValueLabels:{true:'예',false:'아니오'}},description:`공모 계획 기준 ${label}`,
+    display:{label,booleanValueLabels:{true:'Yes',false:'No'}},description:`Offering plan: ${label}`,
     source:{subject:'event',reader:'read_projected_offering_dilution',jsonPath:[field]},qualityCapability:['derived'],status:'READY',
   })),
   {

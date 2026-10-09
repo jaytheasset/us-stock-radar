@@ -23,12 +23,12 @@ export type MonitorAddConditionOption = Readonly<{
 
 export type MonitorAddConditionGroup = Readonly<{
   id: MonitorAddConditionOption["category"];
-  title: "Common" | "Corporate Actions" | "Listing Risk" | "Proxy" | "예상 공모 희석";
+  title: "Common" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Projected offering dilution";
   options: readonly MonitorAddConditionOption[];
 }>;
 
 const PRESET_DEFINITIONS = Object.freeze([
-  {id:'projected-offering-dilution',title:'예상 공모 희석',description:'공모 계획 기준 예상 O/S 증가율을 확인합니다.',category:'예상 공모 희석',priority:5,
+  {id:'projected-offering-dilution',title:'Projected offering dilution',description:'Watch projected O/S growth based on offering plans.',category:'Projected offering dilution',priority:5,
     conditions:[{key:'projected.projected_increase_percent_base',operator:'gte' as const,value:10}]},
   Object.freeze({
     id: "low-price-reverse-split",
@@ -73,11 +73,11 @@ const PRESET_DEFINITIONS = Object.freeze([
 
 const ADD_CONDITION_DEFINITIONS = Object.freeze([
   ...([
-    ['issuer_new_shares_base','예상 신규 발행 주식 수',1000000],
-    ['projected_increase_percent_base','예상 O/S 증가율 (%)',10],
-    ['projected_increase_percent_full_overallotment','초과배정 포함 예상 증가율 (%)',10],
-    ['resale_only','기존 주주 재판매만 포함',true],['has_prefunded_warrants','Pre-funded warrant 포함',true],
-    ['has_warrants','Warrant 잠재 희석 포함',true],['calculation_issue','계산 불가 또는 직접값 충돌',true],
+    ['issuer_new_shares_base','Projected issuer new shares',1000000],
+    ['projected_increase_percent_base','Projected O/S increase (%)',10],
+    ['projected_increase_percent_full_overallotment','Projected increase with full over-allotment (%)',10],
+    ['resale_only','Resale only',true],['has_prefunded_warrants','Pre-funded warrants included',true],
+    ['has_warrants','Potential warrant dilution included',true],['calculation_issue','Calculation unavailable or conflicting direct values',true],
   ] as const).map(([field,title,value])=>({id:`projected-${field.replaceAll('_','-')}`,category:'projected' as const,title,
     condition:{key:`projected.${field}`,operator:typeof value==='number'?'gte' as const:'eq' as const,value}})),
   Object.freeze({
@@ -192,7 +192,7 @@ export function validateMonitorAddConditionCatalog(value: unknown): readonly Mon
     { id: "corporate-actions", title: "Corporate Actions" },
     { id: "listing-risk", title: "Listing Risk" },
     ...(options.some(option => option.category === "proxy") ? [{id:"proxy" as const,title:"Proxy" as const}] : []),
-    ...(options.some(option => option.category === "projected") ? [{id:"projected" as const,title:"예상 공모 희석" as const}] : []),
+    ...(options.some(option => option.category === "projected") ? [{id:"projected" as const,title:"Projected offering dilution" as const}] : []),
   ];
   return Object.freeze(groups.map((group) => {
     const groupOptions = options.filter((option) => option.category === group.id);

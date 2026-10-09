@@ -27,6 +27,7 @@ export async function readOfferingPlan(id:string,repo?:Repository){
  let commonInvocation:null|{id:string;raw:string;rawHash:string}=null;
  try{
   if(run.metadata.executionKind==='derived_domain_view'){
+   commonInvocation=await (await import('../sec-combined-offering/repository.ts')).readCommonInvocation(run,repo);
    const combined=await (await import('../sec-combined-offering/repository.ts')).readCombinedDomainSource(run,repo);
    source=combined.source;const cp=combined.parent.metadata.combinedCheckpoint;
    commonInvocation={id:combined.parent.id,raw:cp.raw,rawHash:cp.rawHash};

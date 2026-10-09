@@ -36,6 +36,7 @@ export default async function OsSnapshotsPage({ searchParams }: { searchParams: 
         <p><strong>분석 결과: {labels[m.osStatus] ?? '확인 필요'}</strong></p>
         {!selected.current && <p>현재 공시 원문과 일치하는지 확인이 필요합니다.</p>}
       </header>
+      {m.commonInvocation&&<p>공통 호출 {m.commonInvocation.id}의 O/S 결과입니다. <Link href={`/admin/data/offering-plans?id=${m.commonInvocation.offeringRunId}`}>대응 Offering 및 예상 증가량 보기</Link></p>}
       <div className={ui.notice} aria-label="최근 관리자 결정">
         <strong>최근 검토: {latest ? actions[latest.action] ?? latest.action : '아직 없음'}</strong>
         {latest && <>{latest.action === 'approve' && <p>{candidateNames(latest.candidate_indexes)}</p>}<p>{latest.reason}</p><small>{displayTime(latest.created_at)}</small></>}
@@ -51,7 +52,7 @@ export default async function OsSnapshotsPage({ searchParams }: { searchParams: 
         {selected.decisions.length ? selected.decisions.slice().reverse().map(d => <article className={styles.card} key={String(d.id)}><strong>{actions[d.action] ?? d.action}</strong><p>{d.reason}</p>{d.action === 'approve' && <p>{candidateNames(d.candidate_indexes)}</p>}<p>{displayTime(d.created_at)}</p><details><summary>작성 정보</summary><p>{d.actor_user_id}</p></details></article>) : <p>검토 이력 없음</p>}
       </section>
       <details className={ui.technical}><summary>분석 기록 보기</summary>
-        <h3>원본 결과</h3><pre>{cp?.raw || '출력 없음'}</pre>
+        <h3>{m.commonInvocation?'공통 호출 원본 결과':'원본 결과'}</h3><pre>{m.commonInvocation?.raw || cp?.raw || '출력 없음'}</pre>
         <h3>검증된 JSON</h3><pre>{JSON.stringify(cp?.validated ?? null, null, 2)}</pre>
         <h3>Schema·근거 참조 검사</h3><pre>{JSON.stringify(cp?.validation ?? null, null, 2)}</pre>
         <p>Contract: {m.binding.contractVersion} · Fingerprint: {m.binding.sourceFingerprint}</p>

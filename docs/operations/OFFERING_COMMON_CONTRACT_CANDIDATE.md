@@ -216,3 +216,176 @@ accessions instead of deleting old evidence.
 Product admin/Alert integration, live extraction, authenticated current-code E2E
 and final production build are still pending C2; earlier UI evidence is not
 current acceptance evidence. Evidence: host temp offering-product-1f6c-20261010.
+
+## C2 — existing admin and Custom alerts integration (2026-10-10)
+
+Base `2ee7d2558d02cb7352aa686f73484c2409f0ee4e`, continuing the same detached
+candidate. This section is the current completion report; earlier sections
+describe their own stage boundaries. Main's follow-up authorized C1/C2 and up to
+five single subscription extractions, one for each named domestic example.
+
+### Scope and implemented behavior
+
+- Existing `/admin/data/offering-plans?id=<run>` displays the exact saved
+  Projected result, matching O/S link, input decisions, separate calculated/direct
+  scenarios and evidence. Existing O/S and Offering detail show their common
+  invocation identity and immutable parent original. Approval/hold/reject remain
+  the existing input decisions; approval does not dismiss a numerical conflict.
+- Existing `/monitor` creates conditions and `/alerts` displays them and expands
+  recorded Projected details inline. The old Primary anchor was removed. Shared
+  presentation moved from `components/filing-analysis-v2` to `components/monitor`.
+  No new Primary output or separate approval/Monitor system.
+- `GET /api/monitors/listing/alerts/<id>` checks authenticated ownership before
+  accessing the fact, runs, decisions or evidence, returns private/no-store data,
+  and performs no writes. It reads the Alert's exact historical fact; newer
+  results never replace that history. Changed source suppresses unverifiable
+  evidence and makes the recorded estimate ineligible for new matching.
+- User-facing names are News & filing alerts, Custom alerts and Calendar alerts.
+  Projected copy is English and identifies estimates based on offering plans.
+  Existing storage lanes, Form 4/EFFECT behavior, billing policy and unrelated
+  existing administrator copy remain in place.
+- Browser verification found and fixed a same-origin GET returning 403 because
+  browser GETs normally omit Origin. The dedicated read guard accepts same-origin
+  Fetch Metadata when Origin is absent, while rejecting foreign/null Origin and
+  cross-site requests. Another rendered defect was a dark Projected card inside
+  the light admin theme; the shared component now uses the existing admin tokens.
+
+### Authenticated local E2E
+
+Candidate Next server: `http://localhost:3121`. Owned local project:
+`projected-auth-e2e-1f6c`, API/Auth56461, PostgreSQL56462. Neither shared56322 nor
+3110 was operated. External delivery and external API keys were disabled in the
+candidate launcher. Production build ran with the same local-only environment.
+
+Real UI login used existing local fixture accounts, without cookie injection.
+The administrator and two ordinary accounts have Free plans. No billing or role
+changes were made; Pro/paid account behavior was not separately exercised.
+
+The saved monitor `2e320f66-d9b7-4680-991c-c72a72bec189` contains two conditions:
+projected increase >=10% and issuer new shares >=100000. UI save, reload
+persistence, pause and resume passed. The condition editor was inspected at all
+three required widths. Presets/editor were used; no GPT condition compilation.
+
+Five explicitly LOCAL ONLY synthetic common invocations test the product path.
+They were persisted through the existing checkpoint boundary without a provider
+or Worker process. For the positive case: pre-O/S1000000, issuer200000,
+resale50000, base post1200000/increase20%; issuer over-allotment30000 gives
+full issuer230000/post1230000/increase23%. Long Unicode class labels are retained.
+
+| Case | Public calculation / internal Alert result |
+| --- | --- |
+| PASS pair | One Alert; exact fact, runs, scenario and evidence expand in `/alerts` |
+| Both inputs REVIEW_REQUIRED | No public pair/fact/Alert before both approvals; O/S approval alone remains blocked |
+| Both approved through existing admin UI | Offering approval automatically saved a fact and created one Alert before manual reevaluation |
+| Same Offering candidate approved again | Decision history advances; Alert still points to first recorded decision/fact, count remains one |
+| Offering hold + O/S approve | No public pair or Alert |
+| O/S reject + Offering approve | No public pair or Alert |
+| Comparable direct base1500000 versus calculated1200000 | Both values displayed; base percentage threshold cannot match, zero Alert for the saved monitor |
+| Changed local fixture source fingerprint | Current read and refresh blocked; exact historical quantities retained, old evidence hidden; zero new Alert; original fixture source restored exactly |
+
+Six concurrent reevaluations per case plus repeated evaluations left the tested
+administrator's two case Alerts at two. Duplicate keys across the local outbox:
+zero. Older fixtures belonging to a different user remain and are not counted
+as new C2 Alerts. The key includes monitor/condition identity, accession, both
+run IDs, calculation revision and scenario. Reads and reevaluations preserve
+all original ai_outputs hashes.
+
+Access verification: 17 HTTP assertions PASS, including anonymous401,
+other-owner detail404/list exclusion/mutation404, foreign-origin403,
+administrator decision anonymous401/non-admin403/foreign-origin403 and no-store.
+Real browser logout hides conditions and Alerts; direct administrator URL
+redirects to login. A logged-in non-admin is redirected with admin_required;
+the separate empty account sees zero conditions and zero Alerts. No private
+actor/reason, provider raw output or internal execution payload is returned to
+the ordinary user's detail reader.
+
+### Actual filings: preserved evidence, not positive Alert fixtures
+
+Retained real Canaan F-1 accession `0001193125-19-276263` uses O/S run
+`ada400dd-2c79-5e0e-a881-0057acaba811` and Offering run
+`df85e8b8-3f37-5c4a-a794-829096a7537c`. Both current source bindings verified.
+Blank ADS quantity/ratio produces unavailable issuance/post-O/S/percentage,
+not 0% dilution. Direct Class B356624444 remains separate from issuer total
+2222222222. The original textual O/S basis is retained. Numeric Alert count0;
+no new Canaan extraction.
+
+The five separately authorized subscription calls completed once each using
+the durable common runtime, existing ChatGPT authentication, no API keys and no
+retry/repair. The original parent bytes, independent domain views and hashes
+are preserved. Completed-job replay made zero additional provider calls.
+No separate O/S/Offering Worker process or queue scan was run. No Primary event
+was fabricated: each actual example has eventCount0, so their live event-to-Alert
+journey is **not verified**. Synthetic positive E2E is not evidence of a real
+positive dilution extraction.
+
+| Actual case | Preserved result | Projected boundary |
+| --- | --- | --- |
+| CAVA S-1, 2023-05-19 | O/S567745 as of2023-04-16; blank offered quantity and price | Unavailable; exact class labels are not fuzzy matched |
+| PureCycle S-3, 2024-11-20 | O/S173491740 as of2024-11-04; issued resale8528786, conditional warrant underlying5000000 and1510943, preferred50000; original `$` preserved | Unavailable; potential-warrant representation issue below |
+| Silvaco 424B5, 2026-05-08 | O/S32688557 as of2026-05-06; ATM limit$35000000, directly stated increase$20000000, remaining$30668720; no share quantity | Unavailable; no dollars-to-shares conversion |
+| Shimmick 424B5, 2026-05-22 | NO_DIRECT_CURRENT_OS; Offering PASS; prior ATM$7800000/current$4986750 | No public pair; no computed monetary decrease |
+| iBio 424B3, 2026-02-09 | O/S32540942 as of2026-01-30; issued resale1408481; conditional pre-funded underlying9653257; direct conditional post42194199 | Unavailable; direct conditional post stays separate; representation issue below |
+
+Silvaco and iBio filing dates were checked against the exact accession in the
+official SEC submissions JSON, retained with hashes. Shimmick used its original
+SEC header. Dates in old experimental filenames were not used as filing dates.
+Structural/source-reference PASS does not establish semantic quality PASS.
+
+**Confirmed merge blocker:** PureCycle/iBio encode conditional warrant underlying
+as selling-shareholder common_stock components, without a typed warrant component
+and relationship. The calc-r2 resolver safely avoids a positive immediate
+issuance calculation, but sets has_warrants/has_prefunded_warrants false and
+potential_warrant_shares0. The UI consequently displays 0 potential shares even
+though those conditional instruments appear in the original. This does not meet
+the requirement to report unknown potential dilution as unavailable. iBio was
+also reproduced in the rendered admin screen. These cases are not approved as
+complete semantic successes. No interpretation, relationship repair, original
+rewrite or extra extraction was performed to hide this issue. Resolving it must
+preserve immutable calc-r2 facts and use a new calculation revision if meaning
+changes; integration decisions belong with main's shared contract review.
+
+### Final verification and evidence
+
+- Projected/Monitor/Registry/Primary selection:341 PASS,4 optional skips.
+- O/S37 PASS; Offering45 PASS (31 original +14); Alert76 PASS; filing UI46 PASS.
+- Combined24 PASS, including new immutable admin history rejection tests.
+- Naming1 PASS; GET guard1 PASS (the latter also belongs to the Projected selection).
+- Typecheck, production build and git diff check PASS.
+- CSS viewports exactly1440x900,900x900,390x900: conditions, Alert list/details,
+  approved admin result and real Canaan unavailable view inspected. Recorded
+  document widths do not exceed viewport width; long IDs/Unicode wrap.
+- Initial normal-flow detail403 was fixed. Post-fix browser verification reports
+  zero console errors; historical pre-fix errors are not represented as zero.
+  A fresh final browser tab after the successful build/restart also verifies
+  loading the owner detail without errors.
+- Full-page screenshots supplement viewport screenshots because the IAB viewport
+  screenshot API physically clips some desktop captures. CSS dimensions are
+  recorded separately; image pixel dimensions are not claimed to equal CSS size.
+
+Evidence outside Git:
+`C:\Users\PC\AppData\Local\Temp\offering-product-1f6c-20261010`.
+Includes browser-checks.json, approval-auto-readback.json, evaluation-replay.json,
+source-change-report.json, access-current.json, actual-final-audit.json, original
+invocation journals, final test/build logs and screenshots. No credentials or
+large original filings are added to the repository.
+
+C2 adds no migration and does not change calculation revision. Existing
+20261009104931 plus C1 migrations20261009175018/20261009180530 remain local-only;
+the fresh141-migration verification on56562 is recorded in C1. No remote
+migration, Registry Apply, market/canonical O/S, ticker/current or Watchlist writes.
+
+Primary protection: app/filings/[id]/page.tsx,
+app/filings/archive/[id]/page.tsx,
+components/filing-analysis-v2/GenericFilingAnalysis.tsx and
+lib/secFilingAnalysisIngest.ts remain identical to main reference
+`a1ee8ac75ecbe075b9a3e2a814cee41a21a84515`. No Primary page was used as proof of
+the new Monitor journey. Candidate-only next-env.d.ts development regeneration
+is excluded from the feature commit; main's user-owned file was untouched.
+
+Current disposition: candidate implementation/evidence is ready for independent
+main review, **not authorized or ready for merge** while the semantic blocker
+and actual positive event-to-Alert acceptance remain unresolved. Local main ref
+is `a1ee8ac75ecbe075b9a3e2a814cee41a21a84515`; cached origin/main is
+`7fa1de18a5c9b6dc9454862c1d195ea6a773cefa` (not live GitHub verification).
+Deployed Vercel commit, live GitHub equality, remote DB/environment and cron are
+unverified and unchanged. No merge, push or deployment was performed/authorized.

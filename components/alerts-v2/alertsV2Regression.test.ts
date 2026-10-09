@@ -321,14 +321,14 @@ test("Market Discovery is distinct from all-category ticker monitoring", () => {
   assert.doesNotMatch(componentSource, />Alert coverage</);
 });
 
-test("Alerts keeps management and a compact first-class AI Monitor entry", () => {
+test("Alerts keeps management and a compact Custom alerts entry", () => {
   assert.match(componentSource, /<ListingMonitorManagement \/>/);
-  assert.match(componentSource, /href="\/monitor">Open AI Monitor/);
+  assert.match(componentSource, /href="\/monitor">Create Custom alerts/);
   assert.match(componentSource, /Tell Stock Radar what to watch\./);
   assert.doesNotMatch(componentSource, /<ListingMonitorDraftBuilder \/>/);
   assert.match(monitorPageSource, /<ListingMonitorDraftBuilder \/>/);
   assert.match(monitorPageSource, /StockRadarAppShell activeNavigationItem="alerts"/);
-  assert.match(monitorPageSource, /title: "AI Monitor"/);
+  assert.match(monitorPageSource, /title: "Custom alerts — Monitor"/);
   assert.match(styles, /\.aiMonitorEntry/);
 });
 

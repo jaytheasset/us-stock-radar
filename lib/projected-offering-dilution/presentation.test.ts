@@ -7,11 +7,11 @@ const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
-const component = readFileSync('components/filing-analysis-v2/ProjectedOfferingDilution.tsx', 'utf8');
+const component = readFileSync('components/monitor/ProjectedOfferingImpact.tsx', 'utf8');
 const compiled = ts.transpileModule(component, { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText;
-const module = { exports: {} as { ProjectedOfferingDilution: (props: unknown) => unknown } };
+const module = { exports: {} as { ProjectedOfferingImpact: (props: unknown) => unknown } };
 new Function('require', 'module', 'exports', compiled)((name: string) => name.endsWith('.module.css') ? { default: {} } : require(name), module, module.exports);
-const render = (read: unknown) => renderToStaticMarkup(React.createElement(module.exports.ProjectedOfferingDilution, { read }));
+const render = (read: unknown) => renderToStaticMarkup(React.createElement(module.exports.ProjectedOfferingImpact, { read }));
 const read = {
   status: 'available', sourceUrl: 'https://www.sec.gov/example', evidence: [{ id: 'e1', text: 'Pré-funded £ — underlying evidence' }],
   facts: {
@@ -24,14 +24,14 @@ const read = {
 
 test('projected screen keeps base, full option, resale and evidence in distinct labeled sections', () => {
   const html = render(read);
-  for (const text of ['기본 시나리오', '초과배정 전량 행사 시', '기존 주주 재판매량', '200,000주', '50,000주', '1,200,000주', '1,230,000주', '20%', '23%', '공모 계획 기준', '실제 O/S 증가를 의미하지 않습니다.', 'Pré-funded £', read.facts.accession]) assert.ok(html.includes(text), text);
+  for (const text of ['Base scenario', 'Full over-allotment scenario', 'Shareholder resale', '200,000 shares', '50,000 shares', '1,200,000 shares', '1,230,000 shares', '20%', '23%', 'based on offering plans', 'an actual O/S increase.', 'Pré-funded £', read.facts.accession]) assert.ok(html.includes(text), text);
 });
 
 test('unavailable and private facts never render a zero-percent projection', () => {
   assert.equal(render({ status: 'not_ready', reason: 'public_pair_unavailable' }), '');
   const html = render({ ...read, facts: { ...read.facts, issuer_new_shares_base: null, calculated_post_os_base: null, projected_increase_percent_base: null, issuer_new_shares_full_overallotment: null, calculated_post_os_full_overallotment: null, projected_increase_percent_full_overallotment: null, unavailable_reason: ['issuer_quantity_or_role_unavailable'] } });
-  assert.ok(html.includes('계산 불가'));
-  assert.ok(html.includes('회사 신규 발행 수량 또는 증권 역할이 명확하지 않습니다.'));
+  assert.ok(html.includes('Unavailable'));
+  assert.ok(html.includes('Issuer quantity or security role is unavailable.'));
   assert.ok(!html.includes('0%'));
 });
 
@@ -43,6 +43,6 @@ test('projected feature does not attach to Primary display or ingestion', () => 
     'lib/secFilingAnalysisIngest.ts',
   ]) {
     const source = readFileSync(path, 'utf8');
-    assert.doesNotMatch(source, /ProjectedOfferingDilution|readProjectedFacts|filingFactsRenderer|conditionFamily:\s*['"]projected['"]/, path);
+    assert.doesNotMatch(source, /ProjectedOfferingImpact|readProjectedFacts|filingFactsRenderer|conditionFamily:\s*['"]projected['"]/, path);
   }
 });

@@ -32,6 +32,7 @@ import {
   Form4PurchaseMonitorSummary,
 } from "./Form4InsiderPurchaseMonitor";
 import styles from "./ListingMonitorDraftBuilder.module.css";
+import {ProjectedAlertDetails} from './ProjectedAlertDetails';
 
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
 const EDITOR_BY_KEY = new Map(EDITOR_CATALOG.map((item) => [item.key, item]));
@@ -241,10 +242,10 @@ export function ListingMonitorDraftBuilder() {
   }
 
   return (
-    <section className={styles.builder} aria-label="AI Monitor builder">
+    <section className={styles.builder} aria-label="Custom alerts builder">
       {authRequired ? (
         <div className={styles.authNotice} role="status">
-          <span>Sign in to build and create an AI Monitor.</span>
+          <span>Sign in to create Custom alerts from saved conditions.</span>
           <Link href="/login?next=%2Fmonitor">Sign in</Link>
         </div>
       ) : null}
@@ -525,9 +526,9 @@ export function ListingMonitorManagement() {
     <section className={styles.management} aria-labelledby="monitor-management-title">
       <div className={styles.managementHeading}>
         <div>
-          <span>AI Monitor</span>
-          <h2 id="monitor-management-title">Your monitors</h2>
-          <p>Pause, resume, or remove the monitors you’ve created.</p>
+          <span>Custom alerts</span>
+          <h2 id="monitor-management-title">Your saved conditions</h2>
+          <p>Manage the saved conditions that trigger your Custom alerts.</p>
         </div>
         <strong>{loading ? "Loading..." : `${monitors.length} total`}</strong>
       </div>
@@ -541,13 +542,13 @@ export function ListingMonitorManagement() {
       {message ? <p className={styles.managementMessage} role="status">{message}</p> : null}
 
       {!loading && !authRequired && monitors.length === 0 ? (
-        <p className={styles.emptyState}>No monitors yet. Open AI Monitor to create your first one.</p>
+        <p className={styles.emptyState}>No monitors yet. Open Custom alerts to create your first one.</p>
       ) : null}
       <div className={styles.monitorRows}>
         {monitors.map((monitor) => (
           <article key={monitor.id}>
             <div className={styles.monitorStatus}>
-              <strong>{monitor.kind === "form4_insider_purchase" ? "Form 4 purchase alert" : "AI Monitor"}</strong>
+              <strong>{monitor.kind === "form4_insider_purchase" ? "Form 4 purchase alert" : "Custom alerts"}</strong>
               <span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span>
             </div>
             {monitor.kind === "form4_insider_purchase" ? (
@@ -596,22 +597,17 @@ export function ListingMonitorManagement() {
       {!authRequired ? (
         <section className={styles.generatedAlerts} aria-labelledby="monitor-alerts-title">
           <div>
-            <h3 id="monitor-alerts-title"><BellRing aria-hidden="true" size={17} /> Monitor alerts</h3>
+            <h3 id="monitor-alerts-title"><BellRing aria-hidden="true" size={17} /> Custom alerts</h3>
             <span>{loading ? "Loading..." : `${alertTotal} total`}</span>
           </div>
           {!loading && alerts.length === 0 ? (
-            <p>No monitor alerts yet.</p>
+            <p>No Custom alerts yet. Alerts appear when your saved conditions match.</p>
           ) : (
             <ul>
               {alerts.map((alert) => (
                 <li className={alert.effectEvidence ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
                   {alert.projectedScenario ? (
-                    <>
-                      <strong>예상 O/S 증가·희석 — 공모 계획 기준</strong>
-                      <span>{alert.projectedScenario==='base'?'기본 시나리오':alert.projectedScenario==='combined'?'기본 및 초과배정 시나리오':'초과배정 전량 행사 시나리오'}</span>
-                      <span>실제 공모 완료 또는 실제 발행주식 수 증가를 의미하지 않습니다.</span>
-                      {alert.eventId?<Link href={`/filings/${alert.eventId}#projected-offering-dilution`}>예상값·원문 근거 보기</Link>:null}
-                    </>
+                    <ProjectedAlertDetails id={alert.id} scenario={alert.projectedScenario}/>
                   ) : alert.effectEvidence ? (
                     <>
                       <strong>Registration EFFECT confirmed</strong>
@@ -675,7 +671,7 @@ function ConditionDomainCards({
     "listing-risk": "Listing Risk",
     "proxy": "Proxy",
     "effect": "Registration EFFECT",
-    "projected": "예상 공모 희석",
+    "projected": "Projected offering dilution",
   } as const;
 
   return (

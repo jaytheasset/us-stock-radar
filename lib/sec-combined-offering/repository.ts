@@ -27,6 +27,16 @@ export async function hydrateCombined(binding:DurableBinding,repo:Repository){
  if(!built.ok||stable(durableBinding(raw.id,built.source))!==stable(binding))throw Error('combined_source_binding_mismatch');
  return {...binding,source:built.source};
 }
+/** Administrator history only. Raw output remains inspectable even when current source hydration fails. */
+export async function readCommonInvocation(run:Record<string,any>,repo:Repository){
+ const parent=(await select(repo,'ai_runs',{id:`eq.${run.metadata.combinedInvocationId}`,prompt_key:`eq.${PURPOSE}`,select:'*',limit:'1'}))[0];
+ const b=parent?.metadata.binding,cp=parent?.metadata.combinedCheckpoint;
+ const expectedId=run.prompt_key==='sec_os_snapshot'?b?.osRunId:run.prompt_key==='sec_offering_plan'?b?.offeringRunId:null;
+ if(!parent||parent.metadata.combinedStatus!=='COMPLETE'||expectedId!==run.id||parent.raw_item_id!==run.raw_item_id)throw Error('combined_history_mismatch');
+ const output=(await select(repo,'ai_outputs',{ai_run_id:`eq.${parent.id}`,output_type:`eq.${PURPOSE}`,select:'payload',limit:'1'}))[0]?.payload;
+ if(!cp||stable(cp)!==stable(output)||sha(cp.provider?.rawBytesBase64?Buffer.from(cp.provider.rawBytesBase64,'base64'):cp.raw)!==cp.rawHash)throw Error('combined_history_output_mismatch');
+ return {id:String(parent.id),raw:String(cp.raw),rawHash:String(cp.rawHash),osRunId:String(b.osRunId),offeringRunId:String(b.offeringRunId)};
+}
 /** Domain views are not independent invocations. Resolve the immutable common parent. */
 export async function readCombinedDomainSource(run:Record<string,any>,repo:Repository){
  if(run.metadata?.executionKind!=='derived_domain_view')throw Error('combined_domain_kind_invalid');

@@ -9,6 +9,16 @@
   overflow-wrap: anywhere;
 }
 .heading { padding: var(--sr-space-4) var(--sr-space-5); border-bottom: var(--sr-border-width) solid var(--sr-color-divider); }
+.admin {
+  --sr-color-surface-panel: var(--surface);
+  --sr-color-surface-table-panel: var(--surface-muted);
+  --sr-color-text-primary: var(--text);
+  --sr-color-text-heading: var(--text);
+  --sr-color-text-meta: var(--muted);
+  --sr-color-border: var(--border);
+  --sr-color-divider: var(--border);
+  --sr-color-accent-text: var(--accent);
+}
 .heading h2 { margin: 0; color: var(--sr-color-text-heading); font-size: var(--sr-font-size-base); font-weight: var(--sr-font-weight-strong); line-height: 1.5; }
 .root p { margin: 8px 0 0; font-size: var(--sr-font-size-sm); line-height: 1.65; }
 .heading p, .note, .date { color: var(--sr-color-text-meta); }

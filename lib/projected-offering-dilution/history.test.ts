@@ -1,0 +1,76 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {buildSource as osSource} from '../sec-os-snapshot/source.ts';
+import {buildSource as offeringSource} from '../sec-offering-plan/source.ts';
+import {prepare} from './repository.ts';
+import {readOfferingImpact,readProjectedAlertForOwner} from './history.ts';
+import type {Repository} from '../sec-os-snapshot/repository.ts';
+
+const id=(n:number)=>`00000000-0000-4000-a000-${String(n).padStart(12,'0')}`;
+async function fixture(){
+ const raw={id:id(1),source_code:'sec_edgar',source_unique_id:'0000000001-26-000001',raw_payload:{
+  form_type:'F-1',accession_number:'0000000001-26-000001',company_name:'Local only — Pré',cik:'0000000001',filing_date:'2026-10-09',
+  primary_document_html:'<p>Ordinary Pré shares outstanding: 100. Issuer offers 20 shares.</p>',primary_document_html_truncated:false,
+  primary_document_url:'https://www.sec.gov/Archives/local-only-test'}};
+ const os=osSource(raw),off=offeringSource(raw),evidence=[os.blocks[0].id];
+ const o={id:id(2),status:'PASS',fingerprint:os.fingerprint,decision:null as any,value:{version:'os_snapshot_v1',filing:os.filing,status:'PASS',
+  current_os:[{scope:'share_class',share_class:'Ordinary Pré',quantity:'100',as_of_date:null,as_of_text:'As of this prospectus',evidence_blocks:evidence}],review:null}};
+ const p={id:id(3),status:'PASS',fingerprint:off.fingerprint,decision:null,value:{version:'offering_plan_v1',filing:off.filing,status:'PASS',review:null,
+  plan:{components:[{id:'issuer',seller_type:'issuer',security_type:'ordinary_shares',security_label:'Ordinary Pré',quantity:{status:'stated',value:'20',unit:'shares'},evidence_blocks:evidence}],
+   over_allotment:[],post_offering_os:[],proceeds:[],relationships:[]}}};
+ const input={raw,os:o,offering:p,guard:{version:1}},calls:{kind:string;name:string;query:any}[]=[],state={stored:null as any,owned:true,decisions:[] as any[]};
+ const runs=[{id:o.id,prompt_key:'sec_os_snapshot',raw_item_id:raw.id,metadata:{binding:{sourceFingerprint:os.fingerprint}}},
+  {id:p.id,prompt_key:'sec_offering_plan',raw_item_id:raw.id,metadata:{binding:{sourceFingerprint:off.fingerprint}}}];
+ const repo:Repository={
+  async select(name,query){calls.push({kind:'select',name,query});let data:any[]=[];
+   if(name==='user_alert_deliveries')data=state.owned?[{id:id(4),alert_event_id:id(5),projected_fact_id:state.stored.id,projected_scenario:'base'}]:[];
+   else if(name==='projected_offering_dilution_facts')data=state.stored?[state.stored]:[];
+   else if(name==='ai_runs')data=query.id?.startsWith('in.')?runs:runs.filter(r=>query.id===`eq.${r.id}`);
+   else if(name==='raw_items')data=[raw];
+   else if(name.endsWith('_decisions'))data=state.decisions;
+   else throw Error(`unexpected read ${name}`);
+   return {ok:true,data};},
+  async rpc(name,query){calls.push({kind:'rpc',name,query});assert.equal(name,'read_projected_offering_inputs','history must never write');return {ok:true,data:input};}
+ };
+ const prepared=await prepare(raw.id,repo);assert.ok(prepared);
+ state.stored={id:prepared.id,raw_item_id:raw.id,fact:prepared.fact,source_guard:prepared.guard,created_at:'2026-10-09T00:00:00Z'};
+ calls.length=0;return {repo,raw,input,calls,state,runs};
+}
+
+test('owner isolation precedes every fact/run/source read; malformed identifiers do not query',async()=>{
+ const f=await fixture();f.state.owned=false;
+ assert.equal(await readProjectedAlertForOwner(id(6),id(4),f.repo),null);
+ assert.equal(f.calls.length,1);assert.deepEqual(f.calls[0].query,{id:`eq.${id(4)}`,user_id:`eq.${id(6)}`,alert_lane:'eq.listing_monitor',select:'id,alert_event_id,projected_fact_id,projected_scenario',limit:'1'});
+ f.calls.length=0;assert.equal(await readProjectedAlertForOwner('invalid',id(4),f.repo),null);assert.equal(f.calls.length,0);
+});
+test('owner sees the exact recorded fact, scenario and verified Unicode evidence without mutations',async()=>{
+ const f=await fixture(),before=JSON.stringify(f.state.stored),r=await readProjectedAlertForOwner(id(6),id(4),f.repo);
+ assert.ok(r);assert.equal(r.factId,f.state.stored.id);assert.equal(r.scenario,'base');assert.equal(r.current,true);assert.equal(r.evidenceAvailable,true);
+ assert.equal(r.read.status,'available');if(r.read.status==='available'){assert.equal(r.read.facts.issuer_new_shares_base,20);assert.match(r.read.evidence[0].text,/Pré/);}
+ assert.equal(JSON.stringify(f.state.stored),before);assert.ok(f.calls.filter(c=>c.kind==='rpc').every(c=>c.name==='read_projected_offering_inputs'));
+});
+test('newer inputs cannot replace historical quantities or run identity',async()=>{
+ const f=await fixture();f.input.os.id=id(20);f.input.os.value.current_os[0].quantity='200';
+ const r=await readProjectedAlertForOwner(id(6),id(4),f.repo);assert.ok(r);assert.equal(r.current,false);
+ if(r.read.status==='available'){assert.equal(r.read.facts.os_run_id,id(2));assert.equal(r.read.facts.projected_increase_percent_base,20);}
+ assert.equal(f.calls.find(c=>c.name==='projected_offering_dilution_facts')?.query.id,`eq.${f.state.stored.id}`);
+});
+test('changed source preserves recorded values but hides unverifiable source evidence',async()=>{
+ const f=await fixture();f.raw.raw_payload.primary_document_html='<p>Changed source</p>';
+ const r=await readProjectedAlertForOwner(id(6),id(4),f.repo);assert.ok(r);assert.equal(r.current,false);assert.equal(r.evidenceAvailable,false);
+ if(r.read.status==='available'){assert.equal(r.read.facts.issuer_new_shares_base,20);assert.deepEqual(r.read.evidence,[]);assert.equal(r.read.sourceUrl,'');}
+});
+test('recorded decisions are read by exact run/id and return no actor or private reason',async()=>{
+ const f=await fixture();f.state.stored.fact.provenance.os_decision_id=id(7);
+ f.state.decisions=[{id:id(7),action:'approve',created_at:'2026-10-09T01:00:00Z',actor_id:'private',reason:'private note'}];
+ const r=await readProjectedAlertForOwner(id(6),id(4),f.repo);assert.ok(r);
+ assert.deepEqual(r.decisions[0],{domain:'os',id:id(7),approvedAt:'2026-10-09T01:00:00Z'});
+ const q=f.calls.find(c=>c.name==='sec_os_snapshot_decisions')!.query;assert.equal(q.id,`eq.${id(7)}`);assert.equal(q.run_id,`eq.${id(2)}`);
+ assert.ok(!JSON.stringify(r).includes('private'));
+});
+test('admin impact is limited to selected Offering run; missing fact is never materialized',async()=>{
+ const f=await fixture(),r=await readOfferingImpact(id(3),f.repo);assert.equal(r.osRunId,id(2));assert.ok(r.history);
+ assert.equal(f.calls.find(c=>c.name==='projected_offering_dilution_facts')!.query['fact->>offering_run_id'],`eq.${id(3)}`);
+ f.state.stored=null;f.calls.length=0;assert.deepEqual(await readOfferingImpact(id(3),f.repo),{osRunId:id(2),history:null});
+ assert.ok(f.calls.every(c=>c.kind!=='rpc'||c.name==='read_projected_offering_inputs'));
+});

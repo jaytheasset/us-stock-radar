@@ -43,11 +43,12 @@ export async function readSnapshot(id: string, repo?: Repository) {
   let current = false;
   try {
     if(run.metadata.executionKind==='derived_domain_view'){
+      run.metadata={...run.metadata,commonInvocation:await (await import('../sec-combined-offering/repository.ts')).readCommonInvocation(run,repo)};
       const combined=await (await import('../sec-combined-offering/repository.ts')).readCombinedDomainSource(run,repo);
       current=true;
       // Read-only display hydration; no stored run or original response is rewritten.
       run.metadata={...run.metadata,binding:{...run.metadata.binding,source:combined.source},
-        commonInvocation:{id:combined.parent.id,raw:combined.parent.metadata.combinedCheckpoint.raw,rawHash:combined.parent.metadata.combinedCheckpoint.rawHash}};
+        commonInvocation:run.metadata.commonInvocation};
     }else{
       const raw = (await select(repo,"raw_items",{id:`eq.${run.raw_item_id}`,select:"*",limit:"1"}))[0];
       current = buildSource(raw).fingerprint === run.metadata.binding.sourceFingerprint;
