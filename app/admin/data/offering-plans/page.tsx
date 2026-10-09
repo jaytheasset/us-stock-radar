@@ -13,20 +13,21 @@ const actions:Record<string,string>={approve:'승인',hold:'보류',reject:'거�
 export default async function OfferingPlansPage({searchParams}:{searchParams:Promise<{id?:string;status?:string}>}){
  const access=await requireAdminPermission('data.read'),params=await searchParams;
  const [entries,selected]=await Promise.all([listOfferingPlans().catch(()=>null),params.id?readOfferingPlan(params.id).catch(()=>null):null]);
- const m=selected?.run.metadata,cp=m?.offeringCheckpoint,source=m?.binding.source;
+ const m=selected?.run.metadata,cp=m?.offeringCheckpoint,source=selected?.source,identity=selected?.identity,blocks=source?.blocks??[];
  const candidates:Plan[]=cp?.validated?.review?.candidates??[];
  return <div className={styles.page} style={{minWidth:0,overflowWrap:'anywhere'}}>
   <header><h1>SEC Offering 계획 검토</h1><Link href="/admin/data">데이터 운영으로</Link><p>각 F-1/F-1A의 계획·수정 조건입니다. 실제 판매나 closing 완료를 뜻하지 않습니다.</p></header>
   <nav className={ui.filters} aria-label="분석 상태 필터">{Object.entries(labels).map(([k,v])=><Link key={k} href={k==='ALL'?'?':`?status=${k}`} aria-current={(params.status??'ALL')===k?'page':undefined}>{v}</Link>)}</nav>
   {params.id&&!selected&&<p role="alert">선택한 결과를 읽을 수 없습니다.</p>}
   {selected&&<section className={styles.stack}>
-   <header><h2>{source.filing.issuer} {source.ticker}</h2><p>{source.filing.form} · {source.filing.accession} · {source.filing.filing_date}</p><p>접수: {source.filing.accepted_at??'미확인'} · 등록번호: {m.binding.family.number??'미확인'}</p><strong>{labels[m.offeringStatus]}</strong></header>
-   {cp?.validated?.status==='PASS'&&<OfferingPlanCard plan={cp.validated.plan} blocks={source.blocks}/>}
+   <header><h2>{identity!.filing.issuer} {identity!.ticker}</h2><p>{identity!.filing.form} · {identity!.filing.accession} · {identity!.filing.filing_date}</p><p>접수: {identity!.filing.accepted_at??'미확인'} · 등록번호: {m.binding.family.number??'미확인'}</p><strong>{labels[m.offeringStatus]}</strong></header>
+   {selected.sourceError&&<p role="alert">Source mismatch: 원문을 읽을 수 없거나 분석 당시 fingerprint와 일치하지 않아 근거를 표시하지 않습니다.</p>}
+   {cp?.validated?.status==='PASS'&&<OfferingPlanCard plan={cp.validated.plan} blocks={blocks}/>}
    {m.offeringStatus==='NO_DIRECT_OFFERING_PLAN'&&<p>직접 기재된 Offering 계획이 없습니다.</p>}
    {m.offeringStatus==='REVIEW_REQUIRED'&&<p>검토 사유: {cp.validated.review.code}. 후보를 자동 선택하지 않았습니다.</p>}
-   {cp?.validated?.review&&<details className={ui.technical}><summary>충돌·모호성의 직접 근거</summary>{source.blocks.filter((b:Block)=>cp.validated.review.evidence_blocks.includes(b.id)).map((b:Block)=><section key={b.id}><h4>{b.id}</h4><pre>{b.text}</pre></section>)}</details>}
+   {cp?.validated?.review&&source&&<details className={ui.technical}><summary>충돌·모호성의 직접 근거</summary>{blocks.filter((b:Block)=>cp.validated.review.evidence_blocks.includes(b.id)).map((b:Block)=><section key={b.id}><h4>{b.id}</h4><pre>{b.text}</pre></section>)}</details>}
    {m.offeringStatus==='VALIDATION_FAILED'&&<p>원본 결과를 보존했습니다. 아래 검증 기록을 확인해 주세요.</p>}
-   <OfferingPlanActions key={selected.run.id} id={selected.run.id} status={m.offeringStatus} candidateCards={candidates.map((p,i)=><OfferingPlanCard key={i} plan={p} blocks={source.blocks}/>)} canWrite={rolesHavePermission(access.roles,'data.run')} retrySafe={cp?.provider?.retrySafe===true}/>
+   <OfferingPlanActions key={selected.run.id} id={selected.run.id} status={m.offeringStatus} candidateCards={candidates.map((p,i)=><OfferingPlanCard key={i} plan={p} blocks={blocks}/>)} canWrite={rolesHavePermission(access.roles,'data.run')} retrySafe={cp?.provider?.retrySafe===true}/>
    <section><h3>관리자 결정 이력</h3>{selected.decisions.length?selected.decisions.map(d=><article className={styles.card} key={d.id}><strong>{actions[d.action]}</strong><p>{d.reason}</p>{d.action==='approve'&&<p>승인 후보 {d.candidate_indexes.map((i:number)=>i+1).join(', ')}</p>}<small>{d.created_at} · {d.actor_user_id}</small></article>):<p>아직 없음</p>}</section>
    <section><h3>같은 등록신고서의 공시별 조건</h3><p>{m.binding.family.key??(m.binding.family.status==='conflicting'?'등록번호 충돌: 연결하지 않음':'공식 등록번호 미확인: 연결하지 않음')}</p>
     <div className={ui.cards}>{selected.family.map(r=><article className={ui.record} key={r.id}><h4><Link href={`?id=${r.id}`}>{r.filing.form} · {r.filing.accession}</Link></h4><p>{r.filing.filing_date} · {labels[r.status]}</p>{r.plan&&<OfferingPlanCard plan={r.plan}/>}</article>)}</div>

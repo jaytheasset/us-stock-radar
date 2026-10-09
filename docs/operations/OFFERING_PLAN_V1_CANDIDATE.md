@@ -62,3 +62,58 @@ Integrity audit confirms all 9 existing O/S runs and 6 O/S outputs unchanged; ac
 Candidate UI verification used port 3114; that server was stopped after verification. Port 3110 and other tasks' servers were untouched. `.env.local`, raw filings, screenshots, credentials and journals are not committed. Candidate-generated `next-env.d.ts` change is excluded/restored; permanent main's file is untouched.
 
 The candidate is available for independent main merge review. This report does not authorize merge/push/deploy and does not replace the main workspace acceptance gate.
+
+## Compact reservations and four additional product E2Es — 2026-10-09
+
+Continuation base: detached `d2b7cafb04a786d46d564e47f1d8b768c847607b`, same `b31e` candidate. The original failed expanded-E2E folder and all gate outputs/hashes remain unchanged. ARM reused raw item `5161faa0-d09a-4f9b-ac21-5ead0ef4bd2c`.
+
+### Measured problem and compact contract
+
+The old ARM binding was **6,264,931 UTF-8 bytes**, RPC body 6,264,945 bytes: original HTML 3,274,263 bytes, rendered text 1,338,342 bytes, serialized blocks 1,491,973 bytes / 544 blocks. Canaan's old binding was 5,518,923 bytes (RPC 5,518,937; original 3,177,327; text 998,422; blocks 1,154,047). Original and rendered content were duplicated in the reservation request and binding metadata.
+
+The historical local DB/PostgREST logs show a statement timeout in the old reserve function's source-validation `IF`. They do not isolate one comparison expression as the cause. GPT-free rollback measurements did **not** reproduce the timeout: an unchanged reserve called inside a rollback wrapper took 6.25s over REST (2.69s inside the wrapper); a clone of the original body with a mandatory rollback exception took 1.66s. Neither measurement left a run or invoked a provider. The earlier timeout remains a recorded failure; these measurements are not a claimed timeout duration.
+
+New `bindingVersion:2` stores deterministic run ID/key, raw ID, filing identity, ticker, fingerprint, per-document ID/original/text SHA256, document/block counts, contract/schema/prompt/profile and official family. It contains no source body or block array. The deterministic key is unchanged, so old full-binding Canaan replays to its original run. The semantic schema, instructions and frozen writer are unchanged.
+
+Follow-up migration **`20261009072629_sec_offering_compact_binding.sql`** replaces only reserve behavior: compact shape/size/hash-format checks, raw filing/family identity checks, one raw-payload decode and SHA256 of the retained original, followed by idempotent reservation. It retains the existing 30s bound, service-only RPC permissions, RLS and immutable guards. The already-applied migration is byte-identical; no historic run/output is rewritten. The follow-up was applied to local DB for verification, without adding a migration-history entry, consistent with the original local candidate setup. Main integration must reconcile the local migration history separately; no remote DB was accessed.
+
+After claim, Worker reconstructs the neutral source from raw ID and compares the complete compact descriptor before recording invocation intent. Changed/missing/mismatched source becomes a persisted `TECHNICAL_FAILED` / `pre_provider_source` checkpoint with no provider call and no automatic retry. Checkpoint/journal recovery and shared O/S lock are retained. Admin evidence uses the same reconstruction; unavailable/mismatched source produces a notice and no current-source evidence. Old full bindings remain readable/replayable without conversion.
+
+### Actual product results
+
+Every case used its complete retained primary, the actual ingest replay hook, Offering-only shared Worker, one CLI invocation, strict UTF-8 freeze, structural validator, immutable output, direct source review, admin UI and terminal reenqueue. Gate JSON/reviews were evaluation material only, never provider inputs. No O/S worker/backfill, extra reviewer model, output correction or retry ran.
+
+| Case / accession | Run ID | Status | Binding / RPC bytes | Reserve / whole enqueue |
+| --- | --- | --- | --- | --- |
+| ARM F-1/A `0001193125-23-228059` | `3e24e215-9d61-5626-a8f3-2faa92a5cb7d` | PASS | 1,142 / 1,156 | 170ms / 2.27s |
+| NuCana F-1/A `0001193125-25-110310` | `7c0b355a-d4ac-5632-aba0-e004de2d2be2` | PASS | 1,131 / 1,145 | 57ms / 0.21s |
+| Birkenstock F-1 `0001193125-23-233488` | `b03218a6-720a-5b03-af3a-e63f5def73e0` | PASS | 1,143 / 1,157 | 546ms / 2.21s |
+| Birkenstock F-1/A `0001193125-23-250555` | `5ec1a5af-4db0-509e-a21f-e2c7aadb212e` | PASS | 1,145 / 1,159 | 1,330ms / 2.07s |
+
+- ARM: shareholder-only 95,500,000 ADSs, proposed USD47–51, ordinary-share ratio 1:1, shareholder option 7,000,000. Explicit issuer no-proceeds; no calculated gross. Direct conditional post-offering 1,026,078,866 ordinary shares remains a plan assumption.
+- NuCana: five issuer components covering ADSs, Series A, Series B, pre-funded warrants and registered underlying ADSs. 12,497,768 base ADSs; 559,275,129 directly registered underlying ADSs; ratio 1:25. Combined USD0.5601 is fixed/assumed; pre-funded purchase price stays blank with the source's price-minus-GBP0.01 relationship. Exercise prices are not subscription prices. Exact output and evidence retain `£0.01`/`£0.0004`. Direct conditional issuer net USD5.5m/3.9m/2.4m/0.8m is preserved without calculation.
+- Birkenstock F-1: separate issuer/shareholder ordinary-share components with blank quantities/prices; both blank option quantities preserved. No numeric proceeds or post-offering O/S invented; issuer no-proceeds is scoped to shareholder sales.
+- Birkenstock F-1/A: issuer 10,752,688 / shareholder 21,505,376 ordinary shares, proposed USD44–49, shareholder-only option 4,838,709 and direct conditional post-offering 187,825,592. Issuer gross USD500m is the literal new-investor consideration in the dilution table, not multiplication; net USD450.2m is directly stated. Shareholder proceeds are not assigned to issuer.
+
+All direct meaning reviews PASS: no actual closing claim, fee-table proceeds, inferred values, hidden core conflict or amendment carry-forward. Birkenstock family is **`0001977102:333-274483`**, with separate runs/outputs and untouched F-1 blanks. The earlier issuer over-allotment placeholder is not carried into F-1/A.
+
+This expansion used **four new Offering GPT calls total**, including ARM from the prior turn; **three** occurred after the user-started 3114 server resumed verification. ARM was not re-run or re-worked. Every attempt remains 1; reenqueue added **zero** provider calls and **zero** duplicate outputs.
+
+Raw/freeze/DB SHA256:
+
+| Case | SHA256 |
+| --- | --- |
+| ARM | `ba2cbf3f99dfc020a18379a7bc4e64da50febe1f485432041b6cf7be0a1cd719` |
+| NuCana | `0fd20d3c89d87972b5707173e166d5f64c6a52df40f1fe3eb8262597d1564c11` |
+| Birkenstock F-1 | `56d73a61487a3cecaf7b0c7ae30f85b9006e03dca70376f316f7c98eb86a0e8e` |
+| Birkenstock F-1/A | `9473b84b1ed19864bbc8a3691b8dd604dc61917b3566e1d9d556d767632aa69c` |
+
+### Browser, regression and preservation
+
+All four list/detail/evidence/raw/validation views passed at **1440×900, 900×900 and exactly 390×900**. Screenshots were visually inspected; no horizontal page overflow, clipped value text, damaged Unicode or normal-flow console errors. Birkenstock family compares two separate conditions on desktop and stacks them on mobile. Logged-out/non-admin direct page/API denial and legacy Canaan full-binding read also passed. The first browser harness incorrectly counted an empty framework alert as an error; diagnosis showed no error message, and only the external harness was corrected to reject nonempty alerts. No product result changed and no synthetic REVIEW fixture was added.
+
+Post-E2E verification: Offering **31 PASS**, O/S **37 PASS**, Registry/Monitor **213 PASS** with four existing optional skips, S-1/F-1 Primary **91 PASS**, isolated SQL/runtime tests PASS, TypeScript noEmit, production build and diff check PASS. Local tests covered actual retained ARM and both Birkenstock source sizes, compact metadata, duplicate reservation, old/full replay, source changes/missing content/fingerprint mismatch with zero model calls, safe evidence reconstruction, immutable results and checkpoint/lease/journal recovery. Model-free tests used isolated schemas and removed them afterward.
+
+Final audit: all prior Offering **5 runs / 4 outputs**, including Canaan, and O/S **9 runs / 6 outputs** retain their row hashes. The four new outputs also retain their initial hashes after subsequent cases and replay. Prior gate/failure files and journals are unchanged. Anonymous run/output reads remain denied; anon/authenticated reserve and decision permissions remain denied. Shared provider lock is free.
+
+Evidence is outside Git at `%LOCALAPPDATA%/Temp/offering-compact-b31e-20261009`: per-case preparation/capture/review/browser/replay/completion records, screenshots, `resumed-integrity.json` and regression logs. Historical `final-audit.json` intentionally retains the earlier browser-blocked status; the resumed records supersede that status without rewriting its evidence. The user-started candidate server remains on 3114. Port3110, main, remote DB, environment settings, scheduling, push and deployment were not changed. Local main / GitHub main / deployed Vercel commit equality remains **unverified**; this is candidate acceptance evidence for independent merge review, not production completion.

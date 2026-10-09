@@ -7,13 +7,22 @@ import {tmpdir,hostname} from 'node:os';
 import {join} from 'node:path';
 import {spawn,spawnSync} from 'node:child_process';
 import {validateOutput,sha,type Source} from './contract.ts';
-import {bindingFor,familyFor} from './source.ts';
+import {bindingFor,familyFor,compactBinding,buildSource,hydrateBinding} from './source.ts';
 import {CodexCliOfferingProvider} from './provider.ts';
 import {CodexCliOsSnapshotProvider,type RunProcess} from '../sec-os-snapshot/provider.ts';
 const manifest=JSON.parse(readFileSync('lib/sec-offering-plan/fixtures/manifest.json','utf8'));
 const fixture=(id:string)=>({raw:readFileSync(`lib/sec-offering-plan/fixtures/${id}.json`,'utf8'),source:JSON.parse(gunzipSync(readFileSync(`lib/sec-offering-plan/fixtures/${id}.source.json.gz`)).toString()) as Source});
 for(const f of manifest.fixtures)test('frozen gate fixture '+f.id,()=>{const {raw,source}=fixture(f.id);assert.equal(sha(raw),f.rawHash);const v=validateOutput(raw,source);assert.equal(v.ok,true,JSON.stringify(v.errors));assert.equal(JSON.stringify(v.value),JSON.stringify(JSON.parse(raw)));});
 const {raw,source}=fixture('arm-f1a'),binding=bindingFor('00000000-0000-5000-a000-000000000001',source);
+
+test('compact binding has no source body and reconstructs both formats without changing the key',()=>{
+ const rawItem={id:binding.rawItemId,source_code:'sec_edgar',source_unique_id:source.filing.accession,raw_payload:{accession_number:source.filing.accession,company_name:source.filing.issuer,cik:source.filing.cik,form_type:source.filing.form,filing_date:source.filing.filing_date,primary_document_html:'<p>Original £0.01 Ω</p>',primary_document_html_truncated:false}};
+ const s=buildSource(rawItem),full=bindingFor(rawItem.id,s),compact=compactBinding(full),saved=JSON.stringify(compact);
+ assert.equal(compact.id,full.id);assert.equal(saved.includes('Original'),false);assert.equal('blocks' in compact,false);assert.equal('source' in compact,false);
+ for(const b of [full,compact])assert.deepEqual(hydrateBinding(b,rawItem),full);
+ for(const [key,value]of Object.entries({sourceFingerprint:sha('bad'),blockCount:99,filing:{...s.filing,issuer:'wrong'},documents:[]}))assert.throws(()=>hydrateBinding({...compact,[key]:value},rawItem),/mismatch/);
+ rawItem.raw_payload.primary_document_html+='changed';assert.throws(()=>hydrateBinding(compact,rawItem),/mismatch/);assert.equal(JSON.stringify(compact),saved);
+});
 test('family needs official nonconflicting numbers; amendment and revisions stay separate',()=>{
  const f=source.filing;assert.equal(familyFor(f).status,'confirmed');
  assert.equal(familyFor({...f,file_number:null,registration_number:null}).key,null);
