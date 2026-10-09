@@ -8,7 +8,6 @@ export interface OfferingProvider {journalId?:string;run(binding:Binding,attempt
 export async function processOfferingPlan(id:string,provider:OfferingProvider,supplied?:Repository){
  const repo=supplied??await repository();
  const claimed=await rpc(repo,'sec_offering_plan_transition',{p_id:id,p_action:'claim'});if(!claimed.claimed){
-  if(!supplied&&['PASS','REVIEW_REQUIRED'].includes(claimed.status))await (await import('../projected-offering-dilution/repository.ts')).refreshProjectedForRun(id);
   return {status:claimed.status};
  }
  const token=String(claimed.token),transition=(action:string,value?:unknown)=>rpc(repo,'sec_offering_plan_transition',{p_id:id,p_action:action,p_token:token,p_value:value??null});
@@ -32,7 +31,6 @@ export async function processOfferingPlan(id:string,provider:OfferingProvider,su
    if(leaseError)throw leaseError;await transition('checkpoint',cp);
   }
   const saved=await transition('finish');
-  if(!supplied&&['PASS','REVIEW_REQUIRED'].includes(saved.status))await (await import('../projected-offering-dilution/repository.ts')).refreshProjectedForRun(id);
   return {status:saved.status};
  }finally{clearInterval(heartbeat);}
 }

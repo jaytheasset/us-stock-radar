@@ -1,6 +1,9 @@
 import { hasEffect, effectConditionErrors } from "../sec-effect/conditions.ts";
 import {
   getReadyMonitorCondition,
+  getStoredMonitorCondition,
+  hasRetiredMonitorConditions,
+  validateStoredMonitorConditionInput,
   validateMonitorConditionInput,
   type MonitorConditionOperator,
 } from "./conditionRegistry.ts";
@@ -40,7 +43,7 @@ export type ListingMonitor = Readonly<{
 
 export type ListingMonitorDiagnostic = Readonly<{
   id: string;
-  reason: "stored_conditions_invalid" | "stored_monitor_invalid";
+  reason: "stored_conditions_invalid" | "stored_monitor_invalid" | "stored_conditions_retired";
   errors: readonly string[];
 }>;
 
@@ -157,7 +160,9 @@ export async function listActiveListingMonitorsForConsumer(
       const ownerId = typeof row.user_id === "string" ? row.user_id : "";
       const parsed = parseStoredMonitor(row, ownerId);
       if (parsed.ok) {
-        if (parsed.monitor.isActive) monitors.push(parsed.monitor);
+        if (hasRetiredMonitorConditions(parsed.monitor.conditions)) {
+          diagnostics.push({id:parsed.monitor.id,reason:'stored_conditions_retired',errors:['condition_key_retired']});
+        } else if (parsed.monitor.isActive) monitors.push(parsed.monitor);
       } else {
         diagnostics.push(parsed.diagnostic);
       }
@@ -208,6 +213,11 @@ export async function updateListingMonitor(
       "listing_monitor_not_found",
       "Listing monitor was not found for this owner",
     );
+  }
+  // Retired records remain owner-readable and pausable, but cannot be reused or resumed.
+  if (hasRetiredMonitorConditions(stored.conditions)
+    && (input.isActive === true || input.conditions !== undefined || input.form4PurchaseSettings !== undefined)) {
+    throw invalidMonitor('This historical condition set has been retired.', ['condition_key_retired']);
   }
   const storedKind = stored.monitor_kind === FORM4_INSIDER_PURCHASE_MONITOR_KIND
     ? FORM4_INSIDER_PURCHASE_MONITOR_KIND
@@ -274,7 +284,7 @@ export async function deleteListingMonitor(
   return readRows(result.data).some((row) => row.user_id === ownerId && row.id === monitorId);
 }
 
-export function validateCanonicalListingConditions(value: unknown, stage: "stored" | "draft" = "stored"): Readonly<{
+export function validateCanonicalListingConditions(value: unknown, stage: "stored" | "draft" | "history" = "stored"): Readonly<{
   ok: boolean;
   conditions: readonly CanonicalListingMonitorCondition[];
   errors: readonly string[];
@@ -294,13 +304,13 @@ export function validateCanonicalListingConditions(value: unknown, stage: "store
       errors.push(`conditions[${index}]:condition_invalid`);
       return;
     }
-    const validationError = validateMonitorConditionInput(candidate)[0];
+    const validationError = (stage === 'history' ? validateStoredMonitorConditionInput(candidate) : validateMonitorConditionInput(candidate))[0];
     if (validationError) {
       errors.push(`conditions[${index}]:${validationError}`);
       return;
     }
     const key = candidate.key as string;
-    const definition = getReadyMonitorCondition(key);
+    const definition = stage === 'history' ? getStoredMonitorCondition(key) : getReadyMonitorCondition(key);
     if (!definition?.monitorDomains?.includes("listing")) {
       errors.push(`conditions[${index}]:condition_key_unknown`);
       return;
@@ -311,7 +321,7 @@ export function validateCanonicalListingConditions(value: unknown, stage: "store
       value: cloneCanonicalValue(candidate.value),
     }));
   });
-  if (stage === "stored") errors.push(...effectConditionErrors(conditions));
+  if (stage !== "draft") errors.push(...effectConditionErrors(conditions));
   return {
     ok: errors.length === 0,
     conditions: errors.length === 0 ? Object.freeze(conditions) : [],
@@ -354,7 +364,7 @@ function parseStoredMonitor(
   | Readonly<{ ok: true; monitor: ListingMonitor }>
   | Readonly<{ ok: false; diagnostic: ListingMonitorDiagnostic }> {
   const id = typeof row.id === "string" ? row.id : "unknown";
-  const conditionValidation = validateCanonicalListingConditions(row.conditions);
+  const conditionValidation = validateCanonicalListingConditions(row.conditions, 'history');
   if (!conditionValidation.ok) {
     return {
       ok: false,

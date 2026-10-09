@@ -28,6 +28,7 @@ test('projected screen keeps base, full option, resale and evidence in distinct 
 });
 
 test('unavailable and private facts never render a zero-percent projection', () => {
+  assert.equal(render({ status: 'not_ready', reason: 'projected_calculation_retired' }), '');
   assert.equal(render({ status: 'not_ready', reason: 'public_pair_unavailable' }), '');
   const html = render({ ...read, facts: { ...read.facts, issuer_new_shares_base: null, calculated_post_os_base: null, projected_increase_percent_base: null, issuer_new_shares_full_overallotment: null, calculated_post_os_full_overallotment: null, projected_increase_percent_full_overallotment: null, unavailable_reason: ['issuer_quantity_or_role_unavailable'] } });
   assert.ok(html.includes('Unavailable'));

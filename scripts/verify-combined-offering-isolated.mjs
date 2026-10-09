@@ -45,11 +45,9 @@ try{
  assert.equal(offered.sourceError,null);assert.equal(os.current,true);assert.equal(offered.commonInvocation.id,f.b.id);
  assert.deepEqual(offered.run.metadata.offeringCheckpoint.validated.plan,f.value.offering_plan.plan);
  assert.equal(offered.run.metadata.executionKind,'derived_domain_view');assert.equal(offered.run.model,'derived-domain-view');
- const prepared=await prepare(f.raw.id,repo);assert.ok(prepared);
- assert.equal(prepared.fact.issuer_new_shares_base,20);assert.equal(prepared.fact.resale_shares,5);
- assert.equal(prepared.fact.calculated_post_os_base,120);assert.equal(prepared.fact.projected_increase_percent_base,20);
- for(let n=0;n<3;n++)assert.equal((await refreshProjected(f.raw.id,repo)).id,prepared.id);
- assert.equal((await db.query('select count(*)::int n from projected_offering_dilution_facts where raw_item_id=$1',[f.raw.id])).rows[0].n,1);
+ assert.equal(await prepare(f.raw.id,repo),null);
+ for(let n=0;n<3;n++)assert.equal((await refreshProjected(f.raw.id,repo)).status,'retired');
+ assert.equal((await db.query('select count(*)::int n from projected_offering_dilution_facts where raw_item_id=$1',[f.raw.id])).rows[0].n,0);
  for(const patch of [{osRunId:f.b.offeringRunId},{providerProfile:'other'},{documents:null},{filing:null}]){
   const invalid=await repo.rpc('reserve_sec_combined_offering',{p_binding:{...f.b,...patch}});assert.equal(invalid.ok,false);
  }
@@ -77,6 +75,6 @@ try{
  await enqueueCombinedOffering(lost.raw.id,repo);assert.equal(await prepare(lost.raw.id,repo),null);
  const staleRead=await readSnapshot(lost.b.osRunId,repo);assert.equal(staleRead.current,false);
  for(const role of ['anon','authenticated'])assert.equal((await db.query("select has_function_privilege($1,'public.sec_combined_offering_transition(uuid,text,text,jsonb)','EXECUTE') allowed",[role])).rows[0].allowed,false);
- const report={passed:true,dbPort:56462,rawIds:ids,positive:f.b,projected:prepared.fact,providerMockCalls:calls,realGptCalls:0,unchangedRawHash:sha(raw),checks:['compact reserve','invalid descriptor rejection','replay','single invocation','parent and domain provenance','domain isolation','readback','immutable output','lost response','uncertain journal no recall','source mismatch before invocation','private RPCs','common_stock 100+20=120; resale 5; increase 20%','fact revision and replay','latest parent no fallback'],evidence};
+ const report={passed:true,dbPort:56462,rawIds:ids,positive:f.b,projected:'retired',providerMockCalls:calls,realGptCalls:0,unchangedRawHash:sha(raw),checks:['compact reserve','invalid descriptor rejection','replay','single invocation','parent and domain provenance','domain isolation','readback','immutable output','lost response','uncertain journal no recall','source mismatch before invocation','private RPCs','direct domain values preserved','projected calculation retired; no new fact on replay','latest parent no fallback'],evidence};
  writeFileSync(join(evidence,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
 }finally{await db.end();}

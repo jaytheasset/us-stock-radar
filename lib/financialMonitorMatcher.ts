@@ -16,6 +16,7 @@ export type FinancialMonitorMatchReasonCode =
   | "condition_set_empty"
   | "condition_invalid"
   | "condition_key_unknown"
+  | "condition_key_retired"
   | "condition_operator_unknown"
   | "condition_value_invalid"
   | "reader_not_ready"

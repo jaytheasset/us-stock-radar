@@ -28,8 +28,6 @@ export type MonitorAddConditionGroup = Readonly<{
 }>;
 
 const PRESET_DEFINITIONS = Object.freeze([
-  {id:'projected-offering-dilution',title:'Projected offering dilution',description:'Watch projected O/S growth based on offering plans.',category:'Projected offering dilution',priority:5,
-    conditions:[{key:'projected.projected_increase_percent_base',operator:'gte' as const,value:10}]},
   Object.freeze({
     id: "low-price-reverse-split",
     title: "Low-price reverse split",
@@ -72,14 +70,6 @@ const PRESET_DEFINITIONS = Object.freeze([
 ] satisfies readonly MonitorPreset[]);
 
 const ADD_CONDITION_DEFINITIONS = Object.freeze([
-  ...([
-    ['issuer_new_shares_base','Projected issuer new shares',1000000],
-    ['projected_increase_percent_base','Projected O/S increase (%)',10],
-    ['projected_increase_percent_full_overallotment','Projected increase with full over-allotment (%)',10],
-    ['resale_only','Resale only',true],['has_prefunded_warrants','Pre-funded warrants included',true],
-    ['has_warrants','Potential warrant dilution included',true],['calculation_issue','Calculation unavailable or conflicting direct values',true],
-  ] as const).map(([field,title,value])=>({id:`projected-${field.replaceAll('_','-')}`,category:'projected' as const,title,
-    condition:{key:`projected.${field}`,operator:typeof value==='number'?'gte' as const:'eq' as const,value}})),
   Object.freeze({
     id: "price",
     category: "common" as const,

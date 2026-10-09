@@ -9,6 +9,7 @@ import {processCombinedOffering} from './runtime.ts';
 import {combinedProvider} from './provider.ts';
 import {REVISION,schemaText,promptText} from './contract.ts';
 import {sha} from '../sec-os-snapshot/contract.ts';
+import {readMatchingOsRun} from '../sec-offering-plan/repository.ts';
 import type {Repository} from '../sec-os-snapshot/repository.ts';
 
 function fixture(){
@@ -40,6 +41,13 @@ test('derived reader accepts exact immutable parent/output/projection, without n
  const f=await history(),result=await readCombinedDomainSource(f.child,f.repo);
  assert.equal(result.parent.id,f.binding.id);assert.equal(result.source.fingerprint,f.source.fingerprint);
  assert.deepEqual(result.value,f.child.metadata.offeringCheckpoint.validated);
+});
+
+test('peer lookup uses the exact combined invocation without calculating or substituting another parent',async()=>{
+ const f=await history();
+ assert.equal(await readMatchingOsRun(f.child,f.repo),f.binding.osRunId);
+ f.parent.id='unrelated-parent';
+ await assert.rejects(readMatchingOsRun(f.child,f.repo));
 });
 test('derived reader rejects swapped roles, unrelated parent, hash/contract/source/projection and output damage',async()=>{
  const mutations:((f:Awaited<ReturnType<typeof history>>)=>void)[]=[

@@ -1,5 +1,42 @@
 # F-1 projected offering dilution v1
 
+## Current stage — automatic calculations retired, 2026-10-10
+
+This section supersedes the historical calculation/publication behavior below. Stage base: `597d0b3f1a2a1d3d3c69deac3d0af87c61accbc4`, existing detached candidate. This stage only disconnects execution and verifies offline boundaries; it does not complete the product UI or authorize integration.
+
+- O/S, Offering and combined runtime finish/replay no longer trigger Projected work. The two administrator decision routes retain their independent authorization, origin checks and decision RPCs, without calculation or Alert post-processing. Direct extraction, immutable raw/hash checkpoints and domain validation are preserved.
+- `prepare` returns null. Refresh entry points return `retired`; the current reader returns `projected_calculation_retired`. These entry points neither open a repository nor calculate/write anything, including when no repository is injected. The frozen calculator remains historical code with no production runtime importer.
+- All seven exact `projected.*` definitions are retained as `RETIRED` for historical identification and typed display. New catalog/preset/compiler context, create, edits/conversion and resume exclude them. Owners can still read and pause their saved sets. Mixed sets are excluded as a whole, including direct matcher, EFFECT and Form 4 entry points. Other condition families keep their existing behavior.
+- Explicit Projected publication/replay is a zero-write result; generic/filing fanout does not load these facts. The direct Alert writer rejects the Projected payload before opening a DB repository.
+- Historical Alert reads retain the original fact, source evidence and run/decision identity under `recorded`, with `current:false`, `retired:true` and a non-current `read` result. Source fingerprints still control evidence availability. Owner checks precede history reads and private administrator fields stay excluded. No read recomputes a fact. Existing numerical panels receive no current value; dedicated historical presentation remains a later UI task.
+- A missing historical fact may resolve the exact same-filing O/S peer without calculation: F-1 uses the existing read-only input RPC and verifies the selected Offering/raw identity; combined uses the validated common invocation. No amendment/family fallback is introduced.
+- No migration, schema, prompt, Primary, Registry, market O/S, `.env` or server configuration changed. Existing facts, raw outputs, decisions, Alert links and SQL RPC definitions are retained. DB-level RPC revocation would require a separately authorized additive migration; it is not claimed here. The combined isolated verifier now expects no Projected writes but was **not executed**. `verify-projected-dilution-local.mjs` is a historical calculation-era verifier and is not a current acceptance command.
+
+Offline checks for this stage:
+
+| Check | Result |
+| --- | --- |
+| Projected + Monitor/Registry/Primary regression | 353 PASS, 4 existing optional skips |
+| O/S | 37 PASS |
+| Offering, including ATM/Unicode | 45 PASS |
+| Combined extraction/history | 25 PASS |
+| Alert regression | 76 PASS |
+| Filing UI regression | 46 PASS |
+| Compiler, other Monitor families and Alert management | 151 PASS |
+| Tender product/price-change | 18 PASS |
+| Typecheck / normal Turbopack production build | PASS / PASS |
+| Current and cumulative-main `git diff --check` | PASS / PASS |
+
+Selections overlap; counts are not an aggregate test total. Added tests cover default-repository finish/replay (offline dependency harness), independent approve/hold/reject/retry routing, origin/auth gates, historical owner isolation, raw/hash preservation, retired direct entry points, mixed sets and no publication. Three other matcher files only add the shared retirement error to their TypeScript reason unions. The existing Alert UX test's two stale names were aligned with the already committed `Custom alerts` copy; no UI markup changed.
+
+The initial relative loader invocation failed before tests; the existing absolute loader resolved it. Extended tests required the repository's `resolve-server-only.mjs` test adapter. An initial strict network guard also blocked Turbopack's own loopback IPC. A diagnostic webpack attempt failed on pre-existing global-only Dashboard CSS, which was not changed. The normal build then passed with only the verified candidate build worker's exact IPC connection permitted; DB, HTTP and external sockets remained blocked. Evidence/logs are outside Git at `C:/Users/PC/AppData/Local/Temp/projected-retirement-1f6c-20261010/`.
+
+Actual GPT/provider and O/S/Offering Worker executions in this stage: **0**. DB reads/writes/migrations, browser E2E, login/plan/1440/900/390px checks and server starts: **not performed**. Prior DB/browser/provider evidence is historical and is not this stage's verification. Ports 3110 and 56322/56462/56562 were not used.
+
+Main handoff: permanent main `C:/Users/PC/Documents/Codex/US-Stock Radar` stays locked to `main`; local main ref `a1ee8ac75ecbe075b9a3e2a814cee41a21a84515`, cached `origin/main` `7fa1de18a5c9b6dc9454862c1d195ea6a773cefa`. Live GitHub/Vercel SHA and equality, DB migration state, external services and cron remain unverified and unchanged. No merge/push/deploy authorization. **Not merge-ready: stop after this candidate commit and await main's next stage instructions.**
+
+## Historical implementation and verification
+
 > 2026-10-10 correction: NOT merge-ready. Primary filing pages, shared analysis renderer and Primary ingestion have been restored exactly to local main a1ee8ac75ecbe075b9a3e2a814cee41a21a84515. The projected panel is disconnected from these surfaces, and the Primary post-save Alert hook is removed. Remaining Monitor/Alert English copy and a separately approved detail destination are unfinished; existing projected Alert anchors no longer expose a detail panel. Earlier verification below is historical and does not establish current feature completion. No original AI output, schema or prompt was changed by this restoration.
 
 Base: `1b847ea1c5ef0c3b4a15e421570b025524558a5c`; detached candidate `C:\Users\PC\.codex\worktrees\1f6c\US-Stock Radar`.

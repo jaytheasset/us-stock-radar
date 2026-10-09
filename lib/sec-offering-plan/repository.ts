@@ -14,6 +14,15 @@ export async function loadOfferingSource(binding:StoredBinding,repo:Repository){
  if(!raw)throw Error('offering_source_raw_missing');
  return hydrateBinding(binding,raw);
 }
+/** Existing exact-filing pairing only; no calculation, persistence or family fallback. */
+export async function readMatchingOsRun(run:Record<string,any>,repo:Repository):Promise<string|null>{
+ if(run.metadata?.executionKind==='derived_domain_view'){
+  const common=await (await import('../sec-combined-offering/repository.ts')).readCommonInvocation(run,repo);
+  return common.osRunId;
+ }
+ const pair=await rpc(repo,'read_projected_offering_inputs',{p_raw_id:run.raw_item_id});
+ return pair.raw?.id===run.raw_item_id&&pair.offering?.id===run.id&&typeof pair.os?.id==='string'?pair.os.id:null;
+}
 const summary='id,raw_item_id,started_at,finished_at,status:metadata->>offeringStatus,filing:metadata->binding->filing,ticker:metadata->binding->ticker,legacyFiling:metadata->binding->source->filing,legacyTicker:metadata->binding->source->ticker,family:metadata->binding->family,plan:metadata->offeringCheckpoint->validated->plan';
 const summaries=(rows:Record<string,any>[]):Record<string,any>[]=>rows.map(({legacyFiling,legacyTicker,...r})=>({...r,filing:r.filing??legacyFiling,ticker:r.ticker??legacyTicker}));
 export async function listOfferingPlans(repo?:Repository){return summaries(await select(repo??await repository(),'ai_runs',{prompt_key:`eq.${PURPOSE}`,select:summary,order:'metadata->>reservedAt.desc',limit:'100'}));}

@@ -2,6 +2,8 @@ import { effectConditionErrors, hasEffect } from "../sec-effect/conditions.ts";
 import {
   getReadyMonitorCondition,
   getReadyMonitorConditions,
+  getStoredMonitorCondition,
+  validateStoredMonitorConditionInput,
   MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS,
   validateMonitorConditionInput,
   type MonitorConditionDefinition,
@@ -193,8 +195,8 @@ export function getListingMonitorDraftCreateGate(
 export function formatListingMonitorConditionPreview(
   condition: CanonicalListingMonitorCondition,
 ): ListingMonitorConditionPreview {
-  const definition = getListingDefinition(condition.key);
-  if (!definition || validateMonitorConditionInput(condition).length > 0) {
+  const definition = getStoredMonitorCondition(condition.key);
+  if (!definition?.monitorDomains?.includes('listing') || !definition.display || validateStoredMonitorConditionInput(condition).length > 0) {
     return Object.freeze({ label: "Condition", value: "Choose a valid value", text: "Condition — Choose a valid value" });
   }
   const value = formatConditionValue(definition, condition.operator, condition.value);

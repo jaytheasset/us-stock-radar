@@ -4,8 +4,7 @@ import {combinedBinding,validateCombinedResponse} from './contract.ts';
 import {hydrateCombined,repository,rpc,type Repository} from './repository.ts';
 export async function processCombinedOffering(id:string,provider:OfferingProvider,supplied?:Repository){
  const repo=supplied??await repository(),claimed=await rpc(repo,'sec_combined_offering_transition',{p_id:id,p_action:'claim'});
- const publish=async()=>{if(!supplied)await (await import('../projected-offering-dilution/repository.ts')).refreshProjectedForRun(id);};
- if(!claimed.claimed){if(claimed.status==='COMPLETE')await publish();return {status:claimed.status};}
+ if(!claimed.claimed)return {status:claimed.status};
  const token=String(claimed.token),transition=(action:string,value?:unknown)=>rpc(repo,'sec_combined_offering_transition',{p_id:id,p_action:action,p_token:token,p_value:value??null});
  let leaseError:unknown;const heartbeat=setInterval(()=>{void transition('heartbeat').catch(e=>{leaseError=e;});},20000);
  try{
@@ -25,6 +24,6 @@ export async function processCombinedOffering(id:string,provider:OfferingProvide
     provider:{...providerMetadata,retrySafe:false},providerInvoked:true};
    if(leaseError)throw leaseError;await transition('checkpoint',cp);
   }
-  const saved=await transition('finish');if(saved.status==='COMPLETE')await publish();return saved;
+  return await transition('finish');
  }finally{clearInterval(heartbeat);}
 }

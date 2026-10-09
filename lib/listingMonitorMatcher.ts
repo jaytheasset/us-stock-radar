@@ -23,6 +23,7 @@ import {
 } from "./monitor/ownershipMonitorPersistence.ts";
 import {
   getReadyMonitorCondition,
+  hasRetiredMonitorConditions,
   monitorDateOnlyUtcDay,
   validateMonitorConditionInput,
   type MonitorConditionDefinition,
@@ -51,6 +52,7 @@ export type ListingMonitorMatchReasonCode =
   | "condition_set_empty"
   | "condition_invalid"
   | "condition_key_unknown"
+  | "condition_key_retired"
   | "condition_operator_unknown"
   | "condition_value_invalid"
   | "evaluation_date_invalid"
@@ -174,6 +176,9 @@ export function evaluateMonitorConditions(
     currentPrice?: CurrentPrice;
   }>,
 ): ListingMonitorMatchResult {
+  if (hasRetiredMonitorConditions(conditions)) {
+    return result('ineligible', 'condition_key_retired', conditions.map(c => conditionResult(recordValue(c) ? String(c.key) : '', 'ineligible', 'condition_key_retired')));
+  }
   if (hasEffect(conditions)) {
     const status = matchEffect(readers.effect, conditions as readonly EffectCondition[]);
     const reason = status === "match" ? "all_conditions_match" : status === "no_match" ? "condition_not_met" : "fact_unavailable";
@@ -229,6 +234,9 @@ export function evaluateForm4InsiderPurchaseMonitor(
   settings: Form4InsiderPurchaseSettings,
   targetStatus: "eligible" | "no_match" | "unavailable",
 ): ListingMonitorMatchResult {
+  if (hasRetiredMonitorConditions(conditions)) {
+    return result('ineligible', 'condition_key_retired', conditions.map(c => conditionResult(recordValue(c) ? String(c.key) : '', 'ineligible', 'condition_key_retired')));
+  }
   const specialized = evaluateForm4InsiderPurchase(current, settings);
   const evaluatedConditions = conditions.map((condition) => conditionResult(
     String(condition.key),
@@ -280,7 +288,7 @@ export async function evaluateListingMonitorEvent(
       readerReason: identity.reason, conditions: [],
     } })),
   };
-  const conditions = input.conditionSets.flatMap((set) => set.conditions);
+  const conditions = input.conditionSets.filter(set => !hasRetiredMonitorConditions(set.conditions)).flatMap((set) => set.conditions);
   const listingRequested = conditions.some((condition) => conditionUsesReader(
     condition,
     "read_current_event_listing_risk_facts",
@@ -294,9 +302,6 @@ export async function evaluateListingMonitorEvent(
     "read_current_event_ownership_facts",
   ));
   const readers: MonitorFactReaders = {
-    projected: conditions.some(c=>conditionUsesReader(c,'read_projected_offering_dilution'))
-      ? await safeReadFacts(input.eventId,dependencies.readProjectedFacts??(await import('./projected-offering-dilution/repository.ts')).readProjectedFacts)
-      : {status:'not_ready',reason:'reader_not_requested'},
     filing: conditions.some(condition => conditionUsesReader(condition, "read_event_filing_metadata"))
       ? await safeReadFacts(input.eventId, dependencies.readFilingMetadata ?? readEventFilingMetadata)
       : { status: "not_ready", reason: "reader_not_requested" },
@@ -399,15 +404,13 @@ function evaluateCondition(
     );
   }
   if (
-    (definition.source.reader !== "read_event_filing_metadata" && definition.family !== "projected" && definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8" && definition.family !== "proxy" && definition.family !== "tender")
+    (definition.source.reader !== "read_event_filing_metadata" && definition.family !== "listing" && definition.family !== "corporate_action" && definition.family !== "nt" && definition.family !== "s8" && definition.family !== "proxy" && definition.family !== "tender")
     || !definition.source.jsonPath
   ) {
     return conditionResult(key, "ineligible", "condition_key_unknown");
   }
   const current = definition.source.reader === "read_event_filing_metadata"
     ? readers.filing ?? { status: "not_ready" as const, reason: "reader_not_requested" }
-    : definition.family === "projected"
-    ? readers.projected ?? { status: "not_ready" as const, reason: "reader_not_requested" }
     : definition.family === "tender"
     ? readers.tender ?? { status: "not_ready" as const, reason: "reader_not_requested" }
     : definition.family === "proxy"
@@ -445,14 +448,7 @@ function evaluateCondition(
     return conditionResult(key, "ineligible", "reader_not_applicable");
   }
   const facts = current.facts;
-  if (definition.family === 'projected') {
-    const f=facts as unknown as {ineligible_numeric_fields?:string[];calculation_status?:string};
-    const field=key.slice('projected.'.length);
-    if(f.ineligible_numeric_fields?.includes(field)
-      ||(!f.ineligible_numeric_fields&&f.calculation_status==='CONFLICT'&&field.startsWith('projected_increase_percent_')))
-      return conditionResult(key,'ineligible','fact_unavailable');
-  }
-  if ((definition.family === "projected" || definition.family === "nt" || definition.family === "tender") && valueAtPath(facts, definition.source.jsonPath) === null) {
+  if ((definition.family === "nt" || definition.family === "tender") && valueAtPath(facts, definition.source.jsonPath) === null) {
     return conditionResult(key, "ineligible", "fact_unavailable");
   }
   const eligibilityError = factEligibilityError(facts, definition);

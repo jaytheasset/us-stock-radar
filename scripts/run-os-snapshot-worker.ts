@@ -15,7 +15,7 @@ const offeringProvider=new CodexCliOfferingProvider({executable,root}),combined=
 do {
   const jobs=await select(repo,'ai_runs',{select:'id,prompt_key',prompt_key:purpose?`eq.${purpose}`:'in.(sec_os_snapshot,sec_offering_plan,sec_combined_offering)',status:'in.(pending,running)',...(id?{id:`eq.${id}`}:{order:'metadata->>reservedAt.asc'}),limit:'1'});
   for(const job of jobs) {
-    // Production runtime owns publication hooks; supplied repositories are for isolated verification.
+    // Each runtime saves only its original extraction and independently validated domains.
     try {console.log(JSON.stringify({id:job.id,...await (job.prompt_key==='sec_combined_offering'?processCombinedOffering(String(job.id),combined):job.prompt_key==='sec_offering_plan'?processOfferingPlan(String(job.id),offeringProvider):processSnapshot(String(job.id),provider))}));}
     catch {console.error(JSON.stringify({id:job.id,status:'recovery_pending',message:'Reconcile retained process journal before retry.'}));}
   }
