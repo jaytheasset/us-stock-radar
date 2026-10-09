@@ -1,5 +1,5 @@
 import {buildSource as buildNeutralSource,isOsForm} from '../sec-os-snapshot/source.ts';
-import {sha,stable,REVISION,PROFILE,schemaHash,promptHash,type Filing,type Source} from './contract.ts';
+import {sha,stable,REVISION,PROFILE,getContract,type Filing,type Source} from './contract.ts';
 export const isOfferingForm=isOsForm;
 const textOrNull=(x:unknown)=>typeof x==='string'&&x.trim()?x:null;
 export function familyFor(filing:Filing){
@@ -16,6 +16,7 @@ export function buildSource(raw:Record<string,any>):Source{
  return {...content,fingerprint:sha(stable(content))};
 }
 export function bindingFor(rawItemId:string,source:Source,revision=REVISION){
+ const {schemaHash,promptHash}=getContract(revision);
  const key=sha(stable([rawItemId,source.filing.accession,source.fingerprint,revision,schemaHash,promptHash,PROFILE]));
  return {id:`${key.slice(0,8)}-${key.slice(8,12)}-5${key.slice(13,16)}-a${key.slice(17,20)}-${key.slice(20,32)}`,key,rawItemId,source,sourceFingerprint:source.fingerprint,contractVersion:revision,schemaHash,promptHash,providerProfile:PROFILE,family:familyFor(source.filing)};
 }

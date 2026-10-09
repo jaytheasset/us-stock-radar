@@ -2,7 +2,7 @@ import {execFileSync} from 'node:child_process';
 import {mkdir,readFile,writeFile,open,rename,stat,unlink} from 'node:fs/promises';
 import {hostname} from 'node:os';
 import {resolve,join,isAbsolute} from 'node:path';
-import {promptText,schemaText,PROFILE,sha} from './contract.ts';
+import {getContract,PROFILE,sha} from './contract.ts';
 import type {Binding} from './source.ts';
 import type {OfferingProvider,ProviderResult} from './runtime.ts';
 import {runProcess,redact,type RunProcess} from '../sec-os-snapshot/provider.ts';
@@ -38,6 +38,7 @@ export class CodexCliOfferingProvider implements OfferingProvider {
     const repo=resolve(process.cwd());if(this.root===repo || this.root.startsWith(repo+ '\\') || this.root.startsWith(repo+'/')) throw Error('offering_journal_must_be_outside_repository');
   }
   async run(binding: Binding, attempt: number, recoverOnly=false): Promise<ProviderResult> {
+    const {schemaText,promptText}=getContract(binding.contractVersion,binding);
     if(binding.providerProfile!==PROFILE) return {raw:'',stdout:'',stderr:'Provider profile unavailable; retained job was not executed.',exitCode:null,cliVersion:'not_started',startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),technicalError:'provider_profile_mismatch',retrySafe:false};
     const dir=join(this.root,'offering',binding.id,String(attempt)), resultPath=join(dir,'result.json');
     await mkdir(dir,{recursive:true});

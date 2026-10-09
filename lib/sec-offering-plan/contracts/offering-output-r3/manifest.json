@@ -1,0 +1,6 @@
+{
+  "revision": "offering_plan_v1-output-r3",
+  "composition": "Frozen r2 schema plus shared atm_terms_v1; schema bytes are JSON.stringify(schema, null, 2) + LF",
+  "schemaHash": "e7d7ac82baef0249aa0e3c901f41ae0c0db5be0bc028231c3f282f3930b15171",
+  "promptHash": "554266cef1d374132a5cb97ca861eb75b32a276528ebe0e4a64fc643823c8672"
+}

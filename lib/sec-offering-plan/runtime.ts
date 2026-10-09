@@ -26,7 +26,7 @@ export async function processOfferingPlan(id:string,provider:OfferingProvider,su
    const permit=await transition('provider_started',{journalId:provider.journalId??'injected-test-provider'});
    const result=await provider.run(binding,Number(claimed.attempt),permit.recoverOnly===true);
    const hasOutput=Boolean(result.raw||result.rawBytesBase64);
-   const validation=hasOutput?result.integrityError?{ok:false,stage:'source_output_integrity',errors:[result.integrityError],value:null,meaning:'NOT_ASSESSED'}:validateOutput(result.raw,binding.source):null;
+   const validation=hasOutput?result.integrityError?{ok:false,stage:'source_output_integrity',errors:[result.integrityError],value:null,meaning:'NOT_ASSESSED'}:validateOutput(result.raw,binding.source,binding.contractVersion):null;
    const status=hasOutput?validation?.ok?validation.value!.status:'VALIDATION_FAILED':'TECHNICAL_FAILED';
    const cp={status,raw:result.raw,rawHash:sha(result.rawBytesBase64?Buffer.from(result.rawBytesBase64,'base64'):result.raw),validated:validation?.value??null,validation,provider:result,evidenceRefs:validation?.value?evidenceRefs(validation.value):[]};
    if(leaseError)throw leaseError;await transition('checkpoint',cp);

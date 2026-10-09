@@ -1,0 +1,295 @@
+[
+  {
+    "id": "silvaco",
+    "source": "Retained real experiment; plan excerpt only, not F1/product execution",
+    "outputSha256": "6f0a6a786b1d903031751e7f624f1758ca451816c583d1578ebfbc039c2b3492",
+    "filing": {
+      "issuer": "Silvaco Group, Inc.",
+      "cik": "0001943289",
+      "accession": "0001213900-26-054018",
+      "form": "424B5",
+      "filing_date": null,
+      "accepted_at": null,
+      "file_number": null,
+      "registration_number": null
+    },
+    "plan": {
+      "components": [
+        {
+          "id": "c1",
+          "seller_type": "issuer",
+          "security_type": "common_stock",
+          "security_label": "common stock, $0.0001 par value per share",
+          "quantity": {
+            "status": "not_stated",
+            "value": null,
+            "unit": "shares"
+          },
+          "price": {
+            "status": "not_stated",
+            "qualification": "not_stated",
+            "value": null,
+            "low": null,
+            "high": null,
+            "currency": null,
+            "per_unit": null
+          },
+          "scenario": "At the market offering through Jefferies as sales agent pursuant to the Sales Agreement.",
+          "depositary": null,
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        }
+      ],
+      "over_allotment": [],
+      "post_offering_os": [],
+      "proceeds": [],
+      "atm_terms": [
+        {
+          "component_ids": [
+            "c1"
+          ],
+          "kind": "offering_limit",
+          "status": "current",
+          "amount": "35000000",
+          "currency": "$",
+          "as_of_date": "2026-05-08",
+          "as_of_text": "date hereof",
+          "qualification": "Up to",
+          "basis": "Amended ATM offering program, inclusive of any amounts sold prior to the date hereof.",
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        },
+        {
+          "component_ids": [
+            "c1"
+          ],
+          "kind": "increase_amount",
+          "status": "current",
+          "amount": "20000000",
+          "currency": "$",
+          "as_of_date": "2026-05-08",
+          "as_of_text": "May 8, 2026",
+          "qualification": null,
+          "basis": "Additional common stock offering amount authorized by this amendment to the ATM prospectus supplement.",
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        },
+        {
+          "component_ids": [
+            "c1"
+          ],
+          "kind": "remaining_offering_amount",
+          "status": "current",
+          "amount": "30668720",
+          "currency": "$",
+          "as_of_date": "2026-05-08",
+          "as_of_text": "May 8, 2026",
+          "qualification": "up to",
+          "basis": "Remaining common stock offering amount under this prospectus supplement after reported sales as of May 7, 2026.",
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        }
+      ]
+    },
+    "atmEvidence": [
+      {
+        "id": "D1-B0001",
+        "document_id": "D1",
+        "line_start": 1,
+        "line_end": 37,
+        "sha256": "7158b41e90b2649aa1d0507eef74ea53c854c5a3992e5ac0081c83670455e060",
+        "text": "Filed Pursuant to Rule 424(b)(5)\n\nRegistration No. 333-291212\n\nProspectus Supplement Dated May 8, 2026\n\nTo Prospectus Supplement Dated March 13, 2026\n\n(to Prospectus dated November 21, 2025)\n\nSilvaco Group, Inc.\n\nUp to $35,000,000\n\nCommon Stock\n\nThis Prospectus Supplement (this “prospectus supplement”), amends and supplements our base prospectus dated November 21, 2025, as amended and supplemented by the at the market offering prospectus supplement dated March 13, 2026 (the “ATM prospectus supplement”). This prospectus supplement should be read in conjunction with the ATM prospectus supplement and the accompanying base prospectus. Except for the information provided in this prospectus supplement, all other information contained in the ATM prospectus supplement remains unchanged.\n\nWe have previously entered into an Open Market Sale AgreementSM (the “Sales Agreement”) with Jefferies LLC (“Jefferies”), relating to shares of our common stock, $0.0001 par value per share. Sales of our common stock, if any, under this prospectus supplement and the ATM prospectus supplement will be made by any method permitted that is deemed to be an “at the market offering” as defined in Rule 415(a)(4) promulgated under the Securities Act of 1933, as amended (the “Securities Act”). Jefferies is not required to sell any specific amount of securities, but will act as our sales agent using commercially reasonable efforts consistent with its normal trading and sales practices, on mutually agreed terms between Jefferies and us. There is no arrangement for funds to be received in any escrow, trust or similar arrangement.\n\nWe are filing this prospectus supplement to amend the ATM prospectus supplement to reflect an increase in our existing at the market offering program to allow for the issuance of an additional $20.0 million in shares of our common stock pursuant to the Sales Agreement, for a total of $35.0 million (inclusive of any amounts sold prior to the date hereof). As of May 7, 2026, we have sold 752,744 shares of common stock with an aggregate offering price of approximately $4,331,280 through the at the market offering program pursuant to the Sales Agreement. Therefore, we may offer and sell an aggregate of up to $30,668,720 of our shares of common stock pursuant to this prospectus supplement.\n\nWe previously offered and sold securities under our shelf registration statement on Form S-3 (File No. 333-291212) pursuant to General Instruction I.B.6, often referred to as the “baby shelf” rule, because our public float was below $75 million. Based on the reported sale price of our common stock of $12.46 per share, as reported on the Nasdaq Global Select Market on May 6, 2026, the aggregate market value of our public float, calculated according to General Instruction I.B.6. of Form S-3, is $175,270,596 based on 32,688,557 shares of our common stock outstanding as of May 6, 2026, 2026, of which 14,066,661 shares are held by non-affiliates. As the aggregate market value of our outstanding common equity held by non-affiliates exceeded $75 million, we are no longer subject to the baby shelf limitation on the amount of securities we may sell. Consequently, we are relying on General Instruction I.B.1 of Form S-3 and may offer and sell additional securities without the prior 12-month limitations under General Instruction I.B.6. All other terms of the existing at-the-market offering program and the Sales Agreement remain unchanged.\n\nJefferies will be entitled to compensation at a commission rate of up to 3.0% of the aggregate gross sales price per share sold pursuant to the Sales Agreement, unless otherwise agreed to by Jefferies and the Company. In connection with the sale of our common stock on our behalf, Jefferies will be deemed to be an “underwriter” within the meaning of the Securities Act and the compensation of Jefferies will be deemed to be underwriting commissions or discounts. We have also agreed to provide indemnification and contributions to Jefferies against certain civil liabilities, including liabilities under the Securities Act or the Securities Exchange Act of 1934, as amended. See “Plan of Distribution” beginning on page S-9 of the ATM prospectus supplement for additional information regarding the Sales Agent’s compensation.\n\nOur common stock is listed on The Nasdaq Global Select Market (“Nasdaq”) under the symbol “SVCO.” On May 7, 2026, the last reported sale price of our common stock on Nasdaq was $12.06 per share.\n\nWe are an “emerging growth company” and a “smaller reporting company” under the federal securities laws and, as such, we have elected to comply with certain reduced public company reporting requirements for this prospectus supplement and for future filings. See “Prospectus Supplement Summary-Implications of Being an Emerging Growth Company and a Smaller Reporting Company” beginning on page S-1 of the ATM prospectus supplement.\n\nInvesting in our common stock involves a high degree of risk. You should read this prospectus carefully before you make your investment decision. See “Risk Factors” beginning on page S-4 of the ATM prospectus supplement, as well as the documents incorporated by reference therein.\n\nNeither the Securities and Exchange Commission nor any state securities commission has approved or disapproved of these securities or determined if this prospectus is truthful or complete. Any representation to the contrary is a criminal offense.\n\nJefferies\n\nThe date of this prospectus supplement is May 8, 2026."
+      }
+    ]
+  },
+  {
+    "id": "shimmick-atm-amendment",
+    "source": "Retained real experiment; plan excerpt only, not F1/product execution",
+    "outputSha256": "a5259d6834bce96e73b48b94ede299379bdafc2fa5015a9fca58557339e54aaa",
+    "filing": {
+      "issuer": "Shimmick Corp",
+      "cik": "0001887944",
+      "accession": "0001193125-26-237198",
+      "form": "424B5",
+      "filing_date": null,
+      "accepted_at": null,
+      "file_number": null,
+      "registration_number": null
+    },
+    "plan": {
+      "components": [
+        {
+          "id": "c1",
+          "seller_type": "issuer",
+          "security_type": "common_stock",
+          "security_label": "Common Stock, par value $0.01 per share",
+          "quantity": {
+            "status": "not_stated",
+            "value": null,
+            "unit": "shares"
+          },
+          "price": {
+            "status": "not_stated",
+            "qualification": "not_stated",
+            "value": null,
+            "low": null,
+            "high": null,
+            "currency": null,
+            "per_unit": null
+          },
+          "scenario": "At-the-market sales from time to time to or through Roth Capital Partners, LLC.",
+          "depositary": null,
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        }
+      ],
+      "over_allotment": [],
+      "post_offering_os": [],
+      "proceeds": [],
+      "atm_terms": [
+        {
+          "component_ids": [
+            "c1"
+          ],
+          "kind": "offering_limit",
+          "status": "prior",
+          "amount": "7800000",
+          "currency": "$",
+          "as_of_date": null,
+          "as_of_text": null,
+          "qualification": "up to",
+          "basis": "Initially registered under the Prospectus for offer and sale pursuant to the ATM Agreement.",
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        },
+        {
+          "component_ids": [
+            "c1"
+          ],
+          "kind": "offering_limit",
+          "status": "current",
+          "amount": "4986750",
+          "currency": "$",
+          "as_of_date": "2026-05-22",
+          "as_of_text": "The date of this prospectus supplement is May 22, 2026.",
+          "qualification": "Up to",
+          "basis": "Reduced amount of Common Stock registered under the Prospectus.",
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        }
+      ]
+    },
+    "atmEvidence": [
+      {
+        "id": "D1-B0001",
+        "document_id": "D1",
+        "line_start": 1,
+        "line_end": 29,
+        "sha256": "8a6eb5e15fa4ccdd8762a8268566d8f84fa07915287c27eb0f6dea000ef0b73e",
+        "text": "424B5\n\nFiled Pursuant to Rule 424(b)(5)\n\nRegistration No. 333-288513\n\nPROSPECTUS SUPPLEMENT\n\n(To Prospectus dated July 10, 2025)\n\nUp to $4,986,750 of Common Stock\n\nThis prospectus supplement updates and amends certain information contained in the prospectus supplement, dated September 8, 2025 and the base prospectus, dated July 10, 2025 (together, the “Prospectus”), relating to the sale of shares of our common stock, par value $0.01 per share (the “Common Stock”) by Shimmick Corporation (the “Company”) from time to time to or through Roth Capital Partners, LLC (the “Sales Agent”), acting as sales agent pursuant to that certain At the Market Offering Agreement, dated September 8, 2025, by and between the Company and the Sales Agent (the “ATM Agreement”), in sales deemed to be “at the market offerings” as defined in Rule 415 promulgated under the Securities Act of 1933, as amended.\n\nThis prospectus supplement should be read in conjunction with the Prospectus and is qualified by reference to the Prospectus, except to the extent that the information presented herein supersedes the information contained in the Prospectus. This prospectus supplement is not complete without, and may only be delivered or used in connection with, the Prospectus, including any amendments or supplements thereto.\n\nUnder the Prospectus, we initially registered up to $7,800,000 of the Common Stock for offer and sale pursuant to the ATM Agreement. We have not sold any shares of Common Stock under the Prospectus. We are filing this prospectus supplement to amend the Prospectus to reduce the amount of Common Stock registered under the Prospectus to $4,986,750.\n\nInvesting in our common stock involves risks. See the “Risk Factors” sections on page 6 of the base prospectus and in the documents incorporated by reference into this prospectus supplement concerning factors you should consider before investing in our common stock.\n\nWe are an “emerging growth company” and a “smaller reporting company” as such terms are defined under the federal securities laws and, as such, are subject to certain reduced public company reporting requirements.\n\nOur Common Stock is listed on the Nasdaq under the symbol “SHIM.” On May 21, 2026, the last reported sale price of our Common Stock on Nasdaq was $4.03 per share. As of May 21, 2026, the aggregate market value of our outstanding Common Stock held by non-affiliates was approximately $33.4 million, which was calculated based on 8,278,806 shares of outstanding common stock held by non-affiliates multiplied by a price per share of $4.03, the closing price of our Common Stock on that date. Pursuant to General Instruction I.B.6 of Form S-3, in no event will we sell the shelf securities in a public primary offering with a value exceeding more than one-third of the aggregate market value of our Common Stock held by non-affiliates in any 12-month period immediately prior to the date of any such offering, so long as the aggregate market value of our outstanding Common Stock held by non-affiliates remains below $75 million. During the 12 calendar months prior to and including the date of this prospectus supplement, we have not offered or sold any securities pursuant to General Instruction I.B.6 of Form S-3.\n\nNeither the Securities and Exchange Commission nor any state securities commission has approved or disapproved of these securities or passed upon the accuracy or adequacy of this prospectus supplement. Any representation to the contrary is a criminal offense.\n\nRoth Capital Partners\n\nThe date of this prospectus supplement is May 22, 2026."
+      }
+    ]
+  },
+  {
+    "id": "ibio",
+    "source": "Retained real experiment; plan excerpt only, not F1/product execution",
+    "outputSha256": "21b664582c6c747aea9e84ea7b99e344d3c4423862217deadf91b552bfb0f179",
+    "filing": {
+      "issuer": "iBio, Inc.",
+      "cik": "0001420720",
+      "accession": "0001104659-26-012183",
+      "form": "424B3",
+      "filing_date": null,
+      "accepted_at": null,
+      "file_number": null,
+      "registration_number": null
+    },
+    "plan": {
+      "components": [
+        {
+          "id": "c1",
+          "seller_type": "selling_shareholders",
+          "security_type": "common_stock",
+          "security_label": "Common Shares",
+          "quantity": {
+            "status": "stated",
+            "value": "1408481",
+            "unit": "shares"
+          },
+          "price": {
+            "status": "not_stated",
+            "qualification": "not_stated",
+            "value": null,
+            "low": null,
+            "high": null,
+            "currency": null,
+            "per_unit": null
+          },
+          "scenario": "Resale from time to time of issued Common Shares.",
+          "depositary": null,
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        },
+        {
+          "id": "c2",
+          "seller_type": "selling_shareholders",
+          "security_type": "common_stock",
+          "security_label": "Pre-Funded Warrant Shares",
+          "quantity": {
+            "status": "stated",
+            "value": "9653257",
+            "unit": "shares"
+          },
+          "price": {
+            "status": "not_stated",
+            "qualification": "not_stated",
+            "value": null,
+            "low": null,
+            "high": null,
+            "currency": null,
+            "per_unit": null
+          },
+          "scenario": "Resale of up to 9,653,257 shares of Common Stock issuable upon exercise of the Pre-Funded Warrants.",
+          "depositary": null,
+          "evidence_blocks": [
+            "D1-B0001"
+          ]
+        }
+      ],
+      "over_allotment": [],
+      "post_offering_os": [
+        {
+          "security_label": "Common Stock",
+          "quantity": "42194199",
+          "unit": "shares",
+          "scenario": "After this offering, assuming issuance of 9,653,257 Pre-Funded Warrant Shares upon exercise of the Pre-Funded Warrants.",
+          "evidence_blocks": [
+            "D1-B0006"
+          ]
+        }
+      ],
+      "proceeds": [
+        {
+          "kind": "no_proceeds",
+          "recipient": "issuer",
+          "amount": null,
+          "currency": null,
+          "scenario": "The issuer will receive no proceeds from sales of the Shares by the Selling Stockholders.",
+          "evidence_blocks": [
+            "D1-B0009"
+          ]
+        }
+      ],
+      "atm_terms": []
+    },
+    "atmEvidence": []
+  }
+]

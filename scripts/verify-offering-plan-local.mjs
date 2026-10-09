@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import pg from 'pg';
 import {localContext} from './os-local-context.mjs';
 import {bindingFor,buildSource,compactBinding} from '../lib/sec-offering-plan/source.ts';
-import {sha} from '../lib/sec-offering-plan/contract.ts';
+import {sha,LEGACY_REVISION} from '../lib/sec-offering-plan/contract.ts';
 import {enqueueOfferingPlan,readOfferingPlan} from '../lib/sec-offering-plan/repository.ts';
 import {processOfferingPlan} from '../lib/sec-offering-plan/runtime.ts';
 const {db,env}=localContext();await db.connect();
@@ -29,28 +29,31 @@ try {
  await db.query(`insert into ${schema}.raw_items values($1,$2,$3,$4)`,[rawId,raw.source_code,raw.source_unique_id,raw.raw_payload]);
  const s=buildSource(raw), binding=bindingFor(rawId,s), actor=randomUUID();await db.query(`insert into ${schema}.users values($1);`,[actor]);await db.query(`insert into ${schema}.admin_role_assignments values($1,true,'operations')`,[actor]);
  const component={id:'c1',seller_type:'issuer',security_type:'ordinary_shares',security_label:'Ordinary shares',quantity:{status:'blank',value:null,unit:'shares'},price:{status:'blank',qualification:'not_stated',value:null,low:null,high:null,currency:'USD',per_unit:'share'},scenario:null,depositary:null,evidence_blocks:[s.blocks[0].id]};
- const empty={components:[],over_allotment:[],post_offering_os:[],proceeds:[]};
+ const empty={components:[],over_allotment:[],post_offering_os:[],proceeds:[],atm_terms:[]};
  const output={version:'offering_plan_v1',filing:s.filing,status:'PASS',plan:{...empty,components:[component]},review:null};
  const result=(value=output)=>({raw:JSON.stringify(value),stdout:'',stderr:'',exitCode:0,cliVersion:'fixture',startedAt:new Date().toISOString(),finishedAt:new Date().toISOString(),retrySafe:true});
  const provider={run:async()=>{count++;return result();}};
- const legacy=bindingFor(rawId,s,'legacy-full');assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:legacy})).ok,true);
+ const legacy=bindingFor(rawId,s,LEGACY_REVISION);assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:legacy})).ok,true);
  const legacyBefore=(await db.query(`select metadata from ${schema}.ai_runs where id=$1`,[legacy.id])).rows[0].metadata;
  await db.query(readFileSync('supabase/migrations/20261009072629_sec_offering_compact_binding.sql','utf8').replaceAll('public.',schema+'.'));
  for(const b of [legacy,compactBinding(legacy)])assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:b})).data.inserted,false);
  assert.deepEqual((await db.query(`select metadata from ${schema}.ai_runs where id=$1`,[legacy.id])).rows[0].metadata,legacyBefore);
  assert.equal((await readOfferingPlan(legacy.id,repo)).source.fingerprint,s.fingerprint);
- await processOfferingPlan(legacy.id,{run:async()=>result()},repo);
+ const legacyOutput=structuredClone(output);delete legacyOutput.plan.atm_terms;
+ await processOfferingPlan(legacy.id,{run:async()=>result(legacyOutput)},repo);
+ // Distinct test raw identities replace invented contract revisions. Production rejects unknown revisions.
+ async function scenarioBinding(_label){const id=randomUUID();await db.query(`insert into ${schema}.raw_items values($1,$2,$3,$4)`,[id,raw.source_code,raw.source_unique_id,raw.raw_payload]);return bindingFor(id,s);}
  const queued=await Promise.all([enqueueOfferingPlan(rawId,repo),enqueueOfferingPlan(rawId,repo)]);assert.equal(queued[0].id,queued[1].id);
  const savedBinding=(await db.query(`select metadata->'binding' b from ${schema}.ai_runs where id=$1`,[binding.id])).rows[0].b;assert.deepEqual(savedBinding,compactBinding(binding));assert.equal('source' in savedBinding,false);assert.equal('original' in savedBinding.documents[0],false);assert.ok(Buffer.byteLength(JSON.stringify(savedBinding))<2000);
- const badFamily=compactBinding(bindingFor(rawId,s,'spoofed-family'));badFamily.family={status:'confirmed',key:'0000000001:333-999999',number:'333-999999'};assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:badFamily})).ok,false);
- for(const extra of [{source:s},{blocks:s.blocks},{documents:s.documents}])assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:{...compactBinding(bindingFor(rawId,s,'oversized')), ...extra}})).ok,false);
+ const badFamily=compactBinding(await scenarioBinding('spoofed-family'));badFamily.family={status:'confirmed',key:'0000000001:333-999999',number:'333-999999'};assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:badFamily})).ok,false);
+ for(const extra of [{source:s},{blocks:s.blocks},{documents:s.documents}])assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:{...compactBinding(await scenarioBinding('oversized')), ...extra}})).ok,false);
  const runs=await Promise.all([processOfferingPlan(binding.id,provider,repo),processOfferingPlan(binding.id,provider,repo)]);assert.equal(count,1);assert.ok(runs.some(r=>r.status==='PASS'));
  await processOfferingPlan(binding.id,provider,repo);await enqueueOfferingPlan(rawId,repo);assert.equal(count,1);
  // Commit succeeds, response is lost: repeated delivery still returns immutable result.
 
  const before=(await db.query(`select payload from ${schema}.ai_outputs where ai_run_id=$1`,[binding.id])).rows[0].payload;
  await assert.rejects(db.query(`update ${schema}.ai_outputs set payload='{}' where ai_run_id=$1`,[binding.id]),/immutable/);
- async function reserve(revision){const b=bindingFor(rawId,s,revision);const r=await repo.rpc('reserve_sec_offering_plan',{p_binding:compactBinding(b)});assert.equal(r.ok,true,r.error);return b;}
+ async function reserve(label){const b=await scenarioBinding(label);const r=await repo.rpc('reserve_sec_offering_plan',{p_binding:compactBinding(b)});assert.equal(r.ok,true,r.error);return b;}
  const loss=await reserve('loss');let lost=false;
  const lossRepo={...repo,rpc:async(name,args)=>{const r=await repo.rpc(name,args);if(args.p_action==='finish'&&!lost){lost=true;throw Error('response_lost_after_commit');}return r;}};
  await assert.rejects(processOfferingPlan(loss.id,provider,lossRepo),/response_lost/);const previous=count;await processOfferingPlan(loss.id,provider,repo);assert.equal(count,previous);
@@ -86,10 +89,10 @@ try {
  const tech=await reserve('technical');await processOfferingPlan(tech.id,{run:async()=>({...result(),raw:'',exitCode:1,technicalError:'timeout'})},repo);assert.equal((await retry(tech.id)).ok,true);
  await processOfferingPlan(tech.id,provider,repo);assert.equal((await retry(tech.id)).ok,false);
  for(const damage of ['changed','missing','fingerprint']){
-  const b=compactBinding(bindingFor(rawId,s,'source-'+damage));if(damage==='fingerprint')b.sourceFingerprint=sha('wrong');
+  const b=compactBinding(await scenarioBinding('source-'+damage));if(damage==='fingerprint')b.sourceFingerprint=sha('wrong');
   assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:b})).ok,true);
   const changed=structuredClone(raw.raw_payload);if(damage==='changed')changed.primary_document_html+='<!-- altered -->';if(damage==='missing')delete changed.primary_document_html;
-  await db.query(`update ${schema}.raw_items set raw_payload=$2 where id=$1`,[rawId,changed]);
+  await db.query(`update ${schema}.raw_items set raw_payload=$2 where id=$1`,[b.rawItemId,changed]);
   let invocations=0;assert.equal((await processOfferingPlan(b.id,{run:async()=>{invocations++;return result();}},repo)).status,'TECHNICAL_FAILED');assert.equal(invocations,0);
   const m=(await db.query(`select metadata from ${schema}.ai_runs where id=$1`,[b.id])).rows[0].metadata;assert.equal(m.invocationAttempt,undefined);assert.equal(m.offeringCheckpoint.validation.stage,'pre_provider_source');assert.equal((await retry(b.id)).ok,false);
   const read=await readOfferingPlan(b.id,repo);assert.equal(read.source,null);assert.equal(read.sourceError,'source_unavailable_or_mismatch');
@@ -115,7 +118,7 @@ try {
  assert.deepEqual((await db.query(`select payload from ${schema}.ai_outputs where ai_run_id=$1`,[binding.id])).rows[0].payload,before);
  // Shared DB lease prevents both domains from claiming together, even through unchanged O/S RPC.
  assert.equal((await readOfferingPlan(binding.id,repo)).source,null);
- const cross=bindingFor(rawId,buildSource(raw),'cross-lock');assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:compactBinding(cross)})).ok,true);await repo.rpc('sec_offering_plan_transition',{p_id:cross.id,p_action:'claim'});
+ const cross=bindingFor(rawId,buildSource(raw));assert.equal((await repo.rpc('reserve_sec_offering_plan',{p_binding:compactBinding(cross)})).ok,true);await repo.rpc('sec_offering_plan_transition',{p_id:cross.id,p_action:'claim'});
  const osId=randomUUID();await db.query(`insert into ${schema}.ai_runs(id,prompt_key,status,metadata) values($1,'sec_os_snapshot','pending',$2)`,[osId,{osStatus:'QUEUED'}]);
  assert.equal((await repo.rpc('sec_os_snapshot_transition',{p_id:osId,p_action:'claim'})).ok,false);
  await db.query(`update ${schema}.ai_runs set metadata=metadata||jsonb_build_object('leaseUntil',now()-interval '1 second') where id=$1`,[cross.id]);
