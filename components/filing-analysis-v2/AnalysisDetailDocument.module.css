@@ -1,0 +1,205 @@
+/* Layout, type, cards, price controls and responsive rules come from the current
+   GenericFilingAnalysis stylesheet. These rules only accommodate the extra slots. */
+.document {
+  --detail-divider: var(--sr-color-divider);
+  overflow-wrap: anywhere;
+}
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sr-space-2);
+  color: var(--sr-color-text-meta);
+  font-size: var(--sr-font-size-xs);
+}
+
+.breadcrumb a {
+  color: var(--sr-color-accent-text);
+}
+
+.identity,
+.identity a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sr-space-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.document .badges {
+  flex-wrap: wrap;
+}
+
+.card > h2,
+.card > :global(.card-heading-row) h2 {
+  margin: 0 0 var(--sr-space-3);
+  color: var(--sr-color-text-heading);
+  font-size: var(--sr-font-size-xs);
+  font-weight: var(--sr-font-weight-heavy);
+  letter-spacing: var(--sr-letter-spacing-wide, 0.05em);
+  line-height: var(--sr-line-height-control);
+  text-transform: uppercase;
+}
+
+.card > :global(.card-heading-row) {
+  flex-wrap: wrap;
+  align-items: start;
+  gap: var(--sr-space-2);
+}
+
+.card :global(.detail-metric-row) {
+  gap: var(--sr-space-3);
+  border-color: var(--sr-color-divider);
+}
+
+.card :global(.detail-metric-row strong) {
+  min-width: 0;
+  color: var(--sr-color-text-primary);
+}
+
+.card :global(.source-confidence-top),
+.card :global(.source-original-link) {
+  border-color: var(--sr-color-divider);
+  color: var(--sr-color-text-secondary);
+  background: transparent;
+}
+
+.card :global(.detail-metric-row span),
+.card :global(.source-confidence-top span) {
+  color: var(--sr-color-text-meta);
+}
+
+.card :global(.source-original-link) {
+  color: var(--sr-color-accent-text);
+}
+
+.card :global(.detail-score-main) {
+  color: var(--sr-color-text-heading);
+}
+
+.card ul,
+.card ol {
+  color: var(--sr-color-text-secondary);
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .card > h2,
+  .card > :global(.card-heading-row) h2 {
+    font-size: var(--sr-font-size-2xl);
+    font-weight: var(--sr-font-weight-semibold);
+  }
+
+  .card ul,
+  .card ol,
+  .card :global(.detail-metric-row) {
+    font-size: 16px;
+  }
+}
+
+.document :global(.full-text-content) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.card :global(.dilution-impact-metrics .dilution-metric) {
+  border-color: var(--sr-color-border);
+  border-radius: var(--sr-radius-base);
+  color: var(--sr-color-text-primary);
+  background: var(--sr-color-surface-panel);
+}
+
+.card :global(.dilution-metric strong),
+.card :global(.dilution-warning-strip p) {
+  color: var(--sr-color-text-primary);
+}
+
+.card :global(.dilution-metric span),
+.card :global(.dilution-metric small) {
+  color: var(--sr-color-text-secondary);
+}
+
+.card :global(.dilution-warning-strip) {
+  border-color: var(--sr-color-border);
+  border-left-color: var(--sr-color-event-bearish);
+  border-radius: var(--sr-radius-base);
+  background: var(--sr-color-event-bearish-surface);
+}
+
+.card:global(.alert-card) > span {
+  color: var(--sr-color-accent-text);
+}
+
+.card:global(.alert-card) button {
+  border-radius: var(--sr-radius-base);
+  background: var(--sr-color-accent);
+}
+
+.document .card :global(.dilution-impact-metrics .dilution-metric) {
+  margin: 0;
+  padding: var(--sr-space-3);
+}
+
+.card :global(.dilution-warning-strip):has(p:empty) {
+  display: none;
+}
+
+.document .card:global(.alert-card),
+.document .card > :global(.stock-detail-card) {
+  background: var(--sr-color-surface-panel);
+}
+
+.document .card :global(.dilution-overhang-panel),
+.document .card :global(.dilution-overhang-unavailable > div),
+.document .card :global(.dilution-data-disclaimer),
+.document .card :global(.dilution-overhang-note),
+.document .card :global(.context-metric) {
+  border-color: var(--sr-color-border);
+  background: var(--sr-color-surface-panel);
+}
+
+.document .card :global(.dilution-overhang-unavailable p),
+.document .card :global(.dilution-overhang-heading p),
+.document .card :global(.dilution-overhang-score span),
+.document .card :global(.dilution-metric em),
+.document .card :global(.dilution-data-disclaimer),
+.document .card :global(.dilution-overhang-note),
+.document .card :global(.context-empty-state) {
+  color: var(--sr-color-text-secondary);
+}
+
+.document .card :global(.dilution-overhang-unavailable strong),
+.document .card :global(.dilution-breakdown-label),
+.document .card :global(.dilution-breakdown-list b) {
+  color: var(--sr-color-text-primary);
+}
+
+.document .card :global(.card-heading-row a) {
+  color: var(--sr-color-accent-text);
+}
+
+.document .identity {
+  flex-direction: row;
+}
+
+.document .identity strong {
+  color: var(--sr-color-text-ticker);
+  font-size: var(--sr-font-size-xl);
+}
+
+.document .original {
+  padding-top: 0;
+  gap: 0;
+}
+
+.original > :global(.card-heading-row) {
+  margin: 0;
+  padding: var(--sr-space-4) var(--sr-space-5);
+  border-bottom: var(--sr-border-width) solid var(--sr-color-divider);
+}
+
+.document .original > :global(.card-heading-row) p {
+  color: var(--sr-color-text-secondary);
+}

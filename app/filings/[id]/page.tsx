@@ -1,3 +1,5 @@
+import { AnalysisDetailDocument, AnalysisDetailCard, AnalysisDetailImpact } from "@/components/filing-analysis-v2/AnalysisDetailDocument";
+import detailStyles from "@/components/filing-analysis-v2/GenericFilingAnalysis.module.css";
 ﻿import Link from "next/link";
 import { cache } from "react";
 import {ProjectedOfferingDilution} from '@/components/filing-analysis-v2/ProjectedOfferingDilution';
@@ -4366,8 +4368,8 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
             <p className="text-sm font-semibold">Original AI article below: retained, not rewritten by Human review</p>
           </div>
         ) : null}
-        {projected?<ProjectedOfferingDilution read={projected}/>:null}
         <GenericFilingAnalysis
+          filingFactsRenderer={projected ? <ProjectedOfferingDilution read={projected} /> : undefined}
           allowAds={allowAds}
           bodyRenderer={
             offeringRegistration ? (
@@ -4481,196 +4483,101 @@ export default async function FilingDetailPage({ params }: FilingDetailPageProps
   }
 
   return (
-    <main className="feed-page stock-detail-page filing-detail-page">
-      <header className="feed-nav">
-        <Link className="brand-lockup" href="/" aria-label="US Stock Radar home">
-          <span className="brand-mark">SR</span>
-          <span>STOCK RADAR</span>
-        </Link>
-        <nav className="feed-nav-links" aria-label="Primary">
-          {[
-            { label: "Live Feed", href: "/feed" },
-            { label: "Watchlist", href: "/watchlist" },
-            { label: "News", href: "/news" },
-            { label: "Filings", href: "/filings" },
-            { label: "Alerts", href: "#" },
-            { label: "Premium", href: "#" },
-          ].map((item) => (
-            <Link className={item.label === "Filings" ? "active" : ""} href={item.href} key={item.label}>
-              {item.label}
+    <AnalysisDetailDocument navigation="filings" title={filing.title} ticker={hasRealFilingTicker ? filing.ticker : undefined}
+      breadcrumb={<><Link href="/filings">Filings</Link><span>/ Analysis</span></>}
+      timestamp={<><span>Filed</span><time>{filing.filedAt}</time><span>{filing.source}</span></>}
+      identity={hasRealFilingTicker ? <Link href={`/stocks/${encodeURIComponent(filing.ticker)}`}><strong>{filing.ticker}</strong><span>{filing.exchange}</span><span>{filing.company}</span></Link> : <><strong>{filing.ticker}</strong><span>{filing.exchange}</span><span>{filing.company}</span></>}
+      badges={<><span className={detailStyles.formLabel}>{filing.formType}</span><AnalysisDetailImpact score={filing.score} signal={filing.signal} /></>}
+      actions={<>{hasRealFilingTicker ? <WatchlistButton initialAuthenticated={viewerState.authenticated} initialWatched={tickerWatched} ticker={filing.ticker} /> : null}{isUuid(id) ? <SavedContentButton contentId={id} contentType="filing" initialAuthenticated={viewerState.authenticated} initialSaved={filingSaved} /> : null}</>}
+      rail={<><AnalysisDetailCard kind="rail" className="recent-filings-card">
+        <div className="card-heading-row">
+          <div>
+            <h2>{useDilutionDetail ? "Related Filings" : "Recent Filings"}</h2>
+            <p>{useDilutionDetail ? `${filing.ticker} related filing history` : `${filing.ticker} filing history`}</p>
+          </div>
+          <Link href="/filings">View all</Link>
+        </div>
+        <div className={detailStyles.recentList}>
+          {filing.recentFilings.slice(0, 4).map((item) => (
+            <Link href={item.href || (item.id ? `/filings/${item.id}` : "/filings")} key={`${item.form}-${item.title}`}>
+              <span className={detailStyles.formLabel}>{item.form}</span>
+              <div>
+                <strong>{item.title}</strong>
+                <span>{item.eventType} - {item.filedAt}</span>
+              </div>
+              <b>{item.score}</b>
             </Link>
           ))}
-        </nav>
-        <div className="feed-search" role="search">
-          <span aria-hidden="true">/</span>
-          <input aria-label="Search" placeholder="Search tickers, companies, or keywords" />
         </div>
-        <div className="feed-actions">
-          <button className="icon-button" type="button" aria-label="Notifications">
-            <span aria-hidden="true">!</span>
-            <span className="notification-dot">3</span>
-          </button>
-          <button className="avatar-button" type="button" aria-label="User menu">
-            N
-          </button>
-        </div>
-      </header>
+      </AnalysisDetailCard>
 
-      <div className="stock-detail-shell">
-        <article className="stock-detail-main">
-          {projected?<ProjectedOfferingDilution read={projected}/>:null}
-          <div className="stock-detail-kicker-row">
-            <div className="stock-detail-breadcrumb">
-              <Link href="/filings">Filings</Link>
-              <span>/</span>
-              <span>Analysis</span>
-            </div>
-            <div className="stock-detail-source-line">
-              <span>{filing.source}</span>
-              <span>Filed {filing.filedAt}</span>
-            </div>
+        <AnalysisDetailCard kind="rail" className="detail-score-card">
+          <h2>Event Snapshot</h2>
+          <div className="detail-score-main">
+            <strong data-score-tone={getDirectionalScoreTone(filing.score, filing.signal)}>
+              {filing.score}
+            </strong>
+            <span>Impact</span>
           </div>
+          <MetricRow label="Source Group" value="filings" />
+          <MetricRow label="Event Type" value={eventBadge.label} />
+          <MetricRow label="Form Type" value={filing.formType} />
+          <MetricRow label="Signal" value={filing.signal} />
+        </AnalysisDetailCard>
 
-          <section className="stock-detail-hero">
-            <div className="stock-detail-title-block">
-              <h1>{filing.title}</h1>
-              <div className="stock-detail-meta">
-                {hasRealFilingTicker ? (
-                  <Link
-                    className="analysis-company-link"
-                    href={`/stocks/${encodeURIComponent(filing.ticker)}`}
-                  >
-                    <span className="ticker-chip">{filing.exchange}:{filing.ticker}</span>
-                    <span>{filing.company}</span>
-                  </Link>
-                ) : (
-                  <>
-                    <span className="ticker-chip">{filing.exchange}:{filing.ticker}</span>
-                    <span>{filing.company}</span>
-                  </>
-                )}
-                <span className="filing-form-pill">{filing.formType}</span>
-                <span className={`signal-badge ${filing.signal}`}>{filing.signal}</span>
-                <span className={`source-badge impact-badge ${filing.signal}`}>
-                  Impact{" "}
-                  <span data-score-tone={getDirectionalScoreTone(filing.score, filing.signal)}>
-                    {filing.score}
-                  </span>
-                </span>
-                <div className="analysis-content-actions">
-                  {hasRealFilingTicker ? (
-                    <WatchlistButton
-                      initialAuthenticated={viewerState.authenticated}
-                      initialWatched={tickerWatched}
-                      ticker={filing.ticker}
-                    />
-                  ) : null}
-                  {isUuid(id) ? (
-                    <SavedContentButton
-                      contentId={id}
-                      contentType="filing"
-                      initialAuthenticated={viewerState.authenticated}
-                      initialSaved={filingSaved}
-                    />
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </section>
+        <AnalysisDetailCard kind="rail" className="related-news-card">
+          <div className="card-heading-row">
+            <h2>Related News</h2>
+            <Link href="/news">View all</Link>
+          </div>
+          <div className={detailStyles.newsList}>
+            {filing.relatedNews.slice(0, 4).map((story) => (
+              <Link className={detailStyles.newsListItem} href={story.href || "/news"} key={story.title}>
+                <strong>{story.title}</strong>
+                <span>{story.source} - {story.age}</span>
+              </Link>
+            ))}
+          </div>
+        </AnalysisDetailCard>
 
-          {useDilutionDetail && dilutionModel ? (
-            <DilutionOfferingTemplate
-              eventLabel={eventBadge.label}
-              filing={filing}
-              model={dilutionModel}
-              preferredSourceUrl={preferredSourceUrl}
-            />
-          ) : (
-            <CommonFilingTemplate
-              eventLabel={eventBadge.label}
-              filing={filing}
-              preferredSourceUrl={preferredSourceUrl}
-            />
-          )}
-        </article>
+        <AnalysisDetailCard kind="rail" className="alert-card">
+          <span>Premium</span>
+          <h2>Real-time alerts for this filing type</h2>
+          <p>Track similar SEC filings, amended disclosures, source changes, and follow-up catalysts.</p>
+          <button type="button">Upgrade to Premium</button>
+        </AnalysisDetailCard>
 
-        <aside className="stock-detail-rail">
-          <section className="stock-detail-card recent-filings-card">
-            <div className="card-heading-row">
-              <div>
-                <h2>{useDilutionDetail ? "Related Filings" : "Recent Filings"}</h2>
-                <p>{useDilutionDetail ? `${filing.ticker} related filing history` : `${filing.ticker} filing history`}</p>
-              </div>
-              <Link href="/filings">View all</Link>
-            </div>
-            <div className="recent-filings-list">
-              {filing.recentFilings.slice(0, 4).map((item) => (
-                <Link href={item.href || (item.id ? `/filings/${item.id}` : "/filings")} key={`${item.form}-${item.title}`}>
-                  <span className="filing-form-chip">{item.form}</span>
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>{item.eventType} - {item.filedAt}</span>
-                  </div>
-                  <b>{item.score}</b>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section className="stock-detail-card detail-score-card">
-            <h2>Event Snapshot</h2>
-            <div className="detail-score-main">
-              <strong data-score-tone={getDirectionalScoreTone(filing.score, filing.signal)}>
-                {filing.score}
-              </strong>
-              <span>Impact</span>
-            </div>
-            <MetricRow label="Source Group" value="filings" />
-            <MetricRow label="Event Type" value={eventBadge.label} />
-            <MetricRow label="Form Type" value={filing.formType} />
-            <MetricRow label="Signal" value={filing.signal} />
-          </section>
-
-          <section className="stock-detail-card related-news-card">
-            <div className="card-heading-row">
-              <h2>Related News</h2>
-              <Link href="/news">View all</Link>
-            </div>
-            <div className="related-news-list">
-              {filing.relatedNews.slice(0, 4).map((story) => (
-                <Link href={story.href || "/news"} key={story.title}>
-                  <strong>{story.title}</strong>
-                  <span>{story.source} - {story.age}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section className="stock-detail-card alert-card">
-            <span>Premium</span>
-            <h2>Real-time alerts for this filing type</h2>
-            <p>Track similar SEC filings, amended disclosures, source changes, and follow-up catalysts.</p>
-            <button type="button">Upgrade to Premium</button>
-          </section>
-
-          <section className="stock-detail-card source-confidence-card">
-            <h2>Source & Evidence</h2>
-            <div className="source-confidence-top">
-              <strong>{filing.source}</strong>
-              <span>Official Filing</span>
-            </div>
-            <MetricRow label="Source Type" value="SEC Filing" />
-            <MetricRow label="Issuer" value={filing.company} />
-            <MetricRow label="Filed" value={filing.filedAt} />
-            <MetricRow label="Verification" value="Original filing linked" />
-            <a className="source-original-link" href={filing.sourceUrl} target="_blank" rel="noreferrer">
-              <span>View Original Filing</span>
-              <ExternalLink size={14} aria-hidden="true" />
-            </a>
-          </section>
-        </aside>
-      </div>
-    </main>
+        <AnalysisDetailCard kind="rail" className="source-confidence-card">
+          <h2>Source & Evidence</h2>
+          <div className="source-confidence-top">
+            <strong>{filing.source}</strong>
+            <span>Official Filing</span>
+          </div>
+          <MetricRow label="Source Type" value="SEC Filing" />
+          <MetricRow label="Issuer" value={filing.company} />
+          <MetricRow label="Filed" value={filing.filedAt} />
+          <MetricRow label="Verification" value="Original filing linked" />
+          <a className="source-original-link" href={filing.sourceUrl} target="_blank" rel="noreferrer">
+            <span>View Original Filing</span>
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+        </AnalysisDetailCard></>}>
+      {projected ? <ProjectedOfferingDilution read={projected} /> : null}
+      {useDilutionDetail && dilutionModel ? (
+        <DilutionOfferingTemplate
+          eventLabel={eventBadge.label}
+          filing={filing}
+          model={dilutionModel}
+          preferredSourceUrl={preferredSourceUrl}
+        />
+      ) : (
+        <CommonFilingTemplate
+          eventLabel={eventBadge.label}
+          filing={filing}
+          preferredSourceUrl={preferredSourceUrl}
+        />
+      )}
+    </AnalysisDetailDocument>
   );
 }
 
@@ -7829,8 +7736,8 @@ function DilutionOfferingTemplate({
 
   return (
     <>
-      <section className="stock-detail-top-grid">
-        <PriceChartCard
+      <section className={`${detailStyles.chartSummaryGrid} ${detailStyles.chartSummaryGridSplit}`}>
+        <AnalysisDetailCard kind="renderer"><PriceChartCard
           change={filing.change}
           changeAmount={filing.changeAmount}
           mobileCollapsible
@@ -7838,29 +7745,25 @@ function DilutionOfferingTemplate({
           series={filing.priceSeries}
           ticker={filing.ticker}
           tone={filing.signal}
-        />
+        /></AnalysisDetailCard>
 
         <DilutionSnapshotCard model={model} />
       </section>
 
       <DilutionLongSummary model={model} preferredSourceUrl={preferredSourceUrl} />
 
-      <ShareOverhangCard model={model} />
+      <AnalysisDetailCard kind="renderer"><ShareOverhangCard model={model} /></AnalysisDetailCard>
 
-      <SectorThemeContextPanel context={filing.context} ticker={filing.ticker} />
-      <OriginalFilingText filing={filing} eventLabel="Dilution Risk" />
+      <AnalysisDetailCard kind="renderer"><SectorThemeContextPanel context={filing.context} ticker={filing.ticker} /></AnalysisDetailCard>
+      <AnalysisDetailCard kind="original"><OriginalFilingText filing={filing} eventLabel="Dilution Risk" /></AnalysisDetailCard>
     </>
   );
 }
 
 function DilutionSnapshotCard({ model }: { model: ReturnType<typeof buildDilutionOfferingModel> }) {
   return (
-    <section className="stock-detail-card dilution-investor-card dilution-snapshot-panel">
-      <div className="dilution-investor-header">
-        <div>
-          <h2>Dilution Snapshot</h2>
-        </div>
-      </div>
+    <AnalysisDetailCard kind="copy" className="dilution-investor-card dilution-snapshot-panel">
+      <h2>Dilution Snapshot</h2>
 
       <div className="dilution-impact-metrics">
         {model.impactMetrics.map((metric) => (
@@ -7872,7 +7775,7 @@ function DilutionSnapshotCard({ model }: { model: ReturnType<typeof buildDilutio
         <p>{model.investorTakeaway}</p>
       </div>
 
-    </section>
+    </AnalysisDetailCard>
   );
 }
 
@@ -7884,7 +7787,7 @@ function DilutionLongSummary({
   preferredSourceUrl: string | null;
 }) {
   return (
-    <section className="stock-detail-card dilution-long-summary">
+    <AnalysisDetailCard kind="copy">
       <div className="card-heading-row">
         <h2>Dilution Summary</h2>
         {preferredSourceUrl ? (
@@ -7894,7 +7797,7 @@ function DilutionLongSummary({
       {model.summaryParagraphs.map((paragraph) => (
         <p key={paragraph}>{paragraph}</p>
       ))}
-    </section>
+    </AnalysisDetailCard>
   );
 }
 
