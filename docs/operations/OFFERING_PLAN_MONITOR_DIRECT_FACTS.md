@@ -1,5 +1,9 @@
 # Offering Plan direct FACT Monitor candidate
 
+## Registry purpose and boundary
+
+Registry continuously maintains each issuer's share counts and capital structure from the latest SEC evidence, rather than remaining on an old quarterly/annual O/S observation. Existing main paths include dilution instruments/snapshots/activity/totals, share-count history, exact class/as-of resolution, stock Dilution reads, and combined Apply of Registry plus verified O/S. Monitor is a consumer of that data. This direct-FACT adapter neither defines the whole Registry nor replaces or necessarily updates every Registry path; adapter unavailability does not imply missing Registry functionality. This work does not delete, reduce or redesign Registry or share-count management.
+
 ## Current path and meaning
 
 This adapter follows the existing Proxy/S-8 pattern: the official reader verifies retained source/output identity and review selection, projects typed fields, and the existing generic Monitor compares them. Source prose and freeform `scenario` are evidence for the user; Monitor does not extract, repair, or certify their meaning.
@@ -76,3 +80,20 @@ The reused local-only event `7f6208ec-9323-4cbc-bdaa-3f022392c953` points to ret
 Checks: combined regression **385 PASS / 4 existing optional skips**, O/S **37**, Offering **45**, Alert **76**, filing UI **46**, related Monitor **151**, isolated DB **89** (rolled back). Suites overlap. Typecheck, production build and `git diff --check` passed. Live provider/GPT/O/S Worker/Offering Worker/SEC collection calls: **0**.
 
 Normal automatic positive and fresh administrator-approval-to-positive-Alert browser E2E remain **unverified**; they are not claimed by the historical test. Approval/source gates and automatic entry wiring retain their existing regression coverage. Administrator UI/state was not expanded or mutated in this cleanup. Main independent acceptance remains required before merge; no merge/push/deploy was performed.
+
+### 2026-10-13 KST: normal PASS path audit (no product changes)
+
+Purpose: verify the default PASS path without making administrator approval a prerequisite for all members. REVIEW_REQUIRED remains an exception; no approval policy was changed. Starting product HEAD: `be99012823538ffd26743ce4c546fe16262012b3`.
+
+The owned API/DB were confirmed as 56461/56462 (Postgres system identifier `7694629360856297510`). A read-only inventory of all 22 retained Offering runs and the four existing Monitors found **no PASS filing date on/after the current executable condition's creation time** (`2026-10-12T17:41:02.760Z`, 2026-10-13 KST). Real filings and fixtures were distinguished; no timestamps, source fields, policies, users or roles were changed.
+
+- **PASS:** real iBio `0001104659-26-012183`, run `3d183855-5e25-5fab-a723-6296a7e0bb71`, has zero Offering administrator decisions. Its official reader is available with `decisionId=null`/`candidateIndex=null`; the same-row selling-shareholder/common-stock/shares/1,408,481 quantity matches the existing owner's >=1,000,000 condition. Source/output hashes equal the prior retained-source audit.
+- **PASS:** the existing local-only PASS fixture `0000000043-26-810000`, run `0ca5b0be-4b90-57aa-ae86-793b98871890`, is also reader-available without any administrator decision. It produced no eligible typed component in this adapter and is not used as a positive result.
+- **PASS, normal non-alert:** two manual consumer evaluations of the real iBio result created 0 and 0 new Alerts, both reporting `monitor_activation_not_met` for that Monitor. This is a policy-preserving negative, **not automatic positive E2E**.
+- **Existing evidence reused:** authenticated condition creation API/save/reload/pause/resume and the prior explicit historical-test Alert `29da41e3-96f5-4e7b-a5ae-2399d922c0a5` (1 creation, replay 0). This stage created no new Monitor or Alert. The historical activation injection remains identified as a test and was not rerun or reclassified.
+- **Current browser readback:** existing owner session (Free, no role/plan change), `/monitor`, `/alerts` and the expanded Offering detail/SEC evidence link were checked. Product screens did not change; the previous 1440/900/390 screenshots and access-control evidence remain applicable. No SEC page was recollected.
+- **Unverified:** an actual automatic trigger invocation that creates a new Alert under normal activation. Source wiring is present in result completion/replay, saved-event handling and ingest; this audit did not execute extraction workers or create a new source event to manufacture that proof. Manual consumer invocation is recorded separately.
+
+Only read-only SQL and 43 local GET requests were used for the data audit; no mutation/RPC, Registry/stock-count/ticker/current/Watchlist write, provider, extraction worker or SEC collection was invoked. Scoped iBio source/output identity was compared instead of repeating shared-database-wide hashes. No migration was applied/repaired. Evidence: `pass-stage-inventory.json`, `pass-stage-normal.json`, `pass-stage-boundaries.json` and `pass-stage-*-dom.txt` in the existing outside-Git evidence folder.
+
+**One remaining blocker:** no retained material satisfies the current normal activation timing for a fresh positive. This stage supplies no automatic-positive or merge approval. Documentation-only changes require no product rebuild; `git diff --check` is the relevant new check. Prior product checks remain identified as prior evidence.
