@@ -2,6 +2,18 @@
 
 This candidate connects retained Offering Structured results to the existing generic Monitor and internal Alert flow. It does not restore projected dilution calculations, infer actual issuance, convert ADSs, sum securities, or change Primary outputs, prompts, schemas, Registry authority, or O/S canonical selection.
 
+## Source witness correction after main review
+
+Main independently reproduced a false positive in `02cda600`: a paragraph offering 50,000 Common Shares also mentioned a completed 2020 sale of 200,000 Common Shares. The old witness joined the current-offer words to the historical quantity. The added regression failed before the fix.
+
+The witness now accepts only a bounded, affirmative single-clause paragraph: seller + offering verb + literal quantity + exact security label, with only the supported prospectus prefix/suffix. It matches the whole paragraph, rather than separating an affirmative sentence from a following qualification or negation. There is no wildcard between the verb and quantity and no unrecognized trailing clause. Negation, qualifiers, other tranches, historical quantities and unknown wording cannot be repaired into that pattern. Complex otherwise legitimate source statements can be unavailable. The Alert explanation now describes a recorded component and asks readers to review its context, rather than claiming all unclear/conditional scenarios have been ruled out.
+
+The exact retained iBio current-resale paragraph was compared with the regression literal without DB/provider access. **iBio c1 is now ineligible:** its intervening sale terms and multi-tranche sentence are outside the bounded witness. c2 pre-funded warrant exercise shares and Canaan blank quantities remain ineligible. The historical iBio Alert created under `02cda600` below is prior evidence, not proof of a positive match under the corrected code. Stored facts and Alerts were not rewritten.
+
+This correction is code/offline verification only. No login, E2E, DB write, provider call or server rebuild was repeated. Normal automatic positive and fresh approval-to-Alert positive remain unverified; merge remains on hold pending main review.
+
+Correction checks: 13 focused tests included in 384 regression passes (4 existing optional skips), 151 related Monitor passes, typecheck and diff check. The prior running production build was not rebuilt; it must not be used as evidence that this correction is deployed or browser-verified.
+
 ## Supported condition set
 
 All four conditions are required exactly once, ANDed against one component:
@@ -40,7 +52,7 @@ Evidence version `offering_plan_match_v1` stores run/raw/event/accession, filing
 
 Applied only to isolated local DB `56462`, after a verified full database backup. The existing local migration ledger was not changed. Applying the committed migration in another environment is a separate integration action; do not reapply it blindly to this already modified isolated DB. Shared local DB, remote DB and port 3110 were not operated.
 
-## Verification evidence, 2026-10-13
+## Prior verification evidence at 02cda600, 2026-10-13
 
 Base: `6f599393cdfbe167f3f464af2e85771d6d504f69`, detached candidate worktree `1f6c`. Candidate server 3121; Auth/API 56461; DB 56462. Evidence is outside Git at `C:/Users/PC/AppData/Local/Temp/offering-direct-monitor-1f6c-20261013`.
 

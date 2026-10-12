@@ -28,7 +28,7 @@ export type MonitorAddConditionGroup = Readonly<{
 }>;
 
 const PRESET_DEFINITIONS = Object.freeze([
-  Object.freeze({id:"offering-plan-shares",title:"Stated offering-plan shares",description:"Watch a directly stated issuer common-stock offering quantity. Literal units, one component; excludes conditional or unclear scenarios. A plan does not establish issuance.",category:"Offering Plan",priority:5,conditions:Object.freeze([
+  Object.freeze({id:"offering-plan-shares",title:"Stated offering-plan shares",description:"Watch a directly stated issuer common-stock offering quantity. Only supported single-clause statements can match. A plan does not establish issuance.",category:"Offering Plan",priority:5,conditions:Object.freeze([
     Object.freeze({key:"offering_plan.component_quantity",operator:"gte" as const,value:"100000"}),
     Object.freeze({key:"offering_plan.seller_type",operator:"eq" as const,value:"issuer"}),
     Object.freeze({key:"offering_plan.security_type",operator:"eq" as const,value:"common_stock"}),

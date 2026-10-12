@@ -27,9 +27,9 @@ export function offeringPlanEvidence(facts:OfferingPlanFacts|undefined,condition
  const c=facts.components.find(c=>componentMatches(c,conditions));
  const parsed=offeringPlanEvidenceSchema.safeParse({...facts.identity,conditions,component:c});return parsed.success?parsed.data:null;
 }
-/** A status alone is not semantic proof. Require a literal current-offer
- * sentence supporting this quantity and security label. Ambiguous/conditional/historical
- * contexts are excluded, never classified or repaired into a current base quantity. */
+/** Accept only bounded literal offer statements, not co-occurring paragraph tokens.
+ * Unrecognized clauses (including multi-tranche statements) remain unavailable.
+ * This is a conservative witness check, not a semantic prospectus parser. */
 export function eligibleComponent(c:Component,plan:Offering['plan'],source:Source):PlanComponent|null{
  if((c.scenario!==null && /\b(if|assuming|exercise|conversion|option|conditional|up to)\b/i.test(c.scenario))||c.quantity.status!=='stated'||!directDecimal(c.quantity.value)
   ||!['issuer','selling_shareholders'].includes(c.seller_type)||!['common_stock','ordinary_shares','ads'].includes(c.security_type)
@@ -37,21 +37,17 @@ export function eligibleComponent(c:Component,plan:Offering['plan'],source:Sourc
  const blocks=c.evidence_blocks.map(id=>source.blocks.find(b=>b.id===id));if(blocks.some(b=>!b))return null;
  const escaped=c.quantity.value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
  const grouped=c.quantity.value.replace(/\B(?=(\d{3})+(?!\d))/g,',').replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
- const qty=new RegExp(`(?<![\\d,.])(?:${escaped}|${grouped})(?![\\d,.])`);
  const label=c.security_label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
- const adjacent=new RegExp(`(?<![\\d,.])(?:${escaped}|${grouped})\\s+${label}(?![a-z])`,'i');
+ const quantityAndLabel=`(?:${escaped}|${grouped})\\s+${label}`;
+ // Match the whole evidence paragraph. Do not detach an apparently affirmative
+ // sentence from a following qualification, negation or historical transaction.
+ // No wildcard gap: another clause's quantity cannot become this verb's object.
+ const statement=c.seller_type==='issuer'
+  ?new RegExp(`^We are offering ${quantityAndLabel}(?: under this prospectus)?\\.?$`,'i')
+  :new RegExp(`^(?:Under this prospectus,? )?(?:The )?Selling (?:shareholders|stockholders) (?:are offering|may offer and sell) ${quantityAndLabel}(?: under this prospectus)?\\.?$`,'i');
  const witness=blocks.flatMap(b=>b!.text.split(/\n\s*\n/)).some(s=>{
-  if(!qty.test(s)||!s.toLowerCase().includes(c.security_label.toLowerCase()))return false;
-  if(c.seller_type==='issuer')return s.split(/(?<=[.!?])\s+/).some(sentence=>
-   /\bwe are offering\b/i.test(sentence)&&adjacent.test(sentence)
-   &&! /\b(if|assuming|exercise|conversion|option|previously|historical|registered|authorized|registration fee|up to)\b/i.test(sentence));
-  // A current resale statement may also discuss other conditional tranches. Require
-  // this exact quantity immediately attached to this exact class label, not that tranche.
-  const match=adjacent.exec(s);
-  return /\bselling (?:shareholders?|stockholders?)\b/i.test(s)&&/\b(?:are offering|is offering|may offer and sell)\b/i.test(s)
-   &&/\bthis prospectus\b/i.test(s)&&match!==null
-   &&! /\b(?:up to|maximum of|assuming|upon exercise of)\s*$/i.test(s.slice(0,match.index))
-   &&! /\bpreviously offered\b/i.test(s);
+  const paragraph=s.trim().replace(/\s+/g,' ');
+  return statement.test(paragraph)&&(c.seller_type==='issuer'||/\bthis prospectus\b/i.test(paragraph));
  });
  if(!witness)return null;
  const references=blocks.map(b=>{const d=source.documents.find(d=>d.id===b!.document_id)!;return {blockId:b!.id,sha256:b!.sha256,url:d.url,lineStart:b!.line_start,lineEnd:b!.line_end};});

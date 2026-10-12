@@ -17,7 +17,7 @@ export function OfferingPlanAlertDetails({id,evidence:e}:{id:string;evidence:Evi
   <details onToggle={event=>{if(event.currentTarget.open)void load();}}>
    <summary>View matched component and SEC evidence</summary>
    <p>{e.component.seller.replaceAll('_',' ')} · {e.component.security.replaceAll('_',' ')}</p>
-   <p>One directly stated component; conditional and unclear scenarios excluded.</p>
+   <p>One recorded component matched your conditions. Review its stated context and SEC evidence.</p>
    {e.component.scenario&&<p>Stated context: {e.component.scenario}</p>}
    <p>Filing {e.accession} · {e.filedAt}</p><p>Recorded source run: {e.runId}</p>
    <p>Evidence recorded at the time of matching. Later condition or review changes do not rewrite this record.</p>

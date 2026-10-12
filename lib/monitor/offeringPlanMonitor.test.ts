@@ -17,7 +17,7 @@ import {consumeListingMonitorAlertsForEvent} from './listingMonitorAlertConsumer
 const id='12345678-1234-4234-8234-123456789012',eventId='22345678-1234-4234-8234-123456789012';
 const conditions=[{key:'offering_plan.component_quantity',operator:'gte' as const,value:'100000'},{key:'offering_plan.seller_type',operator:'eq' as const,value:'issuer'},{key:'offering_plan.security_type',operator:'eq' as const,value:'common_stock'},{key:'offering_plan.quantity_unit',operator:'eq' as const,value:'shares'}];
 function fixture(){
- const raw={id,source_code:'sec_edgar',source_unique_id:'0000000001-26-991199',source_url:'https://www.sec.gov/Archives/edgar/data/1/000000000126991199/local-only.htm',raw_payload:{accession_number:'0000000001-26-991199',company_name:'LOCAL ONLY direct plan fixture',cik:'0000000001',form_type:'F-1',filing_date:'2026-10-10',primary_document_html_truncated:false,primary_document_html:'<p>LOCAL ONLY verification fixture. We are offering 200,000 common shares — Pré £.</p><p>Selling shareholders are offering 50,000 common shares — Pré £.</p>'}};
+ const raw={id,source_code:'sec_edgar',source_unique_id:'0000000001-26-991199',source_url:'https://www.sec.gov/Archives/edgar/data/1/000000000126991199/local-only.htm',raw_payload:{accession_number:'0000000001-26-991199',company_name:'LOCAL ONLY direct plan fixture',cik:'0000000001',form_type:'F-1',filing_date:'2026-10-10',primary_document_html_truncated:false,primary_document_html:'<p>LOCAL ONLY verification fixture.</p><p>We are offering 200,000 common shares — Pré £.</p><p>Selling shareholders are offering 50,000 common shares — Pré £.</p>'}};
  const source=buildSource(raw),binding=bindingFor(id,source),plan={components:[{id:'c1',seller_type:'issuer',security_type:'common_stock',security_label:'common shares — Pré £',quantity:{status:'stated',value:'200000',unit:'shares'},price:{status:'not_stated',qualification:'not_stated',value:null,low:null,high:null,currency:null,per_unit:null},scenario:null,depositary:null,evidence_blocks:[source.blocks[0].id]},{id:'c2',seller_type:'selling_shareholders',security_type:'common_stock',security_label:'common shares — Pré £',quantity:{status:'stated',value:'50000',unit:'shares'},price:{status:'not_stated',qualification:'not_stated',value:null,low:null,high:null,currency:null,per_unit:null},scenario:null,depositary:null,evidence_blocks:[source.blocks[0].id]}] as Component[],over_allotment:[],post_offering_os:[],proceeds:[],atm_terms:[]};
  const value:Offering={version:'offering_plan_v1',filing:source.filing,status:'PASS',plan,review:null};
  const serialized=JSON.stringify(value),validation=validateOutput(serialized,source,binding.contractVersion);assert.equal(validation.ok,true);
@@ -48,6 +48,59 @@ test('blank, unknown, conditions, historical, ATM and over-allotment rows are un
  const historic=structuredClone(f.source);historic.blocks[0].text='We previously offered 200,000 common shares — Pré £.';assert.equal(eligibleComponent(c,f.plan,historic),null);
  const unrelated=structuredClone(f.source);unrelated.blocks[0].text='We are offering securities. There are 200,000 common shares — Pré £ authorized.';assert.equal(eligibleComponent(c,f.plan,unrelated),null);
  const conditional=structuredClone(f.source);conditional.blocks[0].text='Selling shareholders may offer and sell up to 200,000 common shares — Pré £ under this prospectus.';assert.equal(eligibleComponent({...c,seller_type:'selling_shareholders'},f.plan,conditional),null);
+});
+test('current resale cannot borrow the same class quantity from a completed historical transaction',()=>{
+ const f=fixture(),c={...f.plan.components[0],seller_type:'selling_shareholders',security_label:'Common Shares'};
+ f.source.blocks[0].text='Under this prospectus, selling shareholders may offer and sell 50,000 Common Shares. In 2020, 200,000 Common Shares were sold in a completed transaction.';
+ assert.equal(eligibleComponent(c,f.plan,f.source),null);
+ assert.equal(eligibleComponent({...c,quantity:{...c.quantity,value:'50000'}},f.plan,f.source),null);
+});
+test('resale witness requires one affirmative bounded clause, not other tranches or negated/current tokens',()=>{
+ const f=fixture(),c={...f.plan.components[0],seller_type:'selling_shareholders',security_label:'Common Shares'};
+ const direct='Under this prospectus, selling shareholders may offer and sell 200,000 Common Shares.';
+ for(const text of [direct,'Selling shareholders are offering 200,000 Common Shares under this prospectus.']){
+  f.source.blocks[0].text=text;assert.equal(eligibleComponent(c,f.plan,f.source)?.quantity,'200000',text);
+ }
+ for(const text of [
+  'Under this prospectus, selling shareholders may offer and sell 50,000 Common Shares; in 2020, 200,000 Common Shares were sold.',
+  'Under this prospectus, selling shareholders may offer and sell 50,000 Common Shares and previously sold 200,000 Common Shares.',
+  'Under this prospectus, selling shareholders may offer and sell 50,000 Common Shares and, upon warrant exercise, 200,000 Common Shares.',
+  'Under this prospectus, selling shareholders may offer and sell 200,000 Common Shares if warrants are exercised.',
+  direct+' This offering is conditional on warrant exercise.',
+  direct+' These shares are not currently offered for sale.',
+  'Under this prospectus, selling shareholders may offer and sell 200,000 Common Shares and up to 50,000 Warrant Shares upon exercise.',
+  'Under this prospectus, selling shareholders may not offer and sell 200,000 Common Shares.',
+  'Under this prospectus, selling shareholders are not offering 200,000 Common Shares.',
+  'It is not currently true that selling shareholders may offer and sell 200,000 Common Shares under this prospectus.',
+  'The old prospectus stated: selling shareholders may offer and sell 200,000 Common Shares under this prospectus.',
+  'Under this prospectus, selling shareholders may offer and sell 50,000 Common Shares. We are offering 200,000 Common Shares.',
+  'Under this prospectus, selling shareholders may offer and sell 200,000 Class B Shares. There are 200,000 Common Shares outstanding.',
+  'Under this prospectus, selling shareholders may offer and sell 50,000 Common Shares. The current quantity is 200,000 Common Shares.',
+ ]){f.source.blocks[0].text=text;assert.equal(eligibleComponent(c,f.plan,f.source),null,text);}
+ // An otherwise familiar statement with an unknown qualifier is not repaired.
+ f.source.blocks[0].text='Under this prospectus, selling shareholders may offer and sell approximately 200,000 Common Shares.';
+ assert.equal(eligibleComponent(c,f.plan,f.source),null);
+});
+test('issuer witness cannot borrow a quantity from another clause or a negated statement',()=>{
+ const f=fixture(),c={...f.plan.components[0],security_label:'Common Shares'};
+ for(const text of ['We are offering 50,000 Common Shares and previously sold 200,000 Common Shares.','We are not offering 200,000 Common Shares.','We are offering 200,000 Common Shares subject to warrant exercise.']){
+  f.source.blocks[0].text=text;assert.equal(eligibleComponent(c,f.plan,f.source),null,text);
+ }
+});
+test('retained iBio multi-tranche source is conservatively unavailable; PF exercise and Canaan blanks stay excluded',()=>{
+ const f=fixture();
+ // Exact retained source excerpt: iBio 0001104659-26-012183, block L1 lines 1–40.
+ // No DB/provider call. The former c1 positive is intentionally NOT preserved by a wildcard bridge.
+ f.source.blocks[0].text='The Selling Stockholders identified in this prospectus, or its pledgees, assignees, donees, transferees or their respective successors-in-interest, from time to time may offer and sell through public or private transactions at prevailing market prices, at prices related to prevailing market prices or at privately negotiated prices held by them directly or through underwriters, agents or broker-dealers on terms to be determined at the time of sale, as described in more detail in this prospectus, the 1,408,481 Common Shares and up to 9,653,257 Pre-Funded Warrant Shares underlying the Pre-Funded Warrants held by them in one or more offerings under this prospectus, for their own account. We are not offering any Shares under this prospectus and will not receive any of the proceeds from the sale of the Shares by the Selling Stockholders. See “Plan of Distribution” beginning on page 12 of this prospectus for more information about how the Selling Stockholders may sell their respective Shares.';
+ const c1={...f.plan.components[0],seller_type:'selling_shareholders',security_label:'Common Shares',quantity:{status:'stated' as const,value:'1408481',unit:'shares'},scenario:'Resale of Common Shares issued in the January 2026 Private Placement.'};
+ const c2={...c1,id:'c2',security_label:'Pre-Funded Warrant Shares',quantity:{...c1.quantity,value:'9653257'},scenario:'Resale of up to 9,653,257 shares of Common Stock issuable upon exercise of the Pre-Funded Warrants.'};
+ const before=JSON.stringify([c1,c2,f.source]);
+ assert.equal(eligibleComponent(c1,f.plan,f.source),null);assert.equal(eligibleComponent(c2,f.plan,f.source),null);
+ // Retained Canaan 0001193125-19-276263: quantity and ratio are blank, never zero.
+ const canaan={...f.plan.components[0],security_type:'ads',security_label:'American Depositary Shares',quantity:{status:'blank' as const,value:null,unit:'ADSs'},scenario:"Initial public offering, assuming no exercise of the underwriters' option to purchase additional ADSs."};
+ assert.equal(eligibleComponent(canaan,f.plan,f.source),null);assert.equal(canaan.quantity.value,null);
+ assert.equal(JSON.stringify([c1,c2,f.source]),before);
+ assert.doesNotMatch(readFileSync('components/alerts-v2/OfferingPlanAlertDetails.tsx','utf8'),/conditional and unclear scenarios excluded/);
 });
 test('unapproved review, hold/reject, source mismatch and malformed evidence fail closed',async()=>{
  for(const action of ['hold','reject','retry']){const f=fixture();f.decisions.push({id,action,candidate_indexes:[]});assert.equal((await readOfferingPlanFacts(eventId,f.repo)).status,'not_ready');}

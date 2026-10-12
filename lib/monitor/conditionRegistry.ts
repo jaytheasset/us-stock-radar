@@ -364,7 +364,7 @@ const registry = [
   ] as const).map(([name, valueType, label, enums]): MonitorConditionDefinition => ({
     key: `offering_plan.${name}`, valueType, allowedOperators: name === "component_quantity" ? ["gte"] : ["eq"],
     ...(enums ? {enumValues: enums, enumValueDescriptions:Object.fromEntries(enums.map(v=>[v,`Directly stated ${v.replaceAll("_", " ")} component in the current offering plan.`]))} : {}),
-    description: "One directly stated current plan component, same seller/security/literal unit. No execution, conversion, totals, conditional or ambiguous scenarios.",
+    description: "One directly stated plan component, same seller/security/literal unit, supported by a bounded single-clause offering statement. Unsupported wording is unavailable. No execution, conversion or totals.",
     display: {label, ...(name === "component_quantity" ? {operatorValueTemplates:{gte:"At least {value}"}} : {}), ...(enums ? {enumValueLabels: Object.fromEntries(enums.map(v => [v, v.replaceAll('_', ' ')]))} : {})},
     monitorDomains: ["listing"], family: "offering_plan", domain: "offering_plan",
     source: {subject: "event", reader: "read_offering_plan_components"}, qualityCapability: ["exact"], status: "READY",
