@@ -1,3 +1,4 @@
+import {CommonOfferingExecution} from '@/components/admin/CommonOfferingExecution';
 import Link from 'next/link';
 import styles from '@/components/admin/AdminSection.module.css';
 import ui from '@/components/admin/OsSnapshotActions.module.css';
@@ -15,12 +16,13 @@ export default async function OfferingPlansPage({searchParams}:{searchParams:Pro
  const [entries,selected]=await Promise.all([listOfferingPlans().catch(()=>null),params.id?readOfferingPlan(params.id).catch(()=>null):null]);
  const m=selected?.run.metadata,cp=m?.offeringCheckpoint,source=selected?.source,identity=selected?.identity,blocks=source?.blocks??[];
  const candidates:Plan[]=cp?.validated?.review?.candidates??[];
- const osRunId=selected?await readMatchingOsRun(selected.run,await repository()).catch(()=>null):null;
+ const osRunId=selected&&!selected.commonExecution?await readMatchingOsRun(selected.run,await repository()).catch(()=>null):null;
  return <div className={styles.page} style={{minWidth:0,overflowWrap:'anywhere'}}>
   <header><h1>SEC Offering 계획 검토</h1><Link href="/admin/data">데이터 운영으로</Link><p>각 공시에 직접 기재된 계획·수정 조건입니다. 실제 판매나 closing 완료를 뜻하지 않습니다.</p></header>
   <nav className={ui.filters} aria-label="분석 상태 필터">{Object.entries(labels).map(([k,v])=><Link key={k} href={k==='ALL'?'?':`?status=${k}`} aria-current={(params.status??'ALL')===k?'page':undefined}>{v}</Link>)}</nav>
   {params.id&&!selected&&<p role="alert">선택한 결과를 읽을 수 없습니다.</p>}
-  {selected&&<section className={styles.stack}>
+  {selected?.commonExecution&&<CommonOfferingExecution execution={selected.commonExecution} domain="offering-plans" detail/>}
+  {selected&&!selected.commonExecution&&<section className={styles.stack}>
    <header><h2>{identity!.filing.issuer} {identity!.ticker}</h2><p>{identity!.filing.form} · {identity!.filing.accession} · {identity!.filing.filing_date}</p><p>접수: {identity!.filing.accepted_at??'미확인'} · 등록번호: {m.binding.family.number??'미확인'}</p><strong>{labels[m.offeringStatus]}</strong></header>
    {selected.sourceError&&<p role="alert">Source mismatch: 원문을 읽을 수 없거나 분석 당시 fingerprint와 일치하지 않아 근거를 표시하지 않습니다.</p>}
    {selected.commonInvocation&&<p>공통 호출 {selected.commonInvocation.id}에서 분리한 Offering 결과입니다. O/S와 별도로 재추출한 결과가 아닙니다.</p>}
@@ -40,7 +42,7 @@ export default async function OfferingPlansPage({searchParams}:{searchParams:Pro
     <p>Raw SHA256: {cp?.rawHash}</p><p>Contract: {m.binding.contractVersion}</p><p>Fingerprint: {m.binding.sourceFingerprint}</p><p>Schema: {m.binding.schemaHash} · Prompt: {m.binding.promptHash}</p><p>Provider: {m.binding.providerProfile} · Attempt: {m.attempt}</p>
    </details>
   </section>}
-  <section className={styles.stack}><h2>공시 목록</h2>{entries===null?<p role="alert">목록을 읽을 수 없습니다.</p>:entries.filter(r=>!params.status||r.status===params.status).map(r=><article className={styles.card} key={r.id}>
+  <section className={styles.stack}><h2>공시 목록</h2>{entries===null?<p role="alert">목록을 읽을 수 없습니다.</p>:entries.filter(r=>!params.status||params.status==='ALL'||(r.commonExecution?.status??r.status)===params.status).map(r=>r.commonExecution?<CommonOfferingExecution key={r.id} execution={r.commonExecution} domain="offering-plans"/>:<article className={styles.card} key={r.id}>
    <Link href={`?id=${r.id}`}><strong>{r.filing.issuer} {r.ticker}</strong></Link><p>{labels[r.status]} · {r.filing.form} · {r.filing.accession}</p><p>공시일 {r.filing.filing_date} · 등록번호 {r.family.number??'미확인'}</p><p>Family: {r.family.key??'미확인'}</p><p>{r.plan?.components.map((c:{seller_type:string;security_label:string})=>`${c.seller_type}: ${c.security_label}`).join(' / ')}</p><p>실행: {r.finished_at??r.started_at??'대기 중'}</p>
   </article>)}</section>
  </div>;

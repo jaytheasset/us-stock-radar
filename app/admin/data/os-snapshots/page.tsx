@@ -1,3 +1,4 @@
+import {CommonOfferingExecution} from '@/components/admin/CommonOfferingExecution';
 import Link from 'next/link';
 import styles from '@/components/admin/AdminSection.module.css';
 import ui from '@/components/admin/OsSnapshotActions.module.css';
@@ -20,10 +21,10 @@ const displayTime = (value: string) => new Intl.DateTimeFormat('ko-KR', { timeZo
 export default async function OsSnapshotsPage({ searchParams }: { searchParams: Promise<{ id?: string; status?: string }> }) {
   const access = await requireAdminPermission('data.read'), params = await searchParams;
   const [entries, selected] = await Promise.all([listSnapshots().catch(() => null), params.id ? readSnapshot(params.id).catch(() => null) : Promise.resolve(null)]);
-  const m = selected?.run.metadata, cp = m?.osCheckpoint, source = m?.binding.source;
+  const m = selected?.run.metadata, cp = m?.osCheckpoint, source = m?.binding?.source;
   const candidates: OsRecord[] = cp?.validated?.review?.candidates ?? [];
   const latest = selected?.decisions.at(-1);
-  const offeringRunId = selected ? await readMatchingOfferingRun(selected.run, await repository()).catch(() => null) : null;
+  const offeringRunId = selected && !selected.commonExecution ? await readMatchingOfferingRun(selected.run, await repository()).catch(() => null) : null;
   const blocks: Block[] = source?.blocks ?? [];
   const recordCard = (row: OsRecord, index = 0) => <OsSnapshotRecord key={index} record={row} blocks={blocks.filter(b => row.evidence_blocks.includes(b.id))} />;
   return <div className={styles.page} style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
@@ -32,7 +33,8 @@ export default async function OsSnapshotsPage({ searchParams }: { searchParams: 
     </header>
     <nav className={ui.filters} aria-label="분석 상태 필터">{Object.entries(labels).map(([status, label]) => <Link key={status} aria-current={(params.status ?? 'ALL') === status ? 'page' : undefined} href={status === 'ALL' ? '?' : `?status=${status}`}>{label}</Link>)}</nav>
     {params.id && !selected && <p role="alert">선택한 결과를 읽을 수 없습니다.</p>}
-    {selected && <section className={styles.stack}>
+    {selected?.commonExecution && <CommonOfferingExecution execution={selected.commonExecution} domain="os-snapshots" detail/>}
+    {selected && !selected.commonExecution && <section className={styles.stack}>
       <header><h2>{source.filing.issuer}</h2><p>{source.filing.form} · {source.filing.accession} · 공시일 {source.filing.filing_date}</p>
         <p><strong>분석 결과: {labels[m.osStatus] ?? '확인 필요'}</strong></p>
         {!selected.current && <p>현재 공시 원문과 일치하는지 확인이 필요합니다.</p>}
@@ -65,7 +67,7 @@ export default async function OsSnapshotsPage({ searchParams }: { searchParams: 
       </details>
     </section>}
     <section className={styles.stack}><h2>공시 목록</h2>
-      {entries === null ? <p role="alert">목록을 읽을 수 없습니다.</p> : entries.filter(r => !params.status || r.metadata.osStatus === params.status).map(r => { const b = r.metadata.binding, s = b.source;
+      {entries === null ? <p role="alert">목록을 읽을 수 없습니다.</p> : entries.filter(r => !params.status || params.status === 'ALL' || (r.commonExecution?.status ?? r.metadata.osStatus) === params.status).map(r => { if(r.commonExecution) return <CommonOfferingExecution key={r.id} execution={r.commonExecution} domain="os-snapshots"/>; const b = r.metadata.binding, s = b.source;
         return <article key={r.id} className={styles.card} style={{ minWidth: 0 }}><Link href={`?id=${r.id}`}><strong>{s.filing.issuer} {s.ticker ?? ''}</strong></Link><p>{labels[r.metadata.osStatus] ?? '확인 필요'}</p><p>{s.filing.form} · {s.filing.accession} · 공시일 {s.filing.filing_date}</p><p>{r.finished_at || r.started_at ? displayTime(r.finished_at ?? r.started_at) : '대기 중'}</p></article>;
       })}
     </section>

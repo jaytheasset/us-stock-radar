@@ -1,5 +1,26 @@
 # Common Offering contract candidate — 2026-10-10
 
+## Current status — administrator common execution history, 2026-10-13
+
+Base: `75000bf5f9f4a2c8b28d877b04ab5941837938ad`, detached candidate in the existing `1f6c` worktree. Automatic projected calculations and new Projected Alerts remain intentionally retired. Direct O/S/Offering results, evidence, independent review decisions and immutable historical Alerts remain available. Primary is outside this task.
+
+The prior authenticated read/access recheck was completed on local API/Auth `56461`, DB `56462` and candidate `3121`: owner/other-owner historical Alert isolation, Free/Pro/anonymous views, exact CSS 1440×900, 900×900 and 390×900, no observed console errors, unchanged product hashes. Evidence: `C:/Users/PC/AppData/Local/Temp/projected-remaining-audit-1f6c-20261012-233253/RECHECK-COMPLETION.md`. These are read/access checks, not new calculation, condition-save, approval-save or Alert-generation E2E. Older statements below that authentication is unverified describe their dated stages only.
+
+The current fix makes childless common Offering `QUEUED`, `RUNNING` and `TECHNICAL_FAILED` executions visible in both existing administrator lists and exact detail pages. The parent is an execution-status card, not a synthetic domain result. It carries filing identity, parent ID, timestamps and an allowlisted source mismatch explanation; no raw provider errors or child approval/retry actions. Completed parents are excluded before list limiting; their exact designated child is resolved when following a saved parent detail URL. Wrong child/raw/purpose/invocation identity is rejected. Existing domain evidence hydration, permissions and independent F-1 paths remain in place; list read errors remain explicit.
+
+The old PureCycle/iBio potential-warrant arithmetic blocker is a historical retired-calculator finding. It does not authorize restoring arithmetic or changing extraction schemas/prompts. No migration, Worker, queue, Registry, Primary, provider or Auth-policy change belongs to this fix. No merge, push or deployment is authorized; main must independently review the scoped candidate.
+
+### Verification of the administrator history fix
+
+- Fresh checks: common reader/history + rendered admin pages **57 PASS** (29 added checks); O/S **37 PASS**; Offering **45 PASS**; Projected/Monitor/Registry/Primary **370 PASS, 4 existing optional skips**; Alert **76 PASS**; filing UI **46 PASS**; related Monitor/compiler **151 PASS**. Selections overlap. Typecheck, normal Turbopack production build and `git diff --check` passed. Provider/Worker calls: **0**.
+- Real local Operations login, production candidate `3121`, API/Auth `56461`, DB `56462`: both pages displayed existing local-only DB executions (QUEUED 1, RUNNING 2, TECHNICAL_FAILED 2); status filters, exact detail and reciprocal parent links worked. These are previously stored synthetic test executions, not live issuer failures or newly executed jobs. No process-only state fixture was needed.
+- Retained iBio common COMPLETE parent resolved to its designated Offering and O/S children; the list contained the child once and excluded the complete parent. Original literal quantities, source disclosure and peer links remained available. Independent Canaan F-1 retained blank ADS quantity/ratio, Class B-only direct post-O/S and separate actual O/S; no calculation or 0% substitution. Existing local review candidates, independent approval history and long Unicode security labels remained readable; no decision was submitted.
+- Exact CSS 1440×900, 900×900 and 390×900: 54 authenticated DB-backed list/detail captures, plus 2 explicitly process-only read-error captures and 4 anonymous/non-admin access captures. No measured horizontal overflow; sampled actual screenshots inspected. Both logged-out and logged-in non-admin users were redirected by the existing admin gate. The original owner session was restored on `/alerts`; temporary viewport override reset.
+- The only process-only fixture forced list read failures after real authentication/DB transport, outside Git and without DB writes; both pages displayed explicit read errors. Fixture mode is off. Browser console warnings/errors collected: **0**. The read-only guard blocked existing product bootstrap upsert attempts; these were not successful writes or mocked successes. Auth login/logout/refresh remained allowed.
+- Before/after counts and SHA256 hashes matched for 10 tables, including `raw_items`, `ai_runs`, `ai_outputs`, projected facts, Monitor sets, Alerts, both decision tables, roles and subscriptions. No migration, account/role change, Primary edit or new calculation/Alert work. Scope is administrator read/display; new approval persistence, event-to-Alert generation and deployment were not tested or authorized here.
+- Evidence and screenshots: `C:/Users/PC/AppData/Local/Temp/combined-admin-status-1f6c-20261013-002615/` (`audit.json`, before/after snapshots, 60 unique screenshot/DOM/metric sets, regression/build logs). An early screenshot taken before a client navigation settled was replaced after waiting for the destination heading; only the final files are acceptance evidence.
+
+
 Base: `87221c5f72e1e66d0fe04d1fda8812776c8c58d9`, detached candidate
 `C:\Users\PC\.codex\worktrees\1f6c\US-Stock Radar`. Main reference:
 `a1ee8ac75ecbe075b9a3e2a814cee41a21a84515`.
@@ -217,11 +238,11 @@ Product admin/Alert integration, live extraction, authenticated current-code E2E
 and final production build are still pending C2; earlier UI evidence is not
 current acceptance evidence. Evidence: host temp offering-product-1f6c-20261010.
 
-## C2 — existing admin and Custom alerts integration (2026-10-10)
+## Historical C2 — existing admin and Custom alerts integration (2026-10-10)
 
 Base `2ee7d2558d02cb7352aa686f73484c2409f0ee4e`, continuing the same detached
-candidate. This section is the current completion report; earlier sections
-describe their own stage boundaries. Main's follow-up authorized C1/C2 and up to
+candidate. This section records the historical C2 calculation-era behavior;
+the 2026-10-13 current-status section supersedes its runtime and acceptance claims. Main's follow-up authorized C1/C2 and up to
 five single subscription extractions, one for each named domestic example.
 
 ### Scope and implemented behavior
@@ -331,7 +352,7 @@ official SEC submissions JSON, retained with hashes. Shimmick used its original
 SEC header. Dates in old experimental filenames were not used as filing dates.
 Structural/source-reference PASS does not establish semantic quality PASS.
 
-**Confirmed merge blocker:** PureCycle/iBio encode conditional warrant underlying
+**Historical calculation-era blocker (calculator now retired):** PureCycle/iBio encode conditional warrant underlying
 as selling-shareholder common_stock components, without a typed warrant component
 and relationship. The calc-r2 resolver safely avoids a positive immediate
 issuance calculation, but sets has_warrants/has_prefunded_warrants false and
@@ -382,7 +403,7 @@ lib/secFilingAnalysisIngest.ts remain identical to main reference
 the new Monitor journey. Candidate-only next-env.d.ts development regeneration
 is excluded from the feature commit; main's user-owned file was untouched.
 
-Current disposition: candidate implementation/evidence is ready for independent
+Historical C2 disposition: candidate implementation/evidence was available for independent
 main review, **not authorized or ready for merge** while the semantic blocker
 and actual positive event-to-Alert acceptance remain unresolved. Local main ref
 is `a1ee8ac75ecbe075b9a3e2a814cee41a21a84515`; cached origin/main is
