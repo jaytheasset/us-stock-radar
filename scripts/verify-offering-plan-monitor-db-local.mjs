@@ -14,6 +14,17 @@ try{
  for(const key of Object.keys(evidence.component)){const v=structuredClone(evidence);delete v.component[key];await valid(v,false);}
  for(const key of Object.keys(evidence.component.references[0])){const v=structuredClone(evidence);delete v.component.references[0][key];await valid(v,false);}
  for(const edit of [v=>v.conditions[0].value='999999',v=>v.conditions[1].value='selling_shareholders',v=>v.conditions[0].value=null,v=>v.conditions[2]=v.conditions[1],v=>v.conditions[3].value='ADSs',v=>v.decisionId=row.user_id,v=>v.component.references[0].url='https://evil.test',v=>v.component.scenario='conditional',v=>v.reason='private',v=>v.outputHash=123]){const v=structuredClone(evidence);edit(v);await valid(v,false);}
+ // Applied legacy validator stays exact. New meaning/key is an explicit opt-in.
+ const legacy=structuredClone(evidence);
+ evidence.meaning='stated_plan_component_not_execution';
+ evidence.conditions[0].key='offering_plan.stated_component_quantity';
+ evidence.component.scenario='Up to this quantity upon warrant exercise — Pré £';
+ async function validNew(value,expected){assert.equal((await db.query('select public.valid_offering_plan_stated_component_evidence($1::jsonb) as valid',[JSON.stringify(value)])).rows[0].valid,expected);checks++;}
+ await validNew(evidence,true);await validNew(legacy,false);await valid(evidence,false);
+ for(const key of Object.keys(evidence)){const v=structuredClone(evidence);delete v[key];await validNew(v,false);}
+ for(const edit of [v=>v.meaning=legacy.meaning,v=>v.conditions=legacy.conditions,v=>v.conditions[0].value='999999',v=>v.conditions[1].value='selling_shareholders',v=>v.conditions[2]=v.conditions[1],v=>v.conditions[3].value='ADSs',v=>v.component.quantity=null,v=>v.component.references[0].sha256='changed',v=>v.decisionId=row.user_id,v=>v.reason='private']){const v=structuredClone(evidence);edit(v);await validNew(v,false);}
+ const existing=(await db.query("select offering_plan_match_evidence from user_alert_deliveries where offering_plan_match_evidence->>'meaning'='stated_current_plan_component_not_execution'")).rows;
+ assert.ok(existing.length);for(const r of existing)await valid(r.offering_plan_match_evidence,true);
  const monitor=(await db.query("insert into listing_monitors(user_id,domain,conditions,is_active) values($1,'listing',$2,true) returning id",[row.user_id,JSON.stringify(evidence.conditions)])).rows[0].id;
  const params=[row.user_id,row.alert_event_id,monitor,row.listing_source_execution_id,JSON.stringify(evidence)];
  const sql="insert into user_alert_deliveries(user_id,alert_event_id,listing_monitor_id,listing_source_execution_id,offering_plan_match_evidence,alert_lane,alert_domain,category,title,source_type,source_label,delivery_status,delivered_channels) values($1,$2,$3,$4,$5,'listing_monitor','listing','dilution_risk','LOCAL ONLY DB test','other','Offering Plan Monitor','queued','{}') on conflict(listing_monitor_id,alert_event_id) do nothing returning id";

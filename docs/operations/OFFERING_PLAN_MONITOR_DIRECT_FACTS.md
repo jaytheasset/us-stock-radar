@@ -1,85 +1,78 @@
 # Offering Plan direct FACT Monitor candidate
 
-This candidate connects retained Offering Structured results to the existing generic Monitor and internal Alert flow. It does not restore projected dilution calculations, infer actual issuance, convert ADSs, sum securities, or change Primary outputs, prompts, schemas, Registry authority, or O/S canonical selection.
+## Current path and meaning
 
-## Source witness correction after main review
+This adapter follows the existing Proxy/S-8 pattern: the official reader verifies retained source/output identity and review selection, projects typed fields, and the existing generic Monitor compares them. Source prose and freeform `scenario` are evidence for the user; Monitor does not extract, repair, or certify their meaning.
 
-Main independently reproduced a false positive in `02cda600`: a paragraph offering 50,000 Common Shares also mentioned a completed 2020 sale of 200,000 Common Shares. The old witness joined the current-offer words to the historical quantity. The added regression failed before the fix.
+`/monitor` preset → existing editor/review/save → `readOfferingPlanFacts` → existing matcher/consumer → immutable internal Alert → owner-scoped `/alerts` list/detail. Primary outputs, extraction prompts/schemas, O/S authority and Registry are unchanged. No quantity sums, ADS conversions, projected O/S, execution or closing inference.
 
-The witness now accepts only a bounded, affirmative single-clause paragraph: seller + offering verb + literal quantity + exact security label, with only the supported prospectus prefix/suffix. It matches the whole paragraph, rather than separating an affirmative sentence from a following qualification or negation. There is no wildcard between the verb and quantity and no unrecognized trailing clause. Negation, qualifiers, other tranches, historical quantities and unknown wording cannot be repaired into that pattern. Complex otherwise legitimate source statements can be unavailable. The Alert explanation now describes a recorded component and asks readers to review its context, rather than claiming all unclear/conditional scenarios have been ruled out.
-
-The exact retained iBio current-resale paragraph was compared with the regression literal without DB/provider access. **iBio c1 is now ineligible:** its intervening sale terms and multi-tranche sentence are outside the bounded witness. c2 pre-funded warrant exercise shares and Canaan blank quantities remain ineligible. The historical iBio Alert created under `02cda600` below is prior evidence, not proof of a positive match under the corrected code. Stored facts and Alerts were not rewritten.
-
-This correction is code/offline verification only. No login, E2E, DB write, provider call or server rebuild was repeated. Normal automatic positive and fresh approval-to-Alert positive remain unverified; merge remains on hold pending main review.
-
-Correction checks: 13 focused tests included in 384 regression passes (4 existing optional skips), 151 related Monitor passes, typecheck and diff check. The prior running production build was not rebuilt; it must not be used as evidence that this correction is deployed or browser-verified.
-
-## Supported condition set
-
-All four conditions are required exactly once, ANDed against one component:
+All four conditions are required exactly once, on the **same component**:
 
 | Key | Operator | Value |
 | --- | --- | --- |
-| `offering_plan.component_quantity` | `gte` | Nonnegative literal decimal string |
+| `offering_plan.stated_component_quantity` | `gte` | Direct nonnegative decimal string |
 | `offering_plan.seller_type` | `eq` | `issuer` or `selling_shareholders` |
-| `offering_plan.security_type` | `eq` | `common_stock`, `ordinary_shares`, or `ads` |
-| `offering_plan.quantity_unit` | `eq` | Exact source unit text |
+| `offering_plan.security_type` | `eq` | `common_stock`, `ordinary_shares`, `ads` |
+| `offering_plan.quantity_unit` | `eq` | Exact stated unit |
 
-Different components and condition families cannot be combined. A conservative source witness must support a current offering statement and the component's literal quantity/class label. Blank, unknown, historical, conditional, warrant exercise, ATM-linked and over-allotment-linked components are not eligible. Unsupported wording remains unavailable; this is not a general prospectus interpretation engine. Resale is a plan-disclosure condition, never issuer dilution.
+Meaning: **the quantity stated in this plan component satisfies the conditions**. This does not establish current unconditional issuance. The stored scenario is displayed verbatim, including conditional exercise or resale context. Rows linked by typed over-allotment/ATM relationships remain out of scope. Blank/not-stated quantities and unsupported seller/security values cannot match and are never zero-filled. Separate rows are neither combined nor reclassified from their labels.
 
-## Existing product path
+## Integrity and execution
 
-`/monitor` preset/edit/review/save uses the existing condition catalog and persistence validation. `/alerts` uses the existing owner-scoped Monitor list and Alert history with an expandable direct-component detail and SEC reference.
+`readOfferingPlanFacts` selects the latest exact raw invocation and designated Offering child, verifies source/output hashes, contracts and evidence refs, then permits PASS or exactly one approved REVIEW_REQUIRED candidate. Newer incomplete work, non-public status, hold/reject/retry or source mismatch blocks fallback. Format/hash validation is **not semantic correctness approval**. A source/FACT meaning discrepancy belongs in extraction/review, not a second regex extractor in Monitor.
 
-`readOfferingPlanFacts` selects the latest exact raw invocation and its designated Offering child, validates retained source/output bindings, and permits PASS or exactly one currently approved REVIEW_REQUIRED candidate. A newer incomplete result, non-public status, hold/reject/retry, or source mismatch blocks fallback to an older result. An O/S result is not required for this direct Offering condition.
+Existing triggers evaluate saved facts after independent/combined result completion or replay, committed administrator approval, saved-event creation and the source-ingest step. No provider, extraction worker, separate queue or external notification is started. Hook failure is logged and can be replayed without undoing the saved result.
 
-The existing consumer retains filing-date activation and `(listing_monitor_id, alert_event_id)` uniqueness. A late saved result cannot notify a Monitor created after that filing. The evidence snapshot is immutable; current source/review validity is shown separately on detail readback.
+The existing consumer retains filing-date activation and unique `(listing_monitor_id, alert_event_id)`. A newly created Monitor does not notify on an older filing. Source validity is checked separately from the immutable historical match snapshot.
 
-Evaluation entries:
+## Compatibility and cleanup
 
-- Independent Offering finish and terminal replay.
-- Combined Offering finish and terminal replay.
-- Existing administrator Offering approval after its decision is committed.
-- Existing saved-event API starter and source-ingest workflow step, including a reused completed event.
+`offering_plan.component_quantity` is retired through the existing retirement mechanism: owner readback and pause remain available; new creation, editing, reactivation and execution are blocked. No old Monitor is automatically converted and no partial subset executes. The other three scope keys retain their meanings. New behavior requires an explicit new quantity condition.
 
-These only evaluate saved facts. They do not start a provider, an O/S worker, an Offering worker, a new queue, or an external notification. Saved-result hook failures are logged for replay and do not undo committed analysis/decisions; this change does not add an autonomous retry scheduler.
+Evidence keeps the existing `offering_plan_match_v1` envelope and column. The new key is tied exactly to `meaning=stated_plan_component_not_execution`; the legacy key is tied to its saved `stated_current_plan_component_not_execution` meaning. Mixed contracts are rejected. Old Alerts are labeled historical and not overwritten.
 
-## Storage and migration
+Removed: source paragraph/sentence witness regex, literal quantity/label regex construction, and scenario-based semantic selection. Replaced those tests with typed field boundaries, semantic-discrepancy role separation, exact units, row isolation and retirement tests. Kept only the legacy evidence-format predicate needed to read the already applied historical contract. It does not select live components. Earlier projected-history modules and unrelated families remain unchanged.
 
-`20261012162202_offering_plan_monitor_evidence.sql` adds one nullable `user_alert_deliveries.offering_plan_match_evidence` JSONB column, a strict validator, a shape constraint, and an immutable-evidence trigger. Existing owner RLS, Form4 evidence, lanes and uniqueness remain. Monitor deletion retains the historical Alert through the existing `ON DELETE SET NULL` relationship.
+## Migration
 
-Evidence version `offering_plan_match_v1` stores run/raw/event/accession, filing date, source fingerprint, output hash, contract version, approval selection, four condition snapshots, and one directly stated component with compact SEC block references. The user projection omits administrative decision/candidate IDs and integrity hashes. No provider log or original output is returned by the new Alert API.
+The applied `20261012162202_offering_plan_monitor_evidence.sql` and its validator are unchanged. New `20261012173310_offering_plan_stated_component_compat.sql` adds a new strict validator and expands only the existing evidence CHECK with legacy OR new validation. No table/column, RLS, immutable trigger, lane or unique-key change.
 
-Applied only to isolated local DB `56462`, after a verified full database backup. The existing local migration ledger was not changed. Applying the committed migration in another environment is a separate integration action; do not reapply it blindly to this already modified isolated DB. Shared local DB, remote DB and port 3110 were not operated.
+Local only: Auth/API 56461, owned DB 56462, candidate 3121. A new full backup (`typed-before.dump`) was verified before application. The CLI staging directory contained exact source files for the 139 already registered migrations plus only the new pending migration; `migration up --local --include-all` applied that one migration and added one ledger row. All prior ledger rows and both old functions were compared unchanged. Earlier evidence migration was applied as SQL without ledger registration; it was not reapplied or falsely registered here. Shared DB, main3110 and remote systems were untouched.
 
-## Prior verification evidence at 02cda600, 2026-10-13
+## Retained real-source comparison
 
-Base: `6f599393cdfbe167f3f464af2e85771d6d504f69`, detached candidate worktree `1f6c`. Candidate server 3121; Auth/API 56461; DB 56462. Evidence is outside Git at `C:/Users/PC/AppData/Local/Temp/offering-direct-monitor-1f6c-20261013`.
+Retained outputs and source hashes were validated without new extraction or SEC retrieval; source passages were read separately.
 
-Actual browser condition: quantity >= `1000000`, seller `selling_shareholders`, security `common_stock`, unit `shares`. Save, reload, pause and resume succeeded.
-
-| Identity | ID |
+| Filing | Typed component result |
 | --- | --- |
-| Monitor | `96e3365b-6ed8-461d-a99b-c62940fc74fb` |
-| Retained real iBio raw | `6f141e9f-d774-4577-a999-15d3e3a1950e` |
-| Offering run | `3d183855-5e25-5fab-a723-6296a7e0bb71` |
-| Local-only event | `7f6208ec-9323-4cbc-bdaa-3f022392c953` |
-| Historical-test Alert | `7595113d-f3a0-4c57-ae0b-828b5c8442be` |
+| iBio 0001104659-26-012183 | c1: selling-shareholder resale 1,408,481 Common Shares. c2: separate 9,653,257 pre-funded warrant underlying shares with exercise scenario. Each can satisfy its own literal row condition; no sum or immediate-issuance claim. |
+| Shimmick 0001193125-26-237198 | ATM dollar ceiling $4,986,750; component share quantity not stated. No share match; market/O/S numbers not substituted. |
+| Silvaco 0001213900-26-054018 | ATM monetary limits and historical sold quantity in source; plan component share quantity not stated. No match or reconstruction from prior sales. |
+| PureCycle 0001193125-24-262591 | Separate resale components: 8,528,786 existing common shares, 5,000,000 Series C warrant underlying shares, 1,510,943 RTI warrant underlying shares. Scenarios remain separate. 50,000 preferred shares outside supported security scope. |
+| CAVA 0001628280-23-018945 | Blank IPO share quantity; no match. |
 
-iBio accession `0001104659-26-012183` directly states resale of 1,408,481 Common Shares. The separate 9,653,257 pre-funded warrant exercise shares were excluded. Exactly one local-only event was prepared against retained real raw after confirming that raw had no event; no Primary analysis or output was created.
+Canaan 0001193125-19-276263 retains blank ADS quantity/ratio. Its separate Class B direct post-offering value is never treated as a total or used by this adapter.
 
-**Normal activation:** the new Monitor postdates the 2026-02-09 filing, so evaluation created zero Alerts with `monitor_activation_not_met`.
+## Verification evidence and boundaries
 
-**Explicit historical test only:** the existing consumer's `listActiveMonitors` dependency returned an in-memory clone of this one Monitor with `createdAt=2026-02-08T00:00:00.000Z`. The real official reader, matcher and `createListingMonitorAlert` writer created one Alert. Replay created zero additional Alerts. The database Monitor timestamp, filing date and source data were unchanged. Exact original/injected timestamps and results are in `historical-e2e.json`. This is not a normal automatic positive E2E.
+Current verification starts at detached `0034dd8a48dc2e91a0a9113853c837d4478f3c05`. Artifacts are outside the repository at `C:/Users/PC/AppData/Local/Temp/offering-direct-monitor-1f6c-20261013`, with `typed-` prefixes distinguishing this run from prior evidence. The old `historical-e2e.json` and old Alert remain intact and are not proof of current positive behavior.
 
-Actual retained Canaan accession `0001193125-19-276263` has blank ADS quantity/ratio and zero eligible components; unavailable is not converted to a zero share count or 0% dilution. Its Class B post-offering quantity is kept as its own direct fact, not a total.
+Current E2E IDs, test totals and responsive results are recorded below. Historical dependency injection, if used, is explicitly separate from normal activation; database timestamps and filing dates are never changed. A historical positive cannot establish normal automatic positive or a new approval-to-Alert positive.
 
-Authenticated owner Alert list/detail and SEC provenance were viewed. Other-user lists exclude the owner's records; direct other-owner read/mutation returns 404, logged-out detail returns 401, cross-origin access and unauthorized administrative decisions return 403. Existing admin decisions/roles were unchanged. Existing approved candidates and held results were read; unapproved/hold/reject/source mismatch and exact approval selection are covered by offline tests. No fresh approval-to-positive-Alert browser test was performed.
+### Current authenticated verification
 
-Condition editor, Alert detail, direct-fact admin and existing approval-history/Canaan screens were captured at exact CSS 1440x900, 900x900 and 390x900 without document horizontal overflow. The earlier draft-preview crash was fixed; final normal-flow console interval had zero errors/warnings. User-facing additions are English; existing admin presentation was preserved.
+A new owner Monitor `5b2fe647-d6fa-4ae4-9d63-1b0c9d6f15e4` was created through `/monitor`: quantity >= 1000000, selling shareholders, common stock, exact unit `shares`. The browser confirmed save, reload persistence, pause and resume. The retired prior Monitor remains readable and cannot be edited/reactivated (422); old Alerts retain their original meaning.
 
-Validation: combined regression 380 PASS, 4 existing optional skips; O/S 37; Offering 45; Alert 76; filing UI 46; related Monitor 151; source-ingest workflow 12; isolated database 61 checks with rollback. Typecheck, production build and diff check passed. Some suites overlap. Live provider/GPT/O/S Worker/Offering Worker calls: zero.
+The reused local-only event `7f6208ec-9323-4cbc-bdaa-3f022392c953` points to retained real iBio raw `6f141e9f-d774-4577-a999-15d3e3a1950e` and Offering run `3d183855-5e25-5fab-a723-6296a7e0bb71`.
 
-## Acceptance limits
+- Normal activation: **0 new Alerts**, because the Monitor was created after the 2026-02-09 filing.
+- Explicit historical dependency injection: only an in-memory Monitor clone used `createdAt=2026-02-08T00:00:00.000Z`; the official reader, matcher and real existing writer created new Alert `29da41e3-96f5-4e7b-a5ae-2399d922c0a5` for c1 (1,408,481 shares). Replay created **0** additional Alerts. No DB timestamp or filing date changed.
+- Authenticated list/detail displayed the new Alert, verbatim scenario, filing/run and SEC evidence reference; current source/review validity was confirmed. Historical old Alert was displayed separately.
+- Actual Canaan reader: available source, zero eligible components (blank ADS quantity), zero Alert. No quantity/dilution zero was synthesized.
+- Access checks: **16 PASS** covering owner/non-owner/logout/cross-origin, unauthorized admin decisions, retired condition mutation and historical readback.
+- Exact CSS viewports **1440x900, 900x900, 390x900**: condition review/editor and Alert list/detail; no document horizontal overflow. Normal browser console errors/warnings **0**. `typed-browser-results.json` and `typed-*.jpg` preserve evidence. Full-page images also preserve desktop content beyond the side-panel screenshot crop.
+- Read-only integrity comparison: **all pre-existing rows across 10 tracked tables unchanged**, including raw/AI outputs, decisions, roles, old Monitors/Alerts and projected historical facts. Only one new Monitor and one new internal Alert were added. No external delivery.
 
-Normal automatic positive production E2E and a new administrator approval producing an Alert remain unverified. Automatic wiring is covered by mocked execution tests; historical dependency injection cannot substitute for those live acceptance checks. Candidate code is available for main's independent inspection, but this report does not authorize merge, push or deployment.
+Checks: combined regression **385 PASS / 4 existing optional skips**, O/S **37**, Offering **45**, Alert **76**, filing UI **46**, related Monitor **151**, isolated DB **89** (rolled back). Suites overlap. Typecheck, production build and `git diff --check` passed. Live provider/GPT/O/S Worker/Offering Worker/SEC collection calls: **0**.
+
+Normal automatic positive and fresh administrator-approval-to-positive-Alert browser E2E remain **unverified**; they are not claimed by the historical test. Approval/source gates and automatic entry wiring retain their existing regression coverage. Administrator UI/state was not expanded or mutated in this cleanup. Main independent acceptance remains required before merge; no merge/push/deploy was performed.

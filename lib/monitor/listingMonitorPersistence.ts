@@ -322,7 +322,7 @@ export function validateCanonicalListingConditions(value: unknown, stage: "store
       value: cloneCanonicalValue(candidate.value),
     }));
   });
-  if (stage !== "draft") errors.push(...effectConditionErrors(conditions), ...offeringPlanConditionErrors(conditions));
+  if (stage !== "draft") errors.push(...effectConditionErrors(conditions), ...offeringPlanConditionErrors(conditions, stage === 'history'));
   return {
     ok: errors.length === 0,
     conditions: errors.length === 0 ? Object.freeze(conditions) : [],

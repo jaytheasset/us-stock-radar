@@ -12,12 +12,12 @@ export function OfferingPlanAlertDetails({id,evidence:e}:{id:string;evidence:Evi
   setValidity(body.data.currentValidity==='current'?'The recorded source and review selection are still current.':'The current source or review selection is unavailable or has changed. The recorded match remains historical evidence.');
  }catch{setValidity('Current validity could not be checked. The recorded match remains historical evidence.');}finally{setLoading(false);}}
  return <div style={{minWidth:0,width:'100%',overflowWrap:'anywhere'}}>
-  <strong>Stated offering plan matched</strong><p>{e.component.quantity} {e.component.unit} · {e.component.label}</p>
+  <strong>{e.meaning==='stated_current_plan_component_not_execution'?'Historical offering-plan match':'Stated offering plan matched'}</strong><p>{e.component.quantity} {e.component.unit} · {e.component.label}</p>
   <p>Offering plan disclosure only. This is not confirmation of a completed sale or issuance.</p>
   <details onToggle={event=>{if(event.currentTarget.open)void load();}}>
    <summary>View matched component and SEC evidence</summary>
    <p>{e.component.seller.replaceAll('_',' ')} · {e.component.security.replaceAll('_',' ')}</p>
-   <p>One recorded component matched your conditions. Review its stated context and SEC evidence.</p>
+   <p>{e.meaning==='stated_current_plan_component_not_execution'?'This historical match used a retired condition. Its recorded evidence is preserved.':'The stated quantity of one plan component matched your conditions. Review its stated context and SEC evidence.'}</p>
    {e.component.scenario&&<p>Stated context: {e.component.scenario}</p>}
    <p>Filing {e.accession} · {e.filedAt}</p><p>Recorded source run: {e.runId}</p>
    <p>Evidence recorded at the time of matching. Later condition or review changes do not rewrite this record.</p>

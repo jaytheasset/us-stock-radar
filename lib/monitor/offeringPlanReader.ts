@@ -44,6 +44,6 @@ export async function readOfferingPlanFacts(eventId:string,supplied?:Repository)
    candidateIndex=decision.candidate_indexes[0];decisionId=decision.id;plan=value.review?.candidates[candidateIndex!]!;if(!plan)return unavailable('candidate_missing');
   }else if(value.status!=='PASS')return unavailable('result_not_public');
   const components=plan.components.flatMap(c=>{const eligible=eligibleComponent(c,plan,source);return eligible?[eligible]:[];});
-  return {status:'available',eventId,sourceExecutionId:run.id,persistedAt:run.finished_at,filedAt:source.filing.filing_date,components,identity:{version:'offering_plan_match_v1',meaning:'stated_current_plan_component_not_execution',runId:run.id,rawId,eventId,accession:source.filing.accession,sourceFingerprint:source.fingerprint,outputHash:cp.rawHash,contractVersion:run.metadata.binding.contractVersion,filedAt:source.filing.filing_date,decisionId,candidateIndex}};
+  return {status:'available',eventId,sourceExecutionId:run.id,persistedAt:run.finished_at,filedAt:source.filing.filing_date,components,identity:{version:'offering_plan_match_v1',meaning:'stated_plan_component_not_execution',runId:run.id,rawId,eventId,accession:source.filing.accession,sourceFingerprint:source.fingerprint,outputHash:cp.rawHash,contractVersion:run.metadata.binding.contractVersion,filedAt:source.filing.filing_date,decisionId,candidateIndex}};
  }catch{return unavailable('source_unavailable_or_mismatch');}
 }
