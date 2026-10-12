@@ -1,3 +1,5 @@
+import {hasOfferingPlan} from './monitor/offeringPlanConditions.ts';
+import {matchOfferingPlan,type OfferingPlanFacts} from './monitor/offeringPlanFacts.ts';
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
 import type { NtLifecycleReadResult } from "./monitor/ntLifecycleRuntime.ts";
 import type { S8MonitorFacts } from "./monitor/s8StructuredFacts.ts";
@@ -125,6 +127,7 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 }>;
 
 export type MonitorFactReaders = Readonly<{
+  offeringPlan?: OfferingPlanFacts;
   projected?: ProjectedFacts;
   filing?: EventFilingMetadata;
   effect?: EffectFacts;
@@ -178,6 +181,11 @@ export function evaluateMonitorConditions(
 ): ListingMonitorMatchResult {
   if (hasRetiredMonitorConditions(conditions)) {
     return result('ineligible', 'condition_key_retired', conditions.map(c => conditionResult(recordValue(c) ? String(c.key) : '', 'ineligible', 'condition_key_retired')));
+  }
+  if (hasOfferingPlan(conditions as readonly import('./monitor/offeringPlanConditions.ts').PlanCondition[])) {
+    const status=matchOfferingPlan(readers.offeringPlan,conditions as readonly import('./monitor/offeringPlanConditions.ts').PlanCondition[]);
+    const reason=status==='match'?'all_conditions_match':status==='no_match'?'condition_not_met':'fact_unavailable';
+    return result(status,reason,conditions.map(c=>conditionResult(String(c.key),status,reason)));
   }
   if (hasEffect(conditions)) {
     const status = matchEffect(readers.effect, conditions as readonly EffectCondition[]);

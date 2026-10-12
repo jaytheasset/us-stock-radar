@@ -1,3 +1,4 @@
+import {offeringPlanRunSaved} from '../monitor/offeringPlanTrigger.ts';
 import {sha,validateOutput,evidenceRefs} from './contract.ts';
 import type {Binding} from './source.ts';
 import {repository,rpc,loadOfferingSource,type Repository} from './repository.ts';
@@ -8,6 +9,7 @@ export interface OfferingProvider {journalId?:string;run(binding:Binding,attempt
 export async function processOfferingPlan(id:string,provider:OfferingProvider,supplied?:Repository){
  const repo=supplied??await repository();
  const claimed=await rpc(repo,'sec_offering_plan_transition',{p_id:id,p_action:'claim'});if(!claimed.claimed){
+  if(claimed.status==='PASS'||claimed.status==='REVIEW_REQUIRED')await offeringPlanRunSaved(id,repo);
   return {status:claimed.status};
  }
  const token=String(claimed.token),transition=(action:string,value?:unknown)=>rpc(repo,'sec_offering_plan_transition',{p_id:id,p_action:action,p_token:token,p_value:value??null});
@@ -31,6 +33,7 @@ export async function processOfferingPlan(id:string,provider:OfferingProvider,su
    if(leaseError)throw leaseError;await transition('checkpoint',cp);
   }
   const saved=await transition('finish');
+  if(saved.status==='PASS'||saved.status==='REVIEW_REQUIRED')await offeringPlanRunSaved(id,repo);
   return {status:saved.status};
  }finally{clearInterval(heartbeat);}
 }

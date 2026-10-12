@@ -199,6 +199,7 @@ function formatScalar(definition: MonitorConditionDefinition, value: unknown) {
     if (!label) throw draftInvalid(`boolean_value_label_missing:${definition.key}`);
     return label;
   }
+  if (definition.family === "offering_plan" && typeof value === "string") return value;
   if (definition.valueType === "date") return formatDate(value as string);
   if (definition.valueType === "number" && typeof value === "number") {
     const format = definition.display?.numberFormat;

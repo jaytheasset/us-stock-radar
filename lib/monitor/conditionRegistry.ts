@@ -97,13 +97,14 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect" | "projected";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect" | "projected" | "offering_plan";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
     column?: string;
     subject: "event" | "ticker" | "issuer";
     reader?:
+      | "read_offering_plan_components"
       | "readRegistryBackedOfferingFacts"
       | "read_current_event_listing_risk_facts"
       | "read_current_event_corporate_action_facts"
@@ -355,6 +356,19 @@ const registry = [
       },
     },
   ),
+  ...([
+    ["component_quantity", "decimal", "Stated offering-plan quantity", undefined],
+    ["seller_type", "text", "Offering-plan seller", ["issuer", "selling_shareholders"]],
+    ["security_type", "text", "Offering-plan security", ["common_stock", "ordinary_shares", "ads"]],
+    ["quantity_unit", "text", "Offering-plan unit (exact source text)", undefined],
+  ] as const).map(([name, valueType, label, enums]): MonitorConditionDefinition => ({
+    key: `offering_plan.${name}`, valueType, allowedOperators: name === "component_quantity" ? ["gte"] : ["eq"],
+    ...(enums ? {enumValues: enums, enumValueDescriptions:Object.fromEntries(enums.map(v=>[v,`Directly stated ${v.replaceAll("_", " ")} component in the current offering plan.`]))} : {}),
+    description: "One directly stated current plan component, same seller/security/literal unit. No execution, conversion, totals, conditional or ambiguous scenarios.",
+    display: {label, ...(name === "component_quantity" ? {operatorValueTemplates:{gte:"At least {value}"}} : {}), ...(enums ? {enumValueLabels: Object.fromEntries(enums.map(v => [v, v.replaceAll('_', ' ')]))} : {})},
+    monitorDomains: ["listing"], family: "offering_plan", domain: "offering_plan",
+    source: {subject: "event", reader: "read_offering_plan_components"}, qualityCapability: ["exact"], status: "READY",
+  })),
   canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "canonical", ["primary_or_resale"], ["primary", "resale", "mixed"]),
   canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "canonical", ["facts", "actual_primary_offering_amount"]),
   canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "canonical", ["facts", "offering_price"]),

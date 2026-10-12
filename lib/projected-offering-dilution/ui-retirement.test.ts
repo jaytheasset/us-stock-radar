@@ -14,6 +14,7 @@ function load(path:string,dependencies:Record<string,unknown>){
   if(Object.hasOwn(dependencies,name))return dependencies[name];
   if(name.endsWith('.module.css'))return {default:{}};
   if(name==='react'||name==='react/jsx-runtime')return require(name);
+  if(name==='./OfferingPlanAlertDetails')return {OfferingPlanAlertDetails:()=>null};
   throw Error(`Unexpected UI dependency: ${name}`);
  },module,module.exports);return module.exports;
 }

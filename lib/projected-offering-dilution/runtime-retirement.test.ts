@@ -23,7 +23,7 @@ for(const domain of ['os-snapshot','offering-plan','combined-offering'] as const
   const source={filing:{accession:'0000000001-26-000001'},fingerprint:'original'},binding={source,rawItemId:'raw',contractVersion:'frozen'};
   const value={status:'PASS',current_os:[{quantity:'100',evidence_blocks:['e1']}],plan:{components:[{quantity:{value:'20'},evidence_blocks:['e1']}]},review:null};
   const raw=JSON.stringify({label:'LOCAL ONLY Pré — £',...value}),rawHash=sha(raw),calls:string[]=[];
-  let checkpoint:any=null,finished=false,recoverCheckpoint=false,providerCalls=0,repositories=0;
+  let checkpoint:any=null,finished=false,recoverCheckpoint=false,providerCalls=0,repositories=0,planEvaluations=0;
   const repo={rpc:async(name:string,args:any)=>{
    assert.equal(name,rpcName);calls.push(args.p_action);
    if(args.p_action==='claim')return {claimed:!finished,token:'lease',status,binding,attempt:1,checkpoint:recoverCheckpoint?checkpoint:null};
@@ -37,7 +37,7 @@ for(const domain of ['os-snapshot','offering-plan','combined-offering'] as const
    if(domain==='offering-plan')assert.equal(version,'frozen');
    return {ok:true,value,meaning:'NOT_ASSESSED'};
   },evidenceRefs:()=>['e1'],combinedBinding:()=>binding,validateCombinedResponse:()=>({os_snapshot:{ok:true,value:{status:'PASS',current_os:value.current_os,review:null}},offering_plan:{ok:true,value:{status:'PASS',plan:value.plan,review:null}}})};
-  const runtime=load(`lib/sec-${domain}/runtime.ts`,{'./contract.ts':contract,'../sec-os-snapshot/contract.ts':{sha},'./repository.ts':repositoryModule});
+  const runtime=load(`lib/sec-${domain}/runtime.ts`,{'./contract.ts':contract,'../sec-os-snapshot/contract.ts':{sha},'./repository.ts':repositoryModule,'../monitor/offeringPlanTrigger.ts':{offeringPlanRunSaved:async(id:string)=>{assert.equal(id,'run');planEvaluations++;return {status:'completed'};}}});
   const run=runtime[domain==='os-snapshot'?'processSnapshot':domain==='offering-plan'?'processOfferingPlan':'processCombinedOffering'];
   const provider={run:async()=>{providerCalls++;return {raw,stdout:'',stderr:'',exitCode:0,cliVersion:'offline mock',startedAt:'',finishedAt:''};}};
   // Deliberately omit supplied repository: the former hooks used only this branch.
@@ -50,11 +50,27 @@ for(const domain of ['os-snapshot','offering-plan','combined-offering'] as const
   finished=false;recoverCheckpoint=true;
   assert.equal((await run('run',provider)).status,status);
   assert.equal(JSON.stringify(checkpoint),saved);assert.equal(providerCalls,1);assert.equal(repositories,3);
+  assert.equal(planEvaluations,domain==='os-snapshot'?0:3);
   assert.deepEqual(calls,['claim','provider_started','checkpoint','finish','claim','claim','finish']);
  });
 }
 
 class ApiError extends Error{code:string;status:number;constructor(code:string,message:string,status:number){super(message);this.code=code;this.status=status;}}
+test('saved-event API entry evaluates direct plan before optional Registry routing without changing Primary',async()=>{
+ const calls:string[]=[];
+ const starter=load('lib/offeringMonitorJobStarter.ts',{
+  './monitor/offeringPlanTrigger.ts':{consumeOfferingPlanEvent:async(id:string)=>{calls.push(id);}},
+  'workflow/api':{},
+  '@/lib/offeringMonitorJobFoundation':{buildOfferingMonitorJobIdentity:()=>null},
+  '@/lib/offeringMonitorJobRepository':{},
+  '@/workflows/offering-monitor-normalization':{},
+ });
+ const primary={ok:true,event:{id:'saved-event',event_type:'dilution_risk'},output:{unchanged:'Pré £'}},before=JSON.stringify(primary);
+ assert.deepEqual(await starter.enqueueOfferingMonitorAfterPrimary(primary),{status:'not_applicable'});
+ assert.deepEqual(calls,['saved-event']);assert.equal(JSON.stringify(primary),before);
+ await starter.enqueueOfferingMonitorAfterPrimary({ok:false,event:{id:'failed-event'}});
+ assert.deepEqual(calls,['saved-event']);
+});
 const response={json:(body:unknown,init?:ResponseInit)=>Response.json(body,init)};
 const privateHeaders={'Cache-Control':'private, no-store'};
 const runId='00000000-0000-4000-a000-000000000001',requestId='00000000-0000-4000-a000-000000000002';
@@ -62,8 +78,9 @@ const runId='00000000-0000-4000-a000-000000000001',requestId='00000000-0000-4000
 for(const domain of ['os-snapshots','offering-plans']){
  test(`${domain}: independent approve/hold/reject/retry forward exact decision once; authorization/origin gates remain`,async()=>{
   const calls:{name:string;args:any}[]=[],domainName=domain==='os-snapshots'?'os_snapshot':'offering_plan';
-  let user:string|null='operations',permission=true;
+  let user:string|null='operations',permission=true,planEvaluations=0;
   const route=load(`app/api/admin/data/${domain}/[id]/route.ts`,{
+   '@/lib/monitor/offeringPlanTrigger':{offeringPlanRunSaved:async(id:string)=>{assert.equal(id,runId);assert.equal(calls.at(-1)?.args.p_action,'approve');planEvaluations++;return {status:'completed'};}},
    'next/server':{NextResponse:response},
    '@/lib/admin/api':{ADMIN_PRIVATE_RESPONSE_HEADERS:privateHeaders,applyAdminAuthCookies:()=>{},AdminApiError:ApiError,
     resolveAdminApiAccess:async(_r:unknown,p:string)=>{assert.equal(p,'data.run');if(!user)throw new ApiError('AUTH','Login required',401);if(!permission)throw new ApiError('FORBIDDEN','Permission required',403);return {access:{userId:user}};},
@@ -78,10 +95,12 @@ for(const domain of ['os-snapshots','offering-plans']){
    assert.deepEqual(calls.at(-1),{name:`decide_sec_${domainName}`,args:{p_id:runId,p_actor:'operations',p_action:action,p_indexes:[1],p_reason:'Reviewed direct evidence Pré',p_request:requestId}});
   }
   assert.equal(calls.length,4);
+  assert.equal(planEvaluations,domain==='offering-plans'?1:0);
   assert.equal((await invoke(request('approve','http://foreign.test'))).status,403);
   user=null;assert.equal((await invoke(request('approve'))).status,401);
   user='ordinary';permission=false;assert.equal((await invoke(request('approve'))).status,403);
   assert.equal(calls.length,4);
+  assert.equal(planEvaluations,domain==='offering-plans'?1:0);
  });
 }
 
@@ -89,6 +108,7 @@ test('historical Alert route preserves owner-only lookup, same-origin and no-sto
  let owner:string|null='owner';const reads:string[]=[];
  const archived={retired:true,current:false,read:{status:'not_ready',reason:'projected_calculation_retired'},recorded:{facts:{issuer_new_shares_base:20},evidence:[{id:'e1',text:'Pré'}]}};
  const route=load('app/api/monitors/listing/alerts/[id]/route.ts',{
+  '@/lib/monitor/offeringPlanReader':{readOfferingPlanAlertForOwner:async()=>null},
   'next/server':{NextResponse:response},'@/lib/currentUser':{getOptionalCurrentUserId:async()=>owner},
   '@/lib/projected-offering-dilution/access':{allowsProjectedDetailRead},
   '@/lib/projected-offering-dilution/history':{readProjectedAlertForOwner:async(o:string,id:string)=>{reads.push(o);assert.equal(id,runId);return o==='owner'?archived:null;}},

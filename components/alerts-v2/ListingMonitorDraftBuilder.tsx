@@ -1,5 +1,6 @@
 "use client";
 
+import {OfferingPlanAlertDetails} from './OfferingPlanAlertDetails';
 import Link from "next/link";
 import { AlertTriangle, BellRing, CheckCircle2, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -611,8 +612,10 @@ export function ListingMonitorManagement() {
           ) : (
             <ul>
               {alerts.map((alert) => (
-                <li className={alert.effectEvidence || alert.projectedScenario ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
-                  {alert.projectedScenario ? (
+                <li className={alert.offeringPlanEvidence || alert.effectEvidence || alert.projectedScenario ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
+                  {alert.offeringPlanEvidence ? (
+                    <OfferingPlanAlertDetails id={alert.id} evidence={alert.offeringPlanEvidence}/>
+                  ) : alert.projectedScenario ? (
                     <ProjectedAlertDetails id={alert.id} scenario={alert.projectedScenario}/>
                   ) : alert.effectEvidence ? (
                     <>
@@ -668,7 +671,7 @@ function ConditionDomainCards({
   }>[];
 }>) {
   const groups = groupListingMonitorConditionsByDomain(conditions);
-  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect", "projected"] as const).filter((id) =>
+  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect", "projected", "offering-plan"] as const).filter((id) =>
     groups.some((group) => group.id === id) || (id === "corporate-actions" && proposals.length > 0),
   );
   const titles = {
@@ -678,6 +681,7 @@ function ConditionDomainCards({
     "proxy": "Proxy",
     "effect": "Registration EFFECT",
     "projected": "Projected offering dilution",
+    "offering-plan": "Offering Plan",
   } as const;
 
   return (
