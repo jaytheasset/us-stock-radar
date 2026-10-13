@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { sc13ReporterIdentityLinks } from "@/lib/sec-sc13-xml/reporterIdentityDisplay";
 import { ChevronRight, ExternalLink, LockKeyhole } from "lucide-react";
 import {
   type StockFundamentalsSnapshot,
@@ -571,6 +572,7 @@ function Sc13CurrentReporterTable({ position }: { position: StockSc13Position })
           <div className={styles.sc13Reporter} role="cell">
             <strong>{reporter.reportingPersonName}</strong>
             <span>CIK {reporter.reportingPersonCik}</span>
+            {reporter.identityProvenance ? <span>CIK verified from SEC filing header and index; absent from cover XML. {sc13ReporterIdentityLinks(reporter.identityProvenance).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} </a>)}</span> : null}
           </div>
           <Sc13FieldCell field={reporter.aggregateAmountOwned} label="Reported shares" suffix="" />
           <Sc13FieldCell field={reporter.percentOfClass} label="Reported % of class" suffix="%" />

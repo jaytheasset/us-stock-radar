@@ -6,6 +6,7 @@ import {
   validateSc13CanonicalRead,
 } from "@/lib/sec-sc13-xml/canonical";
 import type { Sc13StructuralParseResult } from "@/lib/sources/sec/forms/sc13";
+import { sc13SingleReporterIdentityCandidate, verifySc13ReporterIdentitySupplement, type Sc13VerifiedReporterIdentity } from "./reporterIdentity.ts";
 
 type Row = Record<string, unknown>;
 type RepositoryResult = Readonly<{ ok: boolean; status: number; data: unknown; count?: number | null; error?: string }>;
@@ -21,6 +22,7 @@ export type Sc13CanonicalReadResult =
       filing: Row;
       reporters: readonly Row[];
       structural: Sc13StructuralParseResult;
+      verifiedReporterIdentity?: Sc13VerifiedReporterIdentity;
     }>
   | Readonly<{ status: "not_found" }>
   | Readonly<{ status: "unavailable"; reason: string }>;
@@ -158,7 +160,7 @@ export async function readSc13FilingHistoryByIssuer(
     const reporters = reporterGroups.get(accession) ?? [];
     const validation = validateSc13CanonicalRead(filing, reporters);
     if (!validation.ok) return { status: "unavailable", reason: validation.reason };
-    available.push({ status: "available", filing, reporters, structural: validation.structural });
+    available.push(await withReporterIdentity({ status: "available", filing, reporters, structural: validation.structural }, resolved));
   }
   return { status: "available", filings: available };
 }
@@ -186,7 +188,26 @@ async function readAndValidateOne(filing: Row, repository: Sc13CanonicalReposito
   const reporters = rows(reporterResult.data);
   const validation = validateSc13CanonicalRead(filing, reporters);
   if (!validation.ok) return { status: "unavailable", reason: validation.reason };
-  return { status: "available", filing, reporters, structural: validation.structural };
+  return withReporterIdentity({ status: "available", filing, reporters, structural: validation.structural }, repository);
+}
+
+async function withReporterIdentity(read: Extract<Sc13CanonicalReadResult, { status: "available" }>, repository: Sc13CanonicalRepository) {
+  const rawXml = typeof read.filing.raw_xml === "string" ? read.filing.raw_xml : "";
+  if (!sc13SingleReporterIdentityCandidate(read.structural, rawXml)) return read;
+  const rawItemId = stringValue(read.filing.raw_item_id);
+  if (!/^[0-9a-f-]{36}$/i.test(rawItemId)) return read;
+  try {
+    const result = await repository.select("raw_items", {
+      select: "id,source_code,source_unique_id,identity_source:raw_payload->sc13_reporter_identity_source",
+      id: `eq.${rawItemId}`, limit: "2",
+    });
+    const sourceRows = rows(result.data);
+    if (!result.ok || sourceRows.length !== 1) return read;
+    const source = sourceRows[0]!;
+    if (source.id !== rawItemId || source.source_code !== "sec_edgar" || source.source_unique_id !== read.filing.accession_number) return read;
+    const verifiedReporterIdentity = verifySc13ReporterIdentitySupplement(read.structural, rawXml, source.identity_source);
+    return verifiedReporterIdentity ? { ...read, verifiedReporterIdentity } : read;
+  } catch { return read; } // Missing/unreadable supplementary evidence never promotes identity.
 }
 
 async function defaultRepository(): Promise<Sc13CanonicalRepository> {

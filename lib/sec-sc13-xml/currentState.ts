@@ -126,7 +126,8 @@ function toLineageFiling(
     cusipsRaw: stringArray(filing.cusips_raw),
     reporters: read.reporters.map((reporter) => ({
       reportingPersonIndex: Number(reporter.reporting_person_index),
-      reportingPersonCik: nullableString(reporter.reporting_person_cik),
+      reportingPersonCik: nullableString(reporter.reporting_person_cik) ?? (read.verifiedReporterIdentity?.reportingPersonIndex === Number(reporter.reporting_person_index) ? read.verifiedReporterIdentity.reportingPersonCik : null),
+      ...(read.verifiedReporterIdentity?.reportingPersonIndex === Number(reporter.reporting_person_index) ? { identityProvenance: read.verifiedReporterIdentity } : {}),
       reportingPersonNameRaw: stringValue(reporter.reporting_person_name_raw),
       values: currentValues(reporter),
     })),

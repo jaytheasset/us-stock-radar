@@ -28,6 +28,7 @@ import { readSecExchangeCatalog } from "./tickerCatalog.ts";
 import { buildForm25IdentityEvidence, SEC_TICKER_CATALOG } from "../../sec-form25-identity/canonical";
 import { captureForm25Document, FORM25_SOURCE_VERSION, type Form25OriginalDocument } from "./forms/form25/storedSource";
 import { captureS8Document, isS8Form, S8_SOURCE_VERSION, type S8Document } from "../../sec-s8/directFacts";
+import { captureSc13ReporterIdentitySource, sc13IdentitySubmissionUrl, sc13SingleReporterIdentityCandidate, SC13_IDENTITY_MAX_SUBMISSION_BYTES, type Sc13ReporterIdentitySource } from "../../sec-sc13-xml/reporterIdentity.ts";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -279,6 +280,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             secAct: null,
             filmNumber: null,
             sc13IndexProvenance: null,
+            sc13ReporterIdentitySource: null,
           };
 
       diagnostics.documentsRequested += detail.documentsRequested;
@@ -443,6 +445,7 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           sc13_index_subject_cik_count: detail.sc13IndexProvenance?.subjectCikCount || 0,
           sc13_index_filed_by_ciks: detail.sc13IndexProvenance?.filedByCiks || [],
           sc13_index_canonical_xml_url: detail.sc13IndexProvenance?.canonicalXmlUrl || null,
+          ...(detail.sc13ReporterIdentitySource ? { sc13_reporter_identity_source: detail.sc13ReporterIdentitySource } : {}),
           documents: detail.documents.map((document) => ({
             ...(document.effectOriginalSource ? { effectOriginalSource: document.effectOriginalSource } : {}),
             sequence: document.sequence,
@@ -868,6 +871,7 @@ async function fetchFilingDetail({
       secAct: null,
       filmNumber: null,
       sc13IndexProvenance: null,
+      sc13ReporterIdentitySource: null,
     };
   }
 
@@ -1010,6 +1014,31 @@ async function fetchFilingDetail({
     }
   }
 
+  let sc13ReporterIdentitySource: Sc13ReporterIdentitySource | null = null;
+  const canonicalSc13 = documentsWithText.find((document) => document.sc13RawCaptureStatus === "preserved");
+  const accessionNumber = parseFilingIdentity(detailUrl).accessionNumber;
+  if (canonicalSc13?.sc13RawText && sc13IndexProvenance && accessionNumber) {
+    const structural = parseSc13StructuralXml({
+      rawXml: canonicalSc13.sc13RawText, sourceFormat: canonicalSc13.sc13RawSourceFormat, sourceUrl: canonicalSc13.url,
+      expectedAccessionNumber: accessionNumber, expectedFormType: effectiveFormType,
+      sourceTextCharCount: canonicalSc13.sc13RawTextCharCount, sourceTextTruncated: canonicalSc13.sc13RawTextTruncated,
+      indexSubjectCik: sc13IndexProvenance.subjectCik, indexSubjectCikCount: sc13IndexProvenance.subjectCikCount,
+      indexFiledByCiks: sc13IndexProvenance.filedByCiks, indexCanonicalXmlUrl: sc13IndexProvenance.canonicalXmlUrl,
+    });
+    const submissionUrl = sc13SingleReporterIdentityCandidate(structural, canonicalSc13.sc13RawText)
+      ? sc13IdentitySubmissionUrl(html, detailUrl, accessionNumber) : null;
+    if (submissionUrl) {
+      try {
+        const submissionResponse = await secFetch(submissionUrl);
+        const submissionText = submissionResponse.ok && (!submissionResponse.url || submissionResponse.url === submissionUrl)
+          ? await readBoundedSc13IdentitySubmission(submissionResponse) : null;
+        if (submissionText) sc13ReporterIdentitySource = captureSc13ReporterIdentitySource({
+          structural, rawXml: canonicalSc13.sc13RawText, indexUrl: detailUrl, indexHtml: html, submissionUrl, submissionText,
+        });
+      } catch { /* Supplementary identity failure leaves original XML and strict unresolved behavior intact. */ }
+    }
+  }
+
   return {
     documents: documentsWithText,
     documentsRequested: selectedDocuments.size,
@@ -1024,7 +1053,25 @@ async function fetchFilingDetail({
     secAct: filingIndexMetadata.secAct,
     filmNumber: filingIndexMetadata.filmNumber,
     sc13IndexProvenance,
+    sc13ReporterIdentitySource,
   };
+}
+
+async function readBoundedSc13IdentitySubmission(response: Response) {
+  if (!response.body) return null;
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const next = await reader.read();
+      if (next.done) break;
+      bytes += next.value.byteLength;
+      if (bytes > SC13_IDENTITY_MAX_SUBMISSION_BYTES) { await reader.cancel(); return null; }
+      chunks.push(next.value);
+    }
+    return Buffer.concat(chunks).toString("utf8");
+  } finally { reader.releaseLock(); }
 }
 
 function readSc13IndexProvenanceFromDetailHtml(

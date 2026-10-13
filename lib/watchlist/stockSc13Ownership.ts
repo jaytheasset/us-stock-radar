@@ -1,5 +1,6 @@
 import type { Sc13IssuerCurrentStateRead } from "@/lib/sec-sc13-xml/currentState";
 import type { Sc13CurrentField } from "@/lib/sec-sc13-xml/lineage";
+import type { Sc13VerifiedReporterIdentity } from "@/lib/sec-sc13-xml/reporterIdentity";
 
 export const STOCK_SC13_SOURCE = "SEC_SC13_STORED" as const;
 export const STOCK_SC13_SCOPE = "complete_stored_history_not_sec_global" as const;
@@ -29,6 +30,7 @@ export type StockSc13ReportedField =
     }>;
 
 export type StockSc13CurrentReporter = Readonly<{
+  identityProvenance?: Sc13VerifiedReporterIdentity;
   aggregateAmountOwned: StockSc13ReportedField;
   percentOfClass: StockSc13ReportedField;
   reportingPersonCik: string;
@@ -169,6 +171,7 @@ export function buildStockSc13OwnershipSnapshot(input: {
         percentOfClass,
         reportingPersonCik: reporter.reportingPersonCik,
         reportingPersonName: reporter.reportingPersonNameRaw,
+        ...(reporter.identityProvenance ? { identityProvenance: reporter.identityProvenance } : {}),
       });
     }
 

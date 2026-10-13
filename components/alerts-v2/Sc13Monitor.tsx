@@ -6,6 +6,7 @@ import type { StockSc13OwnershipSnapshot } from "@/lib/watchlist/stockSc13Owners
 import { validateCanonicalSc13Conditions, type CanonicalSc13MonitorCondition, type Sc13Monitor, type Sc13MonitorTarget } from "@/lib/monitor/sc13MonitorPersistence";
 import { SC13_FIELDS, SC13_OPERATORS, SC13_MEANING, sc13TargetChoices, sc13ConditionText, safeSc13SourceUrl, type Sc13TargetChoice, type Sc13DisplayAlert } from "@/lib/monitor/sc13MonitorDisplay";
 import styles from "./Sc13Monitor.module.css";
+import { sc13ReporterIdentityLinks } from "@/lib/sec-sc13-xml/reporterIdentityDisplay";
 
 const INITIAL_CONDITIONS: readonly CanonicalSc13MonitorCondition[] = [{ key: "sc13.percent_of_class", operator: "gte", value: "" }];
 
@@ -68,6 +69,7 @@ export function Sc13MonitorBuilder({ authRequired }: Readonly<{ authRequired: bo
   return <section className={styles.panel} aria-labelledby="sc13-builder-title">
     <header><span>Schedule 13D / 13G</span><h2 id="sc13-builder-title">Schedule 13 ownership alert</h2></header>
     <p>{SC13_MEANING}</p>
+    <p>Specific-person alerts: CIK-verified shareholders only.</p>
     <form onSubmit={lookup} className={styles.lookup}>
       <label>Find stored filings by<select disabled={busy === "save" || authRequired} value={lookupMode} onChange={(event) => { invalidateLookup(); setLookupMode(event.currentTarget.value as "ticker" | "accession"); setQuery(""); }}><option value="ticker">Stock ticker</option><option value="accession">SEC filing accession</option></select></label>
       <label>{lookupMode === "ticker" ? "Stock ticker" : "SEC filing accession"}<input disabled={busy === "save" || authRequired} required value={query} onChange={(event) => { invalidateLookup(); setQuery(event.currentTarget.value); }} placeholder={lookupMode === "ticker" ? "e.g. AAPL" : "0000000000-00-000000"} autoCapitalize="characters" /></label>
@@ -77,6 +79,7 @@ export function Sc13MonitorBuilder({ authRequired }: Readonly<{ authRequired: bo
     {choices.length > 0 ? <label className={styles.targetPicker}>Reporting person and security<select disabled={Boolean(busy)} value={selectedId} onChange={(event) => { setSelectedId(event.currentTarget.value); setConfirmed(false); setCreated(null); }}><option value="">Choose a target — required</option>{choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.name || "Unnamed reporting person"} · CIK {choice.target.reportingPersonCik} · {choice.target.securityClass} · {choice.target.cusips.join(", ")}</option>)}</select></label> : null}
     {selected ? <>
       <Sc13TargetSummary target={selected.target} name={selected.name} issuerName={selected.issuerName} />
+      {selected.identitySupplemented ? <p>Reporter CIK verified from this SEC filing’s header and index; absent from cover XML. {sc13ReporterIdentityLinks(selected.identityProvenance).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} </a>)}</p> : null}
       <fieldset className={styles.conditions} disabled={busy === "save"}><legend>Conditions — all must match</legend>
         {conditions.map((condition, index) => <div className={styles.condition} key={condition.key}>
           <label>Reported field<select value={condition.key} onChange={(event) => updateConditions(conditions.map((item, i) => i === index ? { ...item, key: event.currentTarget.value, value: "" } : item))}>{SC13_FIELDS.filter((field) => field.key === condition.key || !conditions.some((item) => item.key === field.key)).map((field) => <option key={field.key} value={field.key}>{field.label}</option>)}</select></label>
@@ -104,6 +107,7 @@ export function Sc13AlertDetails({ alert }: Readonly<{ alert: Sc13DisplayAlert }
   return <div className={styles.alert}>
     <strong>Schedule 13 ownership conditions matched</strong>
     <Sc13TargetSummary target={alert.evidence} name={alert.evidence.reportingPersonNameRaw} issuerName={alert.sources[0]?.issuerName} />
+    {alert.evidence.reportingPersonIdentity ? <p>Reporter CIK verified from this SEC filing’s header and index; absent from cover XML. Identity evidence retained with this alert. {sc13ReporterIdentityLinks(alert.evidence.reportingPersonIdentity).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} </a>)}</p> : null}
     <p>{SC13_MEANING}</p>
     <ul>{alert.evidence.conditions.map((condition) => <li key={condition.key}><strong>Reported: {condition.valueRaw}{condition.key === "sc13.percent_of_class" ? "%" : " shares"}</strong><span>{sc13ConditionText(condition)}</span><span>Source accession: {condition.sourceAccessionNumber}</span></li>)}</ul>
     <span>Root accession: {alert.rootAccessionNumber}</span><span>Latest stored accession at match: {alert.headAccessionNumber}</span>

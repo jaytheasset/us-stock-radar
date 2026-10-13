@@ -1,3 +1,4 @@
+import type { Sc13VerifiedReporterIdentity } from "./reporterIdentity.ts";
 export const SC13_LINEAGE_VERSION = "sec_sc13_lineage_v1" as const;
 
 const ACCESSION_PATTERN = /^\d{10}-\d{2}-\d{6}$/;
@@ -13,6 +14,7 @@ const CURRENT_FIELD_KEYS = [
 export type Sc13CurrentFieldKey = typeof CURRENT_FIELD_KEYS[number];
 
 export type Sc13LineageReporter = Readonly<{
+  identityProvenance?: Sc13VerifiedReporterIdentity;
   reportingPersonIndex: number;
   reportingPersonCik: string | null;
   reportingPersonNameRaw: string;
@@ -57,6 +59,7 @@ export type Sc13CurrentField =
     }>;
 
 export type Sc13CurrentReporter = Readonly<{
+  identityProvenance?: Sc13VerifiedReporterIdentity;
   reportingPersonCik: string;
   reportingPersonNameRaw: string;
   sourceAccessionNumber: string;
@@ -359,6 +362,7 @@ function projectReporters(
       })) as Record<Sc13CurrentFieldKey, Sc13CurrentField>;
       return {
         reportingPersonCik: reporter.reportingPersonCik!,
+        ...(reporter.identityProvenance ? { identityProvenance: reporter.identityProvenance } : {}),
         reportingPersonNameRaw: reporter.reportingPersonNameRaw,
         sourceAccessionNumber: head.accessionNumber,
         values,

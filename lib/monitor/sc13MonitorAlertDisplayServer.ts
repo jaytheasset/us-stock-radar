@@ -15,7 +15,9 @@ export async function buildSc13AlertDisplay(alerts: readonly Sc13MonitorAlertIte
         if (read.status !== "available" || read.filing.accession_number !== accession) return;
         const url = safeSc13SourceUrl(read.filing.source_url, accession);
         if (!url || typeof read.filing.form_type_raw !== "string" || typeof read.filing.event_date !== "string") return;
-        sources.set(accession, { issuerCik: read.filing.issuer_cik, securityClass: normalizeSc13SecurityClass(read.filing.security_class_raw), cusips: normalizeSc13Cusips(read.filing.cusips_raw), reporters: read.reporters, source: { accessionNumber: accession, issuerName: typeof read.filing.issuer_name_raw === "string" ? read.filing.issuer_name_raw : null, sourceUrl: url, formType: read.filing.form_type_raw, eventDate: read.filing.event_date, filedAt: typeof read.filing.filed_at === "string" ? read.filing.filed_at : null } });
+        const reporters = read.reporters.map((reporter) => read.verifiedReporterIdentity?.reportingPersonIndex === Number(reporter.reporting_person_index) && !reporter.reporting_person_cik
+          ? { ...reporter, reporting_person_cik: read.verifiedReporterIdentity.reportingPersonCik } : reporter);
+        sources.set(accession, { issuerCik: read.filing.issuer_cik, securityClass: normalizeSc13SecurityClass(read.filing.security_class_raw), cusips: normalizeSc13Cusips(read.filing.cusips_raw), reporters, source: { accessionNumber: accession, issuerName: typeof read.filing.issuer_name_raw === "string" ? read.filing.issuer_name_raw : null, sourceUrl: url, formType: read.filing.form_type_raw, eventDate: read.filing.event_date, filedAt: typeof read.filing.filed_at === "string" ? read.filing.filed_at : null } });
       } catch { /* Immutable evidence remains visible when source metadata cannot be read. */ }
     }));
   }

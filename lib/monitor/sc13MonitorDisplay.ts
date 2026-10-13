@@ -1,6 +1,8 @@
 import { validateCanonicalSc13Conditions, validateSc13MonitorTarget, type Sc13MonitorTarget } from "./sc13MonitorPersistence.ts";
 import type { Sc13MonitorAlertItem } from "./sc13MonitorAlertConsumer.ts";
 import type { StockSc13OwnershipSnapshot } from "../watchlist/stockSc13Ownership.ts";
+import type { Sc13VerifiedReporterIdentity } from "../sec-sc13-xml/reporterIdentity.ts";
+import { sc13ReporterIdentityLinks } from "../sec-sc13-xml/reporterIdentityDisplay.ts";
 
 export const SC13_FIELDS = [
   { key: "sc13.aggregate_owned", label: "Aggregate shares owned" },
@@ -16,7 +18,7 @@ export const SC13_OPERATORS = [
   { value: "lt", label: "Less than" },
 ] as const;
 export const SC13_MEANING = "Latest reported values in complete stored filing history; not real-time ownership or a complete SEC-wide history. All conditions apply to the same reporting person and security.";
-export type Sc13TargetChoice = Readonly<{ id: string; name: string; issuerName: string | null; target: Sc13MonitorTarget }>;
+export type Sc13TargetChoice = Readonly<{ id: string; name: string; issuerName: string | null; identitySupplemented: boolean; identityProvenance?: Sc13VerifiedReporterIdentity; target: Sc13MonitorTarget }>;
 export type Sc13AlertSource = Readonly<{ accessionNumber: string; issuerName: string | null; sourceUrl: string; formType: string; eventDate: string; filedAt: string | null }>;
 export type Sc13DisplayAlert = Sc13MonitorAlertItem & Readonly<{ sources: readonly Sc13AlertSource[] }>;
 
@@ -26,7 +28,7 @@ export function sc13TargetChoices(snapshot: StockSc13OwnershipSnapshot): readonl
     const parsed = validateSc13MonitorTarget({ issuerCik: snapshot.issuerCik, reportingPersonCik: reporter.reportingPersonCik, securityClass: position.securityClass, cusips: position.cusips });
     if (!parsed.ok || !parsed.target) return [];
     const target = parsed.target;
-    return [{ id: JSON.stringify(target), name: reporter.reportingPersonName, issuerName: position.issuerName ?? null, target }];
+    return [{ id: JSON.stringify(target), name: reporter.reportingPersonName, issuerName: position.issuerName ?? null, identitySupplemented: Boolean(reporter.identityProvenance), ...(reporter.identityProvenance ? { identityProvenance: reporter.identityProvenance } : {}), target }];
   }));
   // Multiple positions for one identity are ambiguous to the Matcher too.
   return choices.filter((choice) => choices.filter((other) => other.id === choice.id).length === 1);
@@ -46,6 +48,12 @@ export function isSc13AlertEvidenceConsistent(alert: Sc13MonitorAlertItem): bool
   if (!/^\d{10}-\d{2}-\d{6}$/.test(evidence.rootAccessionNumber) || !/^\d{10}-\d{2}-\d{6}$/.test(evidence.headAccessionNumber)) return false;
   if (alert.rootAccessionNumber !== evidence.rootAccessionNumber || alert.headAccessionNumber !== evidence.headAccessionNumber || alert.reportingPersonCik !== evidence.reportingPersonCik || alert.securityClass !== evidence.securityClass || JSON.stringify(alert.cusips) !== JSON.stringify(evidence.cusips)) return false;
   if (!Array.isArray(evidence.conditions) || !evidence.conditions.length || evidence.conditions.some((condition) => !condition || typeof condition !== "object")) return false;
+  const identity = evidence.reportingPersonIdentity;
+  if (identity && (identity.version !== "sc13_single_reporter_sec_identity_v1" || identity.basis !== "sec_header_index_single_reporter"
+    || identity.accessionNumber !== evidence.headAccessionNumber || identity.reportingPersonCik !== evidence.reportingPersonCik
+    || identity.reportingPersonNameRaw !== evidence.reportingPersonNameRaw || identity.reportingPersonIndex !== 0
+    || ![identity.xmlSourceSha256, identity.indexSha256, identity.submissionSha256, identity.submissionHeaderSha256].every((value) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value))
+    || !safeSc13SourceUrl(identity.xmlSourceUrl, evidence.headAccessionNumber) || sc13ReporterIdentityLinks(identity).length !== 2)) return false;
   return validateCanonicalSc13Conditions(evidence.conditions.map((condition) => ({ key: condition.key, operator: condition.operator, value: condition.threshold }))).ok
     && evidence.conditions.every((condition) => condition.sourceAccessionNumber === evidence.headAccessionNumber && validateCanonicalSc13Conditions([{ key: condition.key, operator: condition.operator, value: condition.valueRaw }]).ok);
 }

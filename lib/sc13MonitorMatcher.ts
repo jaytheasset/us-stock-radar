@@ -8,6 +8,7 @@ import {
 } from "./monitor/sc13MonitorPersistence.ts";
 import type { Sc13IssuerCurrentStateRead } from "./sec-sc13-xml/currentState.ts";
 import type { Sc13CurrentFieldKey, Sc13StoredPosition } from "./sec-sc13-xml/lineage.ts";
+import type { Sc13VerifiedReporterIdentity } from "./sec-sc13-xml/reporterIdentity.ts";
 
 export const SC13_MONITOR_MATCHER_VERSION = "sc13_monitor_matcher_v1" as const;
 export type Sc13MonitorMatchStatus = "match" | "no_match" | "ineligible";
@@ -19,6 +20,7 @@ export type Sc13MonitorMatchReasonCode =
   | "current_value_unresolved" | "current_provenance_invalid";
 
 export type Sc13MonitorMatchEvidence = Readonly<{
+  reportingPersonIdentity?: Sc13VerifiedReporterIdentity;
   scope: "complete_stored_history_not_sec_global";
   meaning: "latest_saved_filing_value_not_realtime_ownership";
   positionKey: string;
@@ -95,6 +97,7 @@ export function evaluateSc13Monitor(
       issuerCik: position.issuerCik,
       reportingPersonCik: reporter.reportingPersonCik,
       reportingPersonNameRaw: reporter.reportingPersonNameRaw,
+      ...(reporter.identityProvenance ? { reportingPersonIdentity: reporter.identityProvenance } : {}),
       securityClass: monitor.target.securityClass,
       cusips: monitor.target.cusips,
       conditions: evaluated.map((item, index) => ({
