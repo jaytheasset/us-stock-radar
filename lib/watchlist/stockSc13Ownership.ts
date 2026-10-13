@@ -48,6 +48,7 @@ export type StockSc13HistoricalFiling = StockSc13FilingEvidence & Readonly<{
 }>;
 
 export type StockSc13Position = Readonly<{
+  issuerName?: string | null;
   currentReporters: readonly StockSc13CurrentReporter[];
   cusips: readonly string[];
   formFamily: "SCHEDULE 13D" | "SCHEDULE 13G";
@@ -172,6 +173,7 @@ export function buildStockSc13OwnershipSnapshot(input: {
     }
 
     positions.push({
+      issuerName: position.headAccessionNumber ? nullableText(historyByAccession.get(position.headAccessionNumber)?.filing.issuer_name_raw) : null,
       currentReporters,
       cusips: position.cusipsRaw,
       formFamily: position.formFamily,
