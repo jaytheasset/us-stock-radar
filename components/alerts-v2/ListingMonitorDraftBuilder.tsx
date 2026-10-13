@@ -612,7 +612,7 @@ export function ListingMonitorManagement() {
           ) : (
             <ul>
               {alerts.map((alert) => (
-                <li className={alert.offeringPlanEvidence || alert.effectEvidence || alert.projectedScenario ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
+                <li className={alert.offeringPlanEvidence || alert.effectEvidence || alert.projectedScenario || alert.ntAlertTitle ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
                   {alert.offeringPlanEvidence ? (
                     <OfferingPlanAlertDetails id={alert.id} evidence={alert.offeringPlanEvidence}/>
                   ) : alert.projectedScenario ? (
@@ -629,6 +629,12 @@ export function ListingMonitorManagement() {
                       alert={alert}
                       settings={alert.monitorId ? monitorById.get(alert.monitorId)?.form4PurchaseSettings ?? null : null}
                     />
+                  ) : alert.ntAlertTitle ? (
+                    <>
+                      <strong>{alert.ntAlertTitle}</strong>
+                      <span>{formatMonitorDate(alert.createdAt)}</span>
+                      {alert.eventId ? <a href={`/filings/${encodeURIComponent(alert.eventId)}`}>View filing</a> : null}
+                    </>
                   ) : (
                     <>
                       <strong>Alert delivered</strong>

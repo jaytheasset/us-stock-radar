@@ -38,6 +38,7 @@ export type ListingMonitorUpdateInput = Readonly<{
 }>;
 
 export type ListingMonitorAlertItem = Readonly<{
+  ntAlertTitle?: "SEC late-filing notice filed" | "Delayed periodic report filed";
   offeringPlanEvidence?: NonNullable<ReturnType<typeof publicOfferingPlanEvidence>>;
   projectedScenario?: string;
   effectEvidence?: import("../sec-effect/reader.ts").EffectEvidence | null;
@@ -217,7 +218,7 @@ async function resolveAlertRepository(): Promise<ListingMonitorAlertRepository> 
     list: ({ ownerId, monitorId, limit, offset }) => supabase.supabaseSelect(
       "user_alert_deliveries",
       {
-        select: "id,alert_event_id,listing_monitor_id,created_at,offering_plan_match_evidence,listing_match_evidence,effect_match_evidence,projected_monitor_id,projected_scenario",
+        select: "id,alert_event_id,listing_monitor_id,created_at,title,category,source_type,source_label,offering_plan_match_evidence,listing_match_evidence,effect_match_evidence,projected_monitor_id,projected_scenario",
         user_id: `eq.${ownerId}`,
         alert_domain: "eq.listing",
         alert_lane: "eq.listing_monitor",
@@ -290,6 +291,11 @@ function mapAlertRow(row: Record<string, unknown>): ListingMonitorAlertItem[] {
     eventId: typeof row.alert_event_id === "string" ? row.alert_event_id : null,
     createdAt: row.created_at,
     matchEvidence: parseStoredForm4PurchaseMatchEvidence(row.listing_match_evidence),
+    // Display the persisted NT notification only; do not derive lifecycle facts.
+    ...(row.category === "financial_risk" && row.source_type === "other"
+      && row.source_label === "SEC Filing Monitor"
+      && (row.title === "SEC late-filing notice filed" || row.title === "Delayed periodic report filed")
+      ? { ntAlertTitle: row.title } : {}),
     ...(publicOfferingPlanEvidence(row.offering_plan_match_evidence) ? {offeringPlanEvidence:publicOfferingPlanEvidence(row.offering_plan_match_evidence)!} : {}),
     ...(typeof row.projected_scenario==='string'?{projectedScenario:row.projected_scenario}:{}),
     ...(validEffectEvidence(row.effect_match_evidence) ? { effectEvidence: row.effect_match_evidence } : {}),

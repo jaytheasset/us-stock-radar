@@ -184,6 +184,34 @@ test("alert reads are owner-scoped, filterable, paginated, and expose a minimal 
   assert.equal("sourceExecutionId" in result.alerts[0], false);
 });
 
+test("NT alert readback exposes only the two persisted notification titles and canonical filing identity", async () => {
+  const base = {
+    id: ALERT_ID, listing_monitor_id: MONITOR_ID, alert_event_id: EVENT_ID,
+    created_at: "2026-08-14T01:02:03Z", category: "financial_risk",
+    source_type: "other", source_label: "SEC Filing Monitor",
+    title: "SEC late-filing notice filed", listing_source_execution_id: "private-execution",
+  };
+  const rows = [
+    base, { ...base, title: "Delayed periodic report filed" },
+    { ...base, title: "Other financial risk" }, { ...base, category: "listing_risk" },
+    { ...base, source_type: "filings" }, { ...base, source_label: "Primary" },
+    { ...base, source_label: null }, { ...base, alert_event_id: null },
+  ];
+  const result = await listListingMonitorAlertsForOwner({ ownerId: OWNER_ID }, {
+    async list(input) {
+      assert.equal(input.ownerId, OWNER_ID);
+      return { ok: true, data: rows, count: rows.length };
+    },
+  });
+  assert.deepEqual(result.alerts.map(a => a.ntAlertTitle), [
+    "SEC late-filing notice filed", "Delayed periodic report filed",
+    undefined, undefined, undefined, undefined, undefined, "SEC late-filing notice filed",
+  ]);
+  assert.equal(result.alerts[0].eventId, EVENT_ID);
+  assert.equal(result.alerts[7].eventId, null);
+  assert.equal(JSON.stringify(result).includes("private-execution"), false);
+});
+
 test("alert rows preserve nullable event/monitor references after established FK deletion semantics", async () => {
   const repository: ListingMonitorAlertRepository = {
     async list() {

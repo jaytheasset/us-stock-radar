@@ -10,6 +10,93 @@ This is deterministic notice/report lifecycle support, not an assessment of the
 issuer's financial risk, statutory deadline compliance, or investment significance.
 Listing Status v1, Ownership, CUSIP/13F and the existing Primary prompts are unchanged.
 
+## NT alert storage fix candidate (2026-10-13)
+
+Base: `77c47433919f8c35b78c2811ca72854a24e5be1c`, detached candidate at
+`C:/Users/PC/.codex/worktrees/6121/US-Stock Radar`. This section supersedes the
+earlier positive-alert verification limitation only within the fixture boundary below.
+It does not change the frozen facts, Primary analysis, activation or processing policy.
+
+The real consumer matched a retained HIVE NT 10-Q but PostgreSQL rejected its
+`financial_risk` row with `user_alert_deliveries_listing_alert_shape_check`.
+The NT family had never been admitted by this common CHECK; this was not caused
+by Offering Plan. New additive migration
+`20261013135516_nt_monitor_alert_storage_contract.sql` preserves the existing
+branches and admits only the two current NT notification titles with
+`source_type=other`, `source_label=SEC Filing Monitor`, the existing internal
+listing domain/lane, no external delivery state, and no other family evidence.
+Nullable NT identity/label fields fail closed. Other CHECKs, indexes, RLS and
+the unique `(listing_monitor_id, alert_event_id)` are unchanged.
+
+Actual `/alerts` inspection then found the stored NT item rendered only as
+“Alert delivered,” without a filing link. The API now allowlists those two
+persisted NT titles, and the existing Custom alerts list shows that title,
+creation date and canonical `/filings/<eventId>` link. No new fact or assessment
+is calculated. Other families retain their existing presentation.
+
+Acceptance evidence, outside Git:
+`C:/Users/PC/AppData/Local/Temp/nt-storage-6121/`.
+
+- `reproduced.log`: official reader available, condition match, original CHECK failure.
+- `schema-change.json`, `sql-tests.log`: only the named CHECK changed; 64 PostgreSQL
+  shape/dedupe checks pass, including notice/report, invalid/null labels, delivery
+  and mixed-family rejection, existing Listing/Form4/Offering/Proxy/Tender/EFFECT
+  branches and Primary separation. The SQL regression uses a temporary clone of
+  the current table's constraints/indexes; real production-table writes are
+  separately exercised by the actual consumer below.
+- `monitor-created.json`, `positive-result.json`: existing account password login
+  200, Monitor POST 201 / GET 200. A newly created Monitor correctly produces
+  `monitor_activation_not_met`. Only the owned test DB then sets that Monitor's
+  `created_at=2026-08-10T00:00:00Z`, before the unchanged real 2026-08-11 filing.
+  This is a historical-activation fixture, not a positive live-operation claim.
+- Actual notice: HIVE `0001062993-26-004186`, raw
+  `88765301-2f93-4a38-926a-29cd7dec1092`, event
+  `f2a98019-9e1c-4700-b29d-86b4aaa9397e`, retained Primary
+  `c7b13a1d-ac43-4de4-b826-05d0a280b3b1`, official child
+  `45229e83-7122-5a9d-8c08-7f6fb8fda917`.
+- Actual Monitor `d58a0581-dc42-4088-a30e-b733ac9a1bb4`; actual PostgreSQL alert
+  `29359cdf-6ba1-44e3-abfe-cf3f83e14bce`. First consumer creates one, repeat returns
+  one existing, full alert row and count unchanged. Official reader remains identical.
+- `api-readback.json`: owner reads the same alert/title/event, foreign owner reads
+  zero (including explicit monitor filter), anonymous gets 401. NT is absent from
+  the Primary delivered-alert list. `other-user-browser.json` confirms the foreign
+  user's Custom alerts screen is empty after normal password login.
+- `alerts-1440.png`, `alerts-900.png`, `alerts-390.png`, `filing-390.png`,
+  `browser-layout.json`: actual 1440x900, 900x900, 390x900 viewports show the NT title
+  and link without horizontal overflow. Clicking the link opens the real HIVE
+  filing and retained original text. Browser console errors/warnings: none.
+- `final-invariants.json`: raw_items/events/ai_runs/ai_outputs/watchlist rows have
+  identical counts and content hashes; one unchanged alert remains. No provider,
+  SEC collection, worker, email/Telegram, shared-DB or remote writes.
+- Guard caveat: existing account initialization upserts and unrelated Live Room
+  guest/member-profile writes are blocked by the retained verification guard.
+  Five auxiliary `/api/live-room/unread` or `/api/live-room/profile` requests fail
+  (500/502); NT APIs and filing navigation pass. This does not certify Live Room.
+- `regression.log`: 126 NT/matcher/consumer/API/persistence/Form4/Offering/Alert/UI
+  checks pass. `families.log`: 20 Proxy/EFFECT/Tender checks pass. Full TypeScript,
+  production build and whitespace diff checks pass.
+
+Unverified: a real subsequent-report positive E2E, all NT forms, live historical
+subscription, main post-integration journey and production deployment. Report
+storage shape and title readback are regression-tested only. Deferred Primary
+estimated-date behavior is untouched. Main must independently inspect the full
+candidate diff and reproduce the critical journey before integration.
+
+Environment handoff: local `main` remains `77c47433919f8c35b78c2811ca72854a24e5be1c`;
+cached `origin/main` is `aef4d35221c9744c3a3f47518c492212f678e582` (not live refreshed).
+Last provided Vercel commit is `bf586ed559c7f4bea6a171790ab7b563cabc7161`, READY,
+not rechecked. Code equality is not established; no merge/push/deploy is authorized
+or performed. The permanent workspace stays on main; port 3110 PID 11636 and its
+pre-existing `next-env.d.ts` SHA-256
+`083e23c4c5e7761db151134ea1ef7896120c86c5888cdc8a861f534f7e86d6fd` are preserved.
+Only owned `nt-positive-e56cf806` DB 59622/API 59621 was restarted and received
+the candidate DDL (direct SQL; no migration-history repair). Main's reported 143
+migrations through `20261013110341` were not changed or recounted. Remote DB/env,
+external services and cron are unverified and unchanged. Candidate server 3124
+uses this worktree's production build and the owned DB, with external writes
+disabled; runtime-only environment settings remain outside Git. Other active
+worktrees/unmerged work are not audited. No new LLM/SEC/worker invocation occurred.
+
 ## Product path
 
 - Existing ingestion retains SEC original documents and submission identity.
