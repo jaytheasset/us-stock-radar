@@ -83,7 +83,7 @@ export function AuthStatus({
     }
 
     let active = true;
-    void fetch("/api/live-room/profile", { cache: "no-store" })
+    void fetch("/api/live-room/profile?view=account", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return null;
         return (await response.json()) as LiveRoomProfileResponse;

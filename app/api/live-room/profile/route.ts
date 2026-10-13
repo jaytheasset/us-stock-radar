@@ -7,9 +7,11 @@ import {
 import {
   applyLiveRoomActorCookies,
   resolveLiveRoomActor,
+  resolveExistingLiveRoomActor,
 } from "@/lib/live-room/serverActor";
 import {
   getLiveRoomProfile,
+  getExistingLiveRoomAccountProfile,
   updateLiveRoomProfile,
 } from "@/lib/live-room/serverRepository";
 
@@ -17,11 +19,22 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   let resolution: Awaited<
-    ReturnType<typeof resolveLiveRoomActor>
+    ReturnType<typeof resolveExistingLiveRoomActor>
   > | null = null;
   try {
-    resolution = await resolveLiveRoomActor(request);
-    const profile = await getLiveRoomProfile(resolution.actor);
+    if (request.nextUrl.searchParams.get("view") === "account") {
+      resolution = await resolveExistingLiveRoomActor(request);
+      const profile = await getExistingLiveRoomAccountProfile(resolution.actor);
+      const response = NextResponse.json(
+        { ok: true, data: profile },
+        { headers: LIVE_ROOM_PRIVATE_HEADERS },
+      );
+      applyLiveRoomActorCookies(response, resolution);
+      return response;
+    }
+    const entryResolution = await resolveLiveRoomActor(request);
+    resolution = entryResolution;
+    const profile = await getLiveRoomProfile(entryResolution.actor);
     const response = NextResponse.json(
       { ok: true, data: profile },
       { headers: LIVE_ROOM_PRIVATE_HEADERS },

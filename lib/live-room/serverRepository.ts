@@ -981,6 +981,27 @@ export async function moderateLiveRoomMessage({
   };
 }
 
+// Account menu projection: absence is normal and must not initialize a profile.
+export async function getExistingLiveRoomAccountProfile(actor: LiveRoomActor | null) {
+  if (actor?.kind !== "member") return null;
+  const result = await supabaseSelect("live_room_member_profiles", {
+    select: "public_profile_id",
+    user_id: `eq.${actor.userId}`,
+    limit: "1",
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_PROFILE_UNAVAILABLE",
+      "The Live Room profile could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const row = readSingleRow(result.data);
+  return row
+    ? { isGuest: false, publicProfileId: readString(row.public_profile_id) || undefined }
+    : null;
+}
+
 export async function getLiveRoomProfile(
   actor: LiveRoomActor,
 ): Promise<LiveRoomProfile> {
