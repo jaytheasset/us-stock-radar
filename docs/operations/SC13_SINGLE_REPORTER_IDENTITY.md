@@ -35,4 +35,16 @@ The focused offline suite passed 52 tests and TypeScript checking. It includes t
 
 Negative tests cover source/accession/hash mismatch, role and visible/link CIK contradictions, zero CIKs, multiple reporters/signatures, Item 2 name mismatch, unsupported group evidence, missing supplement, replay, and the original XML-CIK path. The checked-in small original-source fixture is test evidence, not production data.
 
-Live collection, isolated database immutability, actual stock/monitor/alert browser journeys and their results are recorded separately by the integration reviewer. This document does not claim main integration, remote migration, production deployment or all-reporters support. No schema migration, environment-file change, cover-sidecar repair, model/provider call or external alert delivery is part of this candidate change.
+## Independent actual-source and browser acceptance
+
+The integration reviewer verified runtime commit `ff2bec36a26285a01ec1c06a1b829fd1e54c8261` using the existing isolated database and normal authenticated UI. Fresh production SEC collection obtained the AGCO filing and the supplement. The exact existing raw item then received an explicit refresh through the existing `force` ingestion option; ordinary deduplicated replay alone intentionally did not replace its prior payload. Canonical persistence reported replay, and the original XML reporter CIK stayed null.
+
+- A normal owner login searched ticker AGCO in `/monitor`, explicitly selected Dimensional Fund Advisors LP, CIK `0000354204`, confirmed percent at least `5`, and saved once. No all-reporters target or inferred default was selected.
+- Normal `runSecRawIngest` evaluation created one internal alert. Replaying it created zero new alerts and found one existing alert.
+- `/alerts` showed AGCO, the selected reporting person, the exact `5.3%` reported value, the `>= 5` condition, the accession, the original SEC XML link, and the header/index links from the retained identity provenance.
+- Stock Ownership and Monitor consumed the same verified CIK and provenance from the shared current-state reader. At 1440×900, 900×900 and 390×900, stock and alert pages had no horizontal overflow and no browser console errors.
+- API checks confirmed the owner's exact evidence, zero alerts for the other account, anonymous 401, cross-origin 403 and invalid-input 422/400 responses.
+- The final comparison covered 172 public tables. All existing canonical filing/reporter rows, three old monitors and six old alerts were unchanged. Expected changes were one monitor, one alert, four source runs and the one explicitly refreshed raw item. The actual AGCO submissions collection also added 1,002 filing-metadata ledger rows and one issuer/name/ticker/raw-source observation each; it did not change financial FACTs.
+- The reviewer independently passed 54 SC13/identity tests and 10 source/issuer/adapter/EFFECT regressions. The candidate build and typecheck passed. Runtime code remained frozen during browser acceptance.
+
+Specific-person monitoring remains limited to CIK-verified shareholders. All-reporters default behavior is a separate deferred task, and a positive supplemented 13G/A delta journey remains unverified. No main integration, remote migration or production deployment is claimed. No schema migration, environment-file change, cover-sidecar repair, model/provider call or external alert delivery is part of this candidate change. The permanent main workspace was not changed.
