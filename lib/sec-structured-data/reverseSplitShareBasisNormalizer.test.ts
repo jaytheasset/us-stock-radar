@@ -182,7 +182,7 @@ test("the official class resolver remains the only O/S selector and normalizatio
   );
   assert.equal(repository.readCount, 1);
   assert.equal(repository.writeCount, 0);
-  assert.deepEqual(repository.lastFilter, { asOfTo: "2026-08-26", canonicalSecurityClassId: CLASS_A });
+  assert.deepEqual(repository.lastFilter, { asOfTo: "2026-08-26", canonicalSecurityClassId: CLASS_A, effectiveDates: true });
 });
 
 function normalize(

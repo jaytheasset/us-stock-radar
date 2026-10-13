@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {OS_SNAPSHOT_HISTORY_SOURCE,validateOsSnapshotHistory} from './osSnapshotHistoryContract.ts';
+import {readShareCountCorrection,type ShareCountCorrection} from './shareCountCorrection.ts';
 import type {
   SecAuthoritativeOsDecision,
   SecAuthoritativeOsEligibleDecision,
@@ -28,6 +29,7 @@ export const COMPLETE_MULTI_CLASS_OS_DECISION_REASON =
   "ELIGIBLE_COMPLETE_MULTI_COMMON_STOCK_CONTEXT" as const;
 
 type ShareCountHistoryObservationCommon = {
+  correction?: ShareCountCorrection;
   id?: string;
   observationType: "authoritative_xbrl" | "source_stated";
   issuerCik: string;
@@ -192,6 +194,8 @@ export type SnapshotShareCountHistoryObservation = Omit<HumanVerifiedShareCountH
 export type ShareCountHistoryWriteResult = { inserted: number; deduped: number };
 
 export type ShareCountHistoryReadFilter = {
+  /** Current-value resolution only; historical reads retain original date bounds. */
+  effectiveDates?: boolean;
   asOfFrom?: string;
   asOfTo?: string;
   securityClassCanonicalKey?: string;
@@ -550,8 +554,8 @@ export class InMemoryShareCountHistoryRepository implements ShareCountHistoryRep
     validateReadFilter(filter);
     return [...this.observations.values()]
       .filter((row) => row.issuerCik === cik)
-      .filter((row) => !filter.asOfFrom || row.asOf >= filter.asOfFrom)
-      .filter((row) => !filter.asOfTo || row.asOf <= filter.asOfTo)
+      .filter((row) => !filter.asOfFrom || (filter.effectiveDates ? row.correction?.asOf ?? row.asOf : row.asOf) >= filter.asOfFrom)
+      .filter((row) => !filter.asOfTo || (filter.effectiveDates ? row.correction?.asOf ?? row.asOf : row.asOf) <= filter.asOfTo)
       .filter((row) => !filter.securityClassCanonicalKey
         || row.securityClassIdentity.canonicalKey === filter.securityClassCanonicalKey)
       .filter((row) => !filter.canonicalSecurityClassId
@@ -663,16 +667,16 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
               source_provenance, source_type, authoritative_status,
               authoritative_decision_version, authoritative_decision_reason,
               authoritative_decision_lineage, source_document_url, source_content_hash,
-              source_evidence, source_analyzer, created_at::text, snapshot_publication_valid
+              source_evidence, source_analyzer, created_at::text, snapshot_publication_valid, os_correction
        from public.share_count_history_eligible
        where issuer_cik = $1
-         and ($2::date is null or as_of >= $2::date)
-         and ($3::date is null or as_of <= $3::date)
+         and ($2::date is null or (case when $6::boolean then effective_as_of else as_of end) >= $2::date)
+         and ($3::date is null or (case when $6::boolean then effective_as_of else as_of end) <= $3::date)
          and ($4::text is null or security_class_identity ->> 'canonicalKey' = $4)
          and ($5::text is null or canonical_security_class_id = $5)
        order by as_of, accepted_at, accession_number, id`,
       [cik, filter.asOfFrom ?? null, filter.asOfTo ?? null,
-        filter.securityClassCanonicalKey ?? null, filter.canonicalSecurityClassId ?? null],
+        filter.securityClassCanonicalKey ?? null, filter.canonicalSecurityClassId ?? null, filter.effectiveDates === true],
     );
     return result.rows.map(mapShareCountHistoryDatabaseRow);
   }
@@ -1251,6 +1255,7 @@ function validateLevel2Observation(row: Level2ShareCountHistoryObservation) {
 }
 
 function validateReadFilter(filter: ShareCountHistoryReadFilter) {
+  if (filter.effectiveDates !== undefined && typeof filter.effectiveDates !== "boolean") throw new Error("effectiveDates must be boolean");
   if (filter.asOfFrom) validateDate(filter.asOfFrom, "asOfFrom");
   if (filter.asOfTo) validateDate(filter.asOfTo, "asOfTo");
   if (filter.asOfFrom && filter.asOfTo && filter.asOfFrom > filter.asOfTo) throw new Error("invalid as-of range");
@@ -1320,6 +1325,8 @@ export function mapShareCountHistoryDatabaseRow(
     createdAt: new Date(String(row.created_at)).toISOString(),
   } as ShareCountHistoryObservation;
   validateObservation(mapped);
+  const correction=readShareCountCorrection(row.os_correction,mapped);
+  if(correction)mapped.correction=correction;
   return mapped;
 }
 

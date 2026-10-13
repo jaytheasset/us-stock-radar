@@ -118,6 +118,7 @@ const SHARE_HISTORY_SELECT = [
   "source_evidence",
   "source_analyzer",
   "snapshot_publication_valid",
+  "os_correction",
   "created_at",
 ].join(",");
 
@@ -231,14 +232,15 @@ class SupabaseShareCountReadClient implements ShareCountHistorySqlClient {
     }
     let rows: Record<string, unknown>[];
     if (/\bfrom\s+public\.share_count_history_eligible\b/i.test(text)) {
-      const [cik, asOfFrom, asOfTo, classKey, classId] = values;
+      const [cik, asOfFrom, asOfTo, classKey, classId, effectiveDates] = values;
+      const dateField = effectiveDates === true ? "effective_as_of" : "as_of";
       const asOfFromText = readFilterValue(asOfFrom);
       const asOfToText = readFilterValue(asOfTo);
       rows = await selectRows("share_count_history_eligible", compactSearch({
         and: asOfFromText && asOfToText
-          ? `(as_of.gte.${asOfFromText},as_of.lte.${asOfToText})`
+          ? `(${dateField}.gte.${asOfFromText},${dateField}.lte.${asOfToText})`
           : "",
-        as_of: asOfFromText
+        [dateField]: asOfFromText
           ? `gte.${asOfFromText}`
           : asOfToText
             ? `lte.${asOfToText}`

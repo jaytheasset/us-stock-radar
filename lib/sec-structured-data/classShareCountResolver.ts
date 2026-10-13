@@ -6,6 +6,7 @@ import {
   type ShareCountHistoryRepository,
 } from "./shareCountHistory.ts";
 import {OS_SNAPSHOT_HISTORY_SOURCE} from './osSnapshotHistoryContract.ts';
+import {effectiveShareCountObservation} from './shareCountCorrection.ts';
 
 export const CLASS_SHARE_COUNT_RESOLVER_VERSION = "class-share-count-resolver-v1" as const;
 
@@ -73,12 +74,13 @@ export async function resolveClassShareCountAt(input: {
     history = await readShareCountHistory(input.repository, input.cik, {
       asOfTo: targetDate,
       canonicalSecurityClassId: input.securityClassId,
+      effectiveDates: true,
     });
   } catch {
     return unavailable(input.cik, input.securityClassId, targetAt, "HISTORY_READ_FAILED");
   }
 
-  const eligible = history
+  const eligible = history.map(effectiveShareCountObservation)
     .filter((row) => eligibleAt(row, input.cik, input.securityClassId, targetDate, targetTime))
     .sort(compareObservationIdentity);
   if (eligible.length === 0) {
