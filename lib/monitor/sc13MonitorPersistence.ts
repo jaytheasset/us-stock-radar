@@ -8,12 +8,21 @@ import {
 type RepositoryResult = Readonly<{ ok: boolean; status?: number; data: unknown; error?: string }>;
 type StoredRow = Record<string, unknown>;
 
-export type Sc13MonitorTarget = Readonly<{
+export type Sc13SpecificMonitorTarget = Readonly<{
+  reportingPersonScope?: never;
   issuerCik: string;
   reportingPersonCik: string;
   securityClass: string;
   cusips: readonly string[];
 }>;
+export type Sc13AllReportersTarget = Readonly<{
+  reportingPersonScope: "all";
+  reportingPersonCik?: never;
+  issuerCik: string;
+  securityClass: string;
+  cusips: readonly string[];
+}>;
+export type Sc13MonitorTarget = Sc13SpecificMonitorTarget | Sc13AllReportersTarget;
 
 export type CanonicalSc13MonitorCondition = Readonly<{
   key: string;
@@ -79,7 +88,8 @@ export async function createSc13Monitor(
     user_id: ownerId,
     domain: "sc13",
     issuer_cik: canonicalTarget.issuerCik,
-    reporting_person_cik: canonicalTarget.reportingPersonCik,
+    reporting_person_cik: canonicalTarget.reportingPersonCik ?? null,
+    ...(canonicalTarget.reportingPersonScope === "all" ? { reporter_scope: "all" } : {}),
     security_class: canonicalTarget.securityClass,
     cusips: canonicalTarget.cusips,
     conditions: conditions.conditions,
@@ -129,7 +139,8 @@ export async function listActiveSc13MonitorsForConsumer(
 export function validateSc13MonitorTarget(value: unknown): Readonly<{
   ok: boolean; target: Sc13MonitorTarget | null; errors: readonly string[];
 }> {
-  if (!record(value) || sortedKeys(value) !== "cusips,issuerCik,reportingPersonCik,securityClass") {
+  const all = record(value) && value.reportingPersonScope === "all";
+  if (!record(value) || sortedKeys(value) !== (all ? "cusips,issuerCik,reportingPersonScope,securityClass" : "cusips,issuerCik,reportingPersonCik,securityClass")) {
     return { ok: false, target: null, errors: ["target_invalid"] };
   }
   const issuerCik = normalizeSc13Cik(value.issuerCik);
@@ -138,12 +149,12 @@ export function validateSc13MonitorTarget(value: unknown): Readonly<{
   const cusips = normalizeSc13Cusips(value.cusips);
   const errors: string[] = [];
   if (!issuerCik) errors.push("issuer_cik_invalid");
-  if (!reportingPersonCik) errors.push("reporting_person_cik_invalid");
+  if (!all && !reportingPersonCik) errors.push("reporting_person_cik_invalid");
   if (!securityClass) errors.push("security_class_invalid");
   if (!cusips) errors.push("cusips_invalid");
   return errors.length ? { ok: false, target: null, errors } : {
     ok: true,
-    target: Object.freeze({ issuerCik, reportingPersonCik, securityClass, cusips: Object.freeze(cusips!) }),
+    target: Object.freeze({ issuerCik, ...(all ? { reportingPersonScope: "all" as const } : { reportingPersonCik }), securityClass, cusips: Object.freeze(cusips!) }),
     errors: [],
   };
 }
@@ -222,7 +233,7 @@ function parseStoredMonitor(row: StoredRow | undefined, ownerId: string):
   const id = text(row?.id) || "unknown";
   const target = validateSc13MonitorTarget({
     issuerCik: row?.issuer_cik,
-    reportingPersonCik: row?.reporting_person_cik,
+    ...(row?.reporter_scope === "all" && row?.reporting_person_cik === null ? { reportingPersonScope: "all" } : { reportingPersonCik: row?.reporting_person_cik }),
     securityClass: row?.security_class,
     cusips: row?.cusips,
   });
@@ -233,6 +244,8 @@ function parseStoredMonitor(row: StoredRow | undefined, ownerId: string):
   if (!UUID_PATTERN.test(id)) errors.push("monitor_id_invalid");
   if (!UUID_PATTERN.test(ownerId) || row?.user_id !== ownerId) errors.push("owner_invalid");
   if (row?.domain !== "sc13") errors.push("domain_invalid");
+  if (row?.reporter_scope !== undefined && row.reporter_scope !== "specific" && row.reporter_scope !== "all") errors.push("reporter_scope_invalid");
+  if (row?.reporter_scope === "all" && row.reporting_person_cik !== null) errors.push("all_reporters_cik_must_be_null");
   if (typeof row?.is_active !== "boolean") errors.push("is_active_invalid");
   const createdAt = validTimestamp(row?.created_at), updatedAt = validTimestamp(row?.updated_at);
   if (!createdAt) errors.push("created_at_invalid");
@@ -246,7 +259,7 @@ function parseStoredMonitor(row: StoredRow | undefined, ownerId: string):
 
 async function resolveRepository(): Promise<Sc13MonitorRepository> {
   const supabase = await import("../supabase.ts");
-  const select = "id,user_id,domain,issuer_cik,reporting_person_cik,security_class,cusips,conditions,is_active,created_at,updated_at";
+  const select = "id,user_id,domain,issuer_cik,reporter_scope,reporting_person_cik,security_class,cusips,conditions,is_active,created_at,updated_at";
   return {
     create: (row) => supabase.supabaseUpsert("sc13_monitors", row, { prefer: "return=representation" }),
     list: (ownerId) => supabase.supabaseSelect("sc13_monitors", { select, user_id: `eq.${ownerId}`, domain: "eq.sc13", order: "created_at.desc,id.desc", limit: "1000" }),
@@ -256,7 +269,7 @@ async function resolveRepository(): Promise<Sc13MonitorRepository> {
 async function resolveConsumerRepository(): Promise<Sc13MonitorConsumerRepository> {
   const supabase = await import("../supabase.ts");
   return { listActivePage: (issuerCik, offset, limit) => supabase.supabaseSelect("sc13_monitors", {
-    select: "id,user_id,domain,issuer_cik,reporting_person_cik,security_class,cusips,conditions,is_active,created_at,updated_at",
+    select: "id,user_id,domain,issuer_cik,reporter_scope,reporting_person_cik,security_class,cusips,conditions,is_active,created_at,updated_at",
     domain: "eq.sc13", issuer_cik: `eq.${issuerCik}`, is_active: "eq.true", order: "created_at.asc,id.asc",
     offset: String(offset), limit: String(limit),
   }) };

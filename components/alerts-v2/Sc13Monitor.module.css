@@ -1,0 +1,22 @@
+.panel { display: grid; gap: var(--sr-space-4); padding: var(--sr-space-5); border: 1px solid var(--sr-color-border); border-radius: var(--sr-radius-lg); background: var(--sr-color-surface-panel); min-width: 0; }
+.panel h2, .panel p, .alert p { margin: 0; }
+.panel header > span, .hint { color: var(--sr-color-text-meta); font-size: var(--sr-font-size-sm); }
+.panel label { display: grid; gap: var(--sr-space-2); min-width: 0; font-size: var(--sr-font-size-sm); }
+.panel input:not([type="checkbox"]), .panel select { width: 100%; min-width: 0; min-height: 42px; padding: var(--sr-space-2); color: var(--sr-color-text-primary); background: var(--sr-color-surface-control); border: 1px solid var(--sr-color-border-control); border-radius: var(--sr-radius-control); }
+.panel button { min-height: 42px; padding: var(--sr-space-2) var(--sr-space-3); color: var(--sr-color-text-primary-action); background: var(--sr-color-surface-primary-action); border: 0; border-radius: var(--sr-radius-control); cursor: pointer; }
+.panel button:disabled { opacity: var(--sr-opacity-disabled); cursor: not-allowed; }
+.lookup { display: grid; grid-template-columns: 1fr 1.5fr auto; align-items: end; gap: var(--sr-space-3); min-width: 0; }
+.targetPicker { width: 100%; }
+.target, .alert { display: grid; gap: var(--sr-space-2); min-width: 0; overflow-wrap: anywhere; }
+.target { padding: var(--sr-space-3); border-radius: var(--sr-radius-base); background: var(--sr-color-surface-control); }
+.conditions { display: grid; gap: var(--sr-space-3); margin: 0; padding: 0; border: 0; min-width: 0; }
+.conditions legend { margin-bottom: var(--sr-space-3); font-weight: var(--sr-font-weight-strong); }
+.condition { display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; align-items: end; gap: var(--sr-space-2); min-width: 0; }
+.review { display: grid; gap: var(--sr-space-2); overflow-wrap: anywhere; }
+.panel .confirm { display: flex; align-items: flex-start; gap: var(--sr-space-2); }
+.confirm input { flex: 0 0 auto; margin-top: 3px; }
+.alert > ul { display: grid; gap: var(--sr-space-3); padding-left: var(--sr-space-4); }
+.alert > ul > li, .alert > div { display: grid; gap: var(--sr-space-1); }
+.alert a, .review a { color: var(--sr-color-accent-text); overflow-wrap: anywhere; }
+@media (max-width: 1050px) { .condition { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) { .panel { padding: var(--sr-space-3); } .lookup, .condition { grid-template-columns: minmax(0, 1fr); } }

@@ -1,10 +1,12 @@
 import type { Sc13IssuerCurrentStateRead } from "@/lib/sec-sc13-xml/currentState";
 import type { Sc13CurrentField } from "@/lib/sec-sc13-xml/lineage";
+import type { Sc13VerifiedReporterIdentity } from "@/lib/sec-sc13-xml/reporterIdentity";
 
 export const STOCK_SC13_SOURCE = "SEC_SC13_STORED" as const;
 export const STOCK_SC13_SCOPE = "complete_stored_history_not_sec_global" as const;
 
 export type StockSc13FilingEvidence = Readonly<{
+  issuerName?: string | null;
   accessionNumber: string;
   eventDate: string;
   filedAt: string | null;
@@ -29,6 +31,7 @@ export type StockSc13ReportedField =
     }>;
 
 export type StockSc13CurrentReporter = Readonly<{
+  identityProvenance?: Sc13VerifiedReporterIdentity;
   aggregateAmountOwned: StockSc13ReportedField;
   percentOfClass: StockSc13ReportedField;
   reportingPersonCik: string;
@@ -48,6 +51,7 @@ export type StockSc13HistoricalFiling = StockSc13FilingEvidence & Readonly<{
 }>;
 
 export type StockSc13Position = Readonly<{
+  issuerName?: string | null;
   currentReporters: readonly StockSc13CurrentReporter[];
   cusips: readonly string[];
   formFamily: "SCHEDULE 13D" | "SCHEDULE 13G";
@@ -168,10 +172,12 @@ export function buildStockSc13OwnershipSnapshot(input: {
         percentOfClass,
         reportingPersonCik: reporter.reportingPersonCik,
         reportingPersonName: reporter.reportingPersonNameRaw,
+        ...(reporter.identityProvenance ? { identityProvenance: reporter.identityProvenance } : {}),
       });
     }
 
     positions.push({
+      issuerName: position.headAccessionNumber ? nullableText(historyByAccession.get(position.headAccessionNumber)?.filing.issuer_name_raw) : null,
       currentReporters,
       cusips: position.cusipsRaw,
       formFamily: position.formFamily,
@@ -232,6 +238,7 @@ function filingEvidence(filing: Record<string, unknown>): StockSc13FilingEvidenc
   }
   return {
     accessionNumber,
+    ...(nullableText(filing.issuer_name_raw) ? { issuerName: nullableText(filing.issuer_name_raw) } : {}),
     eventDate,
     filedAt: nullableText(filing.filed_at),
     formType,

@@ -626,6 +626,7 @@ async function persistSc13XmlAfterRawSave(input: {
         rawItemId: input.rawItemId,
         issuerCik: result.issuerCik,
         sourceSha256: result.sourceSha256,
+        accessionNumber: result.accessionNumber,
       });
     } catch (error) {
       monitor = {

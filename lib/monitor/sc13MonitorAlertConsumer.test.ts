@@ -10,6 +10,7 @@ import {
   validateSc13MonitorTarget,
   type CanonicalSc13MonitorCondition,
   type Sc13Monitor,
+  type Sc13SpecificMonitorTarget,
 } from "./sc13MonitorPersistence.ts";
 
 registerHooks({
@@ -130,7 +131,7 @@ test("consumer exposes retryable partial failure and 12 concurrent/replay calls 
   assert.equal(failed.failedCount, 1);
 });
 
-function makeMonitor(monitorConditions: readonly CanonicalSc13MonitorCondition[]): Sc13Monitor {
+function makeMonitor(monitorConditions: readonly CanonicalSc13MonitorCondition[]): Sc13Monitor & { target: Sc13SpecificMonitorTarget } {
   return {
     id: MONITOR_ID, userId: USER_ID, domain: "sc13",
     target: { issuerCik: ISSUER, reportingPersonCik: REPORTER, securityClass: "COMMON STOCK", cusips: ["10567X101"] },

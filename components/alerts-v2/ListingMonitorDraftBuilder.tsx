@@ -35,6 +35,8 @@ import {
 } from "./Form4InsiderPurchaseMonitor";
 import styles from "./ListingMonitorDraftBuilder.module.css";
 import {ProjectedAlertDetails} from './ProjectedAlertDetails';
+import { Sc13MonitorBuilder, Sc13TargetSummary, Sc13AlertDetails, useSc13Management } from "./Sc13Monitor";
+import { sc13ConditionText } from "@/lib/monitor/sc13MonitorDisplay";
 
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
 const EDITOR_BY_KEY = new Map(EDITOR_CATALOG.map((item) => [item.key, item]));
@@ -253,6 +255,7 @@ export function ListingMonitorDraftBuilder() {
       ) : null}
 
       <Form4InsiderPurchaseBuilder authRequired={authChecking || authRequired} />
+      <Sc13MonitorBuilder authRequired={authChecking || authRequired} />
 
       <form className={styles.promptForm} onSubmit={compileDraft}>
         <label htmlFor="monitor-natural-language">What should Stock Radar watch?</label>
@@ -448,6 +451,7 @@ export function ListingMonitorDraftBuilder() {
 }
 
 export function ListingMonitorManagement() {
+  const sc13 = useSc13Management();
   const [monitors, setMonitors] = useState<readonly ListingMonitor[]>([]);
   const [alerts, setAlerts] = useState<readonly ListingMonitorAlertItem[]>([]);
   const [alertTotal, setAlertTotal] = useState(0);
@@ -536,7 +540,7 @@ export function ListingMonitorManagement() {
           <h2 id="monitor-management-title">Your saved conditions</h2>
           <p>Manage the saved conditions that trigger your Custom alerts.</p>
         </div>
-        <strong>{loading ? "Loading..." : `${monitors.length} total`}</strong>
+        <strong>{loading || sc13.loading ? "Loading..." : `${monitors.length + sc13.monitors.length} total`}</strong>
       </div>
 
       {authRequired ? (
@@ -546,11 +550,18 @@ export function ListingMonitorManagement() {
         </div>
       ) : null}
       {message ? <p className={styles.managementMessage} role="status">{message}</p> : null}
+      {sc13.error ? <p className={styles.managementMessage} role="status">{sc13.error}</p> : null}
 
-      {!loading && !authRequired && monitors.length === 0 ? (
+      {!loading && !sc13.loading && !sc13.error && !authRequired && monitors.length + sc13.monitors.length === 0 ? (
         <p className={styles.emptyState}>No monitors yet. Open Custom alerts to create your first one.</p>
       ) : null}
       <div className={styles.monitorRows}>
+        {sc13.monitors.map((monitor) => <article key={`sc13-${monitor.id}`}>
+          <div className={styles.monitorStatus}><strong>Schedule 13 ownership alert</strong><span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span></div>
+          <Sc13TargetSummary target={monitor.target} />
+          <ul>{monitor.conditions.map((condition) => <li key={condition.key}>{sc13ConditionText(condition)}</li>)}</ul>
+          <span>Created {formatMonitorDate(monitor.createdAt)}</span>
+        </article>)}
         {monitors.map((monitor) => {
           const retired = hasRetiredMonitorConditions(monitor.conditions);
           return <article key={monitor.id} data-retired={retired ? 'true' : undefined}>
@@ -606,12 +617,13 @@ export function ListingMonitorManagement() {
         <section className={styles.generatedAlerts} aria-labelledby="monitor-alerts-title">
           <div>
             <h3 id="monitor-alerts-title"><BellRing aria-hidden="true" size={17} /> Custom alerts</h3>
-            <span>{loading ? "Loading..." : `${alertTotal} total`}</span>
+            <span>{loading || sc13.loading ? "Loading..." : `${alertTotal + sc13.alerts.length} total${sc13.alerts.length === 100 ? " (latest 100 Schedule 13 alerts)" : ""}`}</span>
           </div>
-          {!loading && alerts.length === 0 ? (
+          {!loading && !sc13.loading && !sc13.error && alerts.length + sc13.alerts.length === 0 ? (
             <p>No Custom alerts yet. Alerts appear when your saved conditions match.</p>
           ) : (
             <ul>
+              {sc13.alerts.map((alert) => <li className={styles.effectAlert} id={`monitor-alert-${alert.id}`} key={`sc13-${alert.id}`} data-alert-id={alert.id}><Sc13AlertDetails alert={alert} /></li>)}
               {alerts.map((alert) => (
                 <li className={alert.offeringPlanEvidence || alert.effectEvidence || alert.projectedScenario || alert.ntAlertTitle || !alert.matchEvidence ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
                   {alert.offeringPlanEvidence ? (
