@@ -19,6 +19,7 @@ import {
 import {
   LIVE_ROOM_GUEST_LAST_SEEN_INTERVAL_MS,
   shouldRefreshLiveRoomGuestLastSeen,
+  LiveRoomPolicyError,
   type LiveRoomActor,
 } from "./policy";
 
@@ -27,6 +28,56 @@ type ActorResolution = {
   auth: Awaited<ReturnType<typeof resolveAuthSession>>;
   guestCookieToken: string | null;
 };
+
+type ExistingActorResolution = Omit<ActorResolution, "actor"> & {
+  actor: LiveRoomActor | null;
+};
+
+// Header reads must never create a guest or update its last-seen timestamp.
+// Keep the initializing resolver below for actual chat entry and mutations.
+export async function resolveExistingLiveRoomActor(
+  request: NextRequest,
+): Promise<ExistingActorResolution> {
+  const accessToken = request.cookies.get(AUTH_ACCESS_COOKIE)?.value || "";
+  const refreshToken = request.cookies.get(AUTH_REFRESH_COOKIE)?.value || "";
+  const auth = await resolveAuthSession({ accessToken, refreshToken, bootstrap: false });
+  if (auth.user?.id) {
+    return {
+      actor: { kind: "member", userId: auth.user.id, email: auth.user.email || null },
+      auth,
+      guestCookieToken: null,
+    };
+  }
+  // With credentials supplied, an unresolved session that must be retained is
+  // an Auth outage, not evidence that the viewer is anonymous.
+  if ((accessToken || refreshToken) && !auth.shouldClearCookies) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_AUTH_UNAVAILABLE",
+      "Live Room authentication is temporarily unavailable.",
+      503,
+    );
+  }
+  const anonymous = { actor: null, auth, guestCookieToken: null };
+  const token = request.cookies.get(LIVE_ROOM_GUEST_COOKIE)?.value || "";
+  if (!isValidLiveRoomGuestToken(token)) return anonymous;
+  const result = await supabaseSelect("live_room_guest_sessions", {
+    select: "id",
+    token_hash: `eq.${hashLiveRoomGuestToken(token)}`,
+    expires_at: `gt.${new Date().toISOString()}`,
+    limit: "1",
+  });
+  if (!result.ok) {
+    throw new LiveRoomPolicyError(
+      "LIVE_ROOM_IDENTITY_UNAVAILABLE",
+      "The Live Room identity could not be loaded.",
+      result.status || 502,
+    );
+  }
+  const guestSessionId = readString(readFirstRow(result.data)?.id);
+  return guestSessionId
+    ? { actor: { kind: "guest", guestSessionId }, auth, guestCookieToken: null }
+    : anonymous;
+}
 
 export async function resolveLiveRoomActor(
   request: NextRequest,
@@ -114,7 +165,7 @@ export async function resolveLiveRoomActor(
 
 export function applyLiveRoomActorCookies(
   response: NextResponse,
-  resolution: ActorResolution,
+  resolution: ExistingActorResolution,
 ) {
   if (resolution.auth.refreshedSession?.access_token) {
     setAuthSessionCookies(response, {

@@ -10,7 +10,7 @@ import {
 import { LIVE_ROOM_GUEST_COOKIE } from "@/lib/live-room/guestIdentity";
 import {
   applyLiveRoomActorCookies,
-  resolveLiveRoomActor,
+  resolveExistingLiveRoomActor,
 } from "@/lib/live-room/serverActor";
 import { getLiveRoomUnreadSummary } from "@/lib/live-room/serverRepository";
 import type { LiveRoomUnreadSummary } from "@/lib/live-room/types";
@@ -31,7 +31,7 @@ const emptySummary: LiveRoomUnreadSummary = {
 
 export async function GET(request: NextRequest) {
   let resolution: Awaited<
-    ReturnType<typeof resolveLiveRoomActor>
+    ReturnType<typeof resolveExistingLiveRoomActor>
   > | null = null;
   try {
     const hasExistingIdentity =
@@ -45,8 +45,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    resolution = await resolveLiveRoomActor(request);
-    const summary = await getLiveRoomUnreadSummary(resolution.actor);
+    resolution = await resolveExistingLiveRoomActor(request);
+    const summary = resolution.actor
+      ? await getLiveRoomUnreadSummary(resolution.actor)
+      : emptySummary;
     const response = NextResponse.json(
       { ok: true, data: summary },
       { headers: LIVE_ROOM_PRIVATE_HEADERS },

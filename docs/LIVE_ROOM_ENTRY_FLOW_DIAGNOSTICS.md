@@ -22,6 +22,30 @@ query values, user data, cookies, or tokens. Message sending, Realtime
 subscription or reconnection, presence, read marking, joining, following,
 blocking, reporting, and other user-state changes are outside this flow.
 
+## Shared header reads
+
+The account menu uses `GET /api/live-room/profile?view=account`. This is an
+owner-scoped projection of an existing member profile (`isGuest: false` and
+`publicProfileId`), or `data: null` when no member profile exists. It does not
+bootstrap an account, create a profile, or load chat privileges. The chat
+repository still uses the unqualified profile GET for entry initialization;
+profile PUT and other chat actor consumers keep their existing contracts.
+
+The account projection and unread GET resolve only existing identities. They
+never create guest sessions or update guest `last_seen_at`. Missing, malformed,
+expired, or unknown guest identities yield absence (an anonymous empty unread
+summary); existing members and guests retain their owner-scoped unread reads.
+Auth refresh and its cookie rotation remain enabled, with account bootstrap
+disabled. An Auth outage or failed identity/profile/unread query is an error,
+not proof of absence or a successful zero count.
+
+When checking a general page such as `/alerts`, distinguish these Live Room
+reads from login, `/api/auth/me`, and other product APIs that may independently
+bootstrap accounts. A blocked write guard must retain that distinction. Do not
+relax it to make a header request pass. Use `headerReadOnly.test.mjs` (included
+in `npm run verify:live-room`) for controlled identity/outage/initialization
+coverage when existing guest or member-profile fixtures are unavailable.
+
 ## State interpretation
 
 `resolveLiveRoomEntryFlowState` is the shared source for the visible diagnostic
