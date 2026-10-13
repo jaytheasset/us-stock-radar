@@ -18,6 +18,7 @@ import {
   type ListingMonitorDraftReview,
 } from "@/lib/monitor/listingMonitorDraftReview";
 import type { ListingMonitorAlertItem } from "@/lib/monitor/listingMonitorApi";
+import { SecondaryMonitorAlertDetails } from "./SecondaryMonitorAlertDetails";
 import type { CanonicalListingMonitorCondition, ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
 import { hasRetiredMonitorConditions, type MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
@@ -612,7 +613,7 @@ export function ListingMonitorManagement() {
           ) : (
             <ul>
               {alerts.map((alert) => (
-                <li className={alert.offeringPlanEvidence || alert.effectEvidence || alert.projectedScenario || alert.ntAlertTitle ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
+                <li className={alert.offeringPlanEvidence || alert.effectEvidence || alert.projectedScenario || alert.ntAlertTitle || !alert.matchEvidence ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
                   {alert.offeringPlanEvidence ? (
                     <OfferingPlanAlertDetails id={alert.id} evidence={alert.offeringPlanEvidence}/>
                   ) : alert.projectedScenario ? (
@@ -636,10 +637,7 @@ export function ListingMonitorManagement() {
                       {alert.eventId ? <a href={`/filings/${encodeURIComponent(alert.eventId)}`}>View filing</a> : null}
                     </>
                   ) : (
-                    <>
-                      <strong>Alert delivered</strong>
-                      <span>{formatMonitorDate(alert.createdAt)}</span>
-                    </>
+                    <SecondaryMonitorAlertDetails display={alert.secondaryDisplay} createdAt={alert.createdAt} />
                   )}
                 </li>
               ))}

@@ -1,4 +1,6 @@
 import {hasOfferingPlan} from './offeringPlanConditions.ts';
+import { form144AlertEvidence } from "./form144AlertEvidence.ts";
+import type { SecondaryMonitorEvidence } from "./secondaryMonitorEvidence.ts";
 import {offeringPlanEvidence,type OfferingPlanEvidence,type OfferingPlanFacts} from './offeringPlanFacts.ts';
 import {readOfferingPlanFacts} from './offeringPlanReader.ts';
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./currentPrice.ts";
@@ -119,6 +121,7 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
     userId: string;
     createdAt: string;
     offeringPlanEvidence?: OfferingPlanEvidence;
+    secondaryEvidence?: SecondaryMonitorEvidence;
   matchEvidence?: Form4PurchaseMatchEvidence;
     ntAlert?: "notice" | "report";
     tenderAlert?: boolean;
@@ -343,6 +346,7 @@ export async function consumeListingMonitorAlertsForEvent(
           monitorId: evaluation.monitor.id,
           userId: evaluation.monitor.userId,
           createdAt: lineage.persistedAt,
+          secondaryEvidence: await form144AlertEvidence(readers.ownership, evaluation.result, evaluation.monitor.conditions, evaluationTime.toISOString()),
           ...(hasOfferingPlan(evaluation.monitor.conditions) ? {offeringPlanEvidence: offeringPlanEvidence(readers.offeringPlan,evaluation.monitor.conditions) ?? undefined} : {}),
           ...(evaluation.monitor.conditions.some(c => c.key === "event.sec_form") && readers.filing?.status === "available"
             ? { filingForm: readers.filing.facts.form } : {}),
@@ -529,6 +533,7 @@ export async function createListingMonitorAlert(input: Readonly<{
   userId: string;
   createdAt: string;
   offeringPlanEvidence?: OfferingPlanEvidence;
+  secondaryEvidence?: SecondaryMonitorEvidence;
   matchEvidence?: Form4PurchaseMatchEvidence;
   ntAlert?: "notice" | "report";
   tenderAlert?: boolean;
@@ -574,6 +579,7 @@ export async function createListingMonitorAlert(input: Readonly<{
     alert_domain: "listing",
     listing_source_execution_id: input.sourceExecutionId,
     listing_match_evidence: input.matchEvidence ?? null,
+    ...(input.secondaryEvidence ? { secondary_match_evidence: input.secondaryEvidence } : {}),
     ...(input.offeringPlanEvidence ? {offering_plan_match_evidence: input.offeringPlanEvidence} : {}),
   }, {
     onConflict: "listing_monitor_id,alert_event_id",
