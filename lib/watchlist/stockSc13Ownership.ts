@@ -6,6 +6,7 @@ export const STOCK_SC13_SOURCE = "SEC_SC13_STORED" as const;
 export const STOCK_SC13_SCOPE = "complete_stored_history_not_sec_global" as const;
 
 export type StockSc13FilingEvidence = Readonly<{
+  issuerName?: string | null;
   accessionNumber: string;
   eventDate: string;
   filedAt: string | null;
@@ -237,6 +238,7 @@ function filingEvidence(filing: Record<string, unknown>): StockSc13FilingEvidenc
   }
   return {
     accessionNumber,
+    ...(nullableText(filing.issuer_name_raw) ? { issuerName: nullableText(filing.issuer_name_raw) } : {}),
     eventDate,
     filedAt: nullableText(filing.filed_at),
     formType,

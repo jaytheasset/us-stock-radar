@@ -92,6 +92,7 @@ for (const path of ["fresh", "replay"] as const) {
       rawItemId: "a2000000-0000-4000-8000-000000000001",
       issuerCik: "0002131524",
       sourceSha256: "a".repeat(64),
+      accessionNumber: "0000947871-26-000860",
     }]);
     assert.equal(items[0]?.ok, true);
     assert.equal((items[0]?.sc13_xml_persistence as Record<string, unknown>).status, "available");

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { StockSc13OwnershipSnapshot } from "@/lib/watchlist/stockSc13Ownership";
 import { validateCanonicalSc13Conditions, type CanonicalSc13MonitorCondition, type Sc13Monitor, type Sc13MonitorTarget } from "@/lib/monitor/sc13MonitorPersistence";
-import { SC13_FIELDS, SC13_OPERATORS, SC13_MEANING, sc13TargetChoices, sc13ConditionText, safeSc13SourceUrl, type Sc13TargetChoice, type Sc13DisplayAlert } from "@/lib/monitor/sc13MonitorDisplay";
+import { SC13_FIELDS, SC13_OPERATORS, SC13_MEANING, SC13_ALL_MEANING, sc13TargetChoices, sc13AllReporterTargetChoices, sc13ConditionText, safeSc13SourceUrl, type Sc13TargetChoice, type Sc13DisplayAlert } from "@/lib/monitor/sc13MonitorDisplay";
 import styles from "./Sc13Monitor.module.css";
 import { sc13ReporterIdentityLinks } from "@/lib/sec-sc13-xml/reporterIdentityDisplay";
 
@@ -12,6 +12,7 @@ const INITIAL_CONDITIONS: readonly CanonicalSc13MonitorCondition[] = [{ key: "sc
 
 export function Sc13MonitorBuilder({ authRequired }: Readonly<{ authRequired: boolean }>) {
   const [lookupMode, setLookupMode] = useState<"ticker" | "accession">("ticker");
+  const [reporterScope, setReporterScope] = useState<"all" | "specific">("all");
   const [query, setQuery] = useState("");
   const [choices, setChoices] = useState<readonly Sc13TargetChoice[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -46,9 +47,9 @@ export function Sc13MonitorBuilder({ authRequired }: Readonly<{ authRequired: bo
       if (controller.signal.aborted) return;
       if (!response.ok || !payload.data) throw new Error(payload.message || payload.error || "Could not read stored ownership history.");
       const snapshot = payload.data as StockSc13OwnershipSnapshot;
-      const next = sc13TargetChoices(snapshot);
+      const next = reporterScope === "all" ? sc13AllReporterTargetChoices(snapshot) : sc13TargetChoices(snapshot);
       setChoices(next);
-      setMessage(next.length ? "Select the exact reporting person and security to monitor." : snapshot.status === "unavailable" ? "Stored ownership history is unavailable or incomplete. No target can be selected." : "No unambiguous reporting-person and security target is available in stored history.");
+      setMessage(next.length ? reporterScope === "all" ? "Select the exact security to monitor every reporting person independently." : "Select the exact reporting person and security to monitor." : snapshot.status === "unavailable" ? "Stored ownership history is unavailable or incomplete. No target can be selected." : "No unambiguous target is available in stored history.");
     } catch (error) {
       if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : "Could not read stored ownership history.");
     } finally { if (!controller.signal.aborted) setBusy(null); }
@@ -68,15 +69,16 @@ export function Sc13MonitorBuilder({ authRequired }: Readonly<{ authRequired: bo
 
   return <section className={styles.panel} aria-labelledby="sc13-builder-title">
     <header><span>Schedule 13D / 13G</span><h2 id="sc13-builder-title">Schedule 13 ownership alert</h2></header>
-    <p>{SC13_MEANING}</p>
-    <p>Specific-person alerts: CIK-verified shareholders only.</p>
+    <p>{reporterScope === "all" ? SC13_ALL_MEANING : SC13_MEANING}</p>
+    <label>Reporting persons<select disabled={Boolean(busy) || authRequired} value={reporterScope} onChange={(event) => { invalidateLookup(); setReporterScope(event.currentTarget.value as "all" | "specific"); }}><option value="all">All reporting persons (default)</option><option value="specific">Specific person — verified CIK only</option></select></label>
+    {reporterScope === "specific" ? <p>Specific-person alerts: CIK-verified shareholders only.</p> : null}
     <form onSubmit={lookup} className={styles.lookup}>
       <label>Find stored filings by<select disabled={busy === "save" || authRequired} value={lookupMode} onChange={(event) => { invalidateLookup(); setLookupMode(event.currentTarget.value as "ticker" | "accession"); setQuery(""); }}><option value="ticker">Stock ticker</option><option value="accession">SEC filing accession</option></select></label>
       <label>{lookupMode === "ticker" ? "Stock ticker" : "SEC filing accession"}<input disabled={busy === "save" || authRequired} required value={query} onChange={(event) => { invalidateLookup(); setQuery(event.currentTarget.value); }} placeholder={lookupMode === "ticker" ? "e.g. AAPL" : "0000000000-00-000000"} autoCapitalize="characters" /></label>
       <button disabled={Boolean(busy) || authRequired || !query.trim()} type="submit">{busy === "lookup" ? "Finding…" : "Find stored targets"}</button>
     </form>
     <p className={styles.hint}>If a ticker has no stored issuer link, use the accession number from a stored SEC filing.</p>
-    {choices.length > 0 ? <label className={styles.targetPicker}>Reporting person and security<select disabled={Boolean(busy)} value={selectedId} onChange={(event) => { setSelectedId(event.currentTarget.value); setConfirmed(false); setCreated(null); }}><option value="">Choose a target — required</option>{choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.name || "Unnamed reporting person"} · CIK {choice.target.reportingPersonCik} · {choice.target.securityClass} · {choice.target.cusips.join(", ")}</option>)}</select></label> : null}
+    {choices.length > 0 ? <label className={styles.targetPicker}>{reporterScope === "all" ? "Security class and CUSIP" : "Reporting person and security"}<select disabled={Boolean(busy)} value={selectedId} onChange={(event) => { setSelectedId(event.currentTarget.value); setConfirmed(false); setCreated(null); }}><option value="">Choose a target — required</option>{choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.issuerName ? `${choice.issuerName} · ` : ""}{choice.name || "Unnamed reporting person"}{choice.target.reportingPersonCik ? ` · CIK ${choice.target.reportingPersonCik}` : ""} · {choice.target.securityClass} · {choice.target.cusips.join(", ")}</option>)}</select></label> : null}
     {selected ? <>
       <Sc13TargetSummary target={selected.target} name={selected.name} issuerName={selected.issuerName} />
       {selected.identitySupplemented ? <p>Reporter CIK verified from this SEC filing’s header and index; absent from cover XML. {sc13ReporterIdentityLinks(selected.identityProvenance).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} </a>)}</p> : null}
@@ -90,7 +92,7 @@ export function Sc13MonitorBuilder({ authRequired }: Readonly<{ authRequired: bo
         <button type="button" disabled={conditions.length === SC13_FIELDS.length} onClick={() => { const field = SC13_FIELDS.find((field) => !conditions.some((condition) => condition.key === field.key)); if (field) updateConditions([...conditions, { key: field.key, operator: "gte", value: "" }]); }}>Add condition</button>
       </fieldset>
       {!validConditions ? <p>Enter a non-negative decimal for every threshold. Percent must be between 0 and 100.</p> : <div className={styles.review}><strong>Review conditions</strong><ul>{conditions.map((condition) => <li key={condition.key}>{sc13ConditionText(condition)}</li>)}</ul></div>}
-      <label className={styles.confirm}><input type="checkbox" checked={confirmed} disabled={Boolean(busy) || !validConditions} onChange={(event) => setConfirmed(event.currentTarget.checked)} /><span>I confirm this issuer, reporting person, security class, CUSIP and all conditions above.</span></label>
+      <label className={styles.confirm}><input type="checkbox" checked={confirmed} disabled={Boolean(busy) || !validConditions} onChange={(event) => setConfirmed(event.currentTarget.checked)} /><span>{reporterScope === "all" ? "I confirm this issuer, security class, CUSIP and all conditions. Evaluate each reporting person separately." : "I confirm this issuer, reporting person, security class, CUSIP and all conditions above."}</span></label>
       <button type="button" disabled={Boolean(busy) || authRequired || !confirmed || !validConditions || Boolean(created)} onClick={() => void save()}>{busy === "save" ? "Saving…" : created ? "Schedule 13 monitor saved" : "Save Schedule 13 monitor"}</button>
     </> : null}
     {authRequired ? <p>Sign in to create a Schedule 13 monitor.</p> : null}
@@ -99,8 +101,8 @@ export function Sc13MonitorBuilder({ authRequired }: Readonly<{ authRequired: bo
   </section>;
 }
 
-export function Sc13TargetSummary({ target, name, issuerName }: Readonly<{ target: Sc13MonitorTarget; name?: string; issuerName?: string | null }>) {
-  return <div className={styles.target}>{issuerName ? <strong>{issuerName}</strong> : null}<strong>{name || "Schedule 13 target"}</strong><span>Issuer CIK {target.issuerCik} · Reporting person CIK {target.reportingPersonCik}</span><span>{target.securityClass} · CUSIP {target.cusips.join(", ")}</span></div>;
+export function Sc13TargetSummary({ target, name, issuerName }: Readonly<{ target: { issuerCik: string; securityClass: string; cusips: readonly string[]; reportingPersonCik?: string | null; reportingPersonScope?: "all" }; name?: string; issuerName?: string | null }>) {
+  return <div className={styles.target}>{issuerName ? <strong>{issuerName}</strong> : null}<strong>{name || (target.reportingPersonScope === "all" ? "All reporting persons" : "Schedule 13 target")}</strong><span>Issuer CIK {target.issuerCik} · {target.reportingPersonScope === "all" ? "Each reporting person evaluated separately" : target.reportingPersonCik ? `Reporting person CIK ${target.reportingPersonCik}` : "Reporting person CIK unavailable"}</span><span>{target.securityClass} · CUSIP {target.cusips.join(", ")}</span></div>;
 }
 
 export function Sc13AlertDetails({ alert }: Readonly<{ alert: Sc13DisplayAlert }>) {
@@ -108,9 +110,9 @@ export function Sc13AlertDetails({ alert }: Readonly<{ alert: Sc13DisplayAlert }
     <strong>Schedule 13 ownership conditions matched</strong>
     <Sc13TargetSummary target={alert.evidence} name={alert.evidence.reportingPersonNameRaw} issuerName={alert.sources[0]?.issuerName} />
     {alert.evidence.reportingPersonIdentity ? <p>Reporter CIK verified from this SEC filing’s header and index; absent from cover XML. Identity evidence retained with this alert. {sc13ReporterIdentityLinks(alert.evidence.reportingPersonIdentity).map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer">{link.label} </a>)}</p> : null}
-    <p>{SC13_MEANING}</p>
+    <p>{alert.evidence.reporterScope === "all" ? SC13_ALL_MEANING : SC13_MEANING}</p>
     <ul>{alert.evidence.conditions.map((condition) => <li key={condition.key}><strong>Reported: {condition.valueRaw}{condition.key === "sc13.percent_of_class" ? "%" : " shares"}</strong><span>{sc13ConditionText(condition)}</span><span>Source accession: {condition.sourceAccessionNumber}</span></li>)}</ul>
-    <span>Root accession: {alert.rootAccessionNumber}</span><span>Latest stored accession at match: {alert.headAccessionNumber}</span>
+    {alert.evidence.reporterScope === "all" ? <span>Filing accession: {alert.headAccessionNumber} · Reporting person row: {alert.evidence.reportingPersonIndex + 1}</span> : <><span>Root accession: {alert.rootAccessionNumber}</span><span>Latest stored accession at match: {alert.headAccessionNumber}</span></>}
     <span>Alert created: {new Date(alert.createdAt).toLocaleString("en-US")}</span>
     {alert.sources.length ? alert.sources.map((source) => safeSc13SourceUrl(source.sourceUrl, source.accessionNumber) ? <div key={source.accessionNumber}><span>Reported event date: {source.eventDate}{source.filedAt ? ` · Filed: ${source.filedAt}` : ""}</span><a href={source.sourceUrl} target="_blank" rel="noreferrer">SEC {source.formType} · {source.accessionNumber}</a></div> : null) : <span>SEC source link is currently unavailable. Saved match evidence is retained above.</span>}
   </div>;

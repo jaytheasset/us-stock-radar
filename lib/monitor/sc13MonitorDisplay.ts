@@ -18,6 +18,7 @@ export const SC13_OPERATORS = [
   { value: "lt", label: "Less than" },
 ] as const;
 export const SC13_MEANING = "Latest reported values in complete stored filing history; not real-time ownership or a complete SEC-wide history. All conditions apply to the same reporting person and security.";
+export const SC13_ALL_MEANING = "Each reporting person is evaluated separately using values in that filing only, including people without a verified CIK. No holdings are combined or identities inferred across filings. Not real-time ownership.";
 export type Sc13TargetChoice = Readonly<{ id: string; name: string; issuerName: string | null; identitySupplemented: boolean; identityProvenance?: Sc13VerifiedReporterIdentity; target: Sc13MonitorTarget }>;
 export type Sc13AlertSource = Readonly<{ accessionNumber: string; issuerName: string | null; sourceUrl: string; formType: string; eventDate: string; filedAt: string | null }>;
 export type Sc13DisplayAlert = Sc13MonitorAlertItem & Readonly<{ sources: readonly Sc13AlertSource[] }>;
@@ -34,6 +35,19 @@ export function sc13TargetChoices(snapshot: StockSc13OwnershipSnapshot): readonl
   return choices.filter((choice) => choices.filter((other) => other.id === choice.id).length === 1);
 }
 
+export function sc13AllReporterTargetChoices(snapshot: StockSc13OwnershipSnapshot): readonly Sc13TargetChoice[] {
+  if (snapshot.status !== "available" || !snapshot.historyComplete) return [];
+  const choices = snapshot.positions.flatMap((position) => {
+    if (!position.history.length) return [];
+    const parsed = validateSc13MonitorTarget({ issuerCik: snapshot.issuerCik, reportingPersonScope: "all", securityClass: position.securityClass, cusips: position.cusips });
+    if (!parsed.ok || !parsed.target) return [];
+    return [{ id: JSON.stringify(parsed.target), name: "All reporting persons", issuerName: position.issuerName ?? position.history.at(-1)?.issuerName ?? null, identitySupplemented: false, target: parsed.target }];
+  });
+  const unique = [...new Map(choices.map((choice) => [choice.id, choice])).values()];
+  // An overlapping CUSIP mapped to contradictory securities is not an exact target.
+  return unique.filter((choice) => !unique.some((other) => other.id !== choice.id && other.target.cusips.some((cusip) => choice.target.cusips.includes(cusip))));
+}
+
 export function sc13ConditionText(condition: { key: string; operator: string; value?: string; threshold?: string }) {
   return `${SC13_FIELDS.find((field) => field.key === condition.key)?.label ?? condition.key} ${SC13_OPERATORS.find((operator) => operator.value === condition.operator)?.label.toLowerCase() ?? condition.operator} ${condition.value ?? condition.threshold ?? ""}`;
 }
@@ -41,11 +55,19 @@ export function sc13ConditionText(condition: { key: string; operator: string; va
 /** Display only internally consistent immutable match evidence; never repair it. */
 export function isSc13AlertEvidenceConsistent(alert: Sc13MonitorAlertItem): boolean {
   const evidence = alert.evidence;
-  if (!evidence || evidence.scope !== "complete_stored_history_not_sec_global" || evidence.meaning !== "latest_saved_filing_value_not_realtime_ownership") return false;
-  const parsed = validateSc13MonitorTarget({ issuerCik: evidence.issuerCik, reportingPersonCik: evidence.reportingPersonCik, securityClass: evidence.securityClass, cusips: evidence.cusips });
+  if (!evidence) return false;
+  const all = evidence.reporterScope === "all";
+  if (all ? evidence.scope !== "single_stored_filing" || evidence.meaning !== "reported_filing_value_not_realtime_ownership"
+    : evidence.scope !== "complete_stored_history_not_sec_global" || evidence.meaning !== "latest_saved_filing_value_not_realtime_ownership") return false;
+  const parsed = validateSc13MonitorTarget({ issuerCik: evidence.issuerCik, ...(all ? { reportingPersonScope: "all" } : { reportingPersonCik: evidence.reportingPersonCik }), securityClass: evidence.securityClass, cusips: evidence.cusips });
   if (!parsed.ok || !parsed.target || typeof evidence.reportingPersonNameRaw !== "string" || typeof evidence.positionKey !== "string" || !evidence.positionKey) return false;
-  if (parsed.target.issuerCik !== evidence.issuerCik || parsed.target.reportingPersonCik !== evidence.reportingPersonCik || parsed.target.securityClass !== evidence.securityClass || JSON.stringify(parsed.target.cusips) !== JSON.stringify(evidence.cusips)) return false;
-  if (!/^\d{10}-\d{2}-\d{6}$/.test(evidence.rootAccessionNumber) || !/^\d{10}-\d{2}-\d{6}$/.test(evidence.headAccessionNumber)) return false;
+  if (parsed.target.issuerCik !== evidence.issuerCik || (!all && parsed.target.reportingPersonCik !== evidence.reportingPersonCik) || parsed.target.securityClass !== evidence.securityClass || JSON.stringify(parsed.target.cusips) !== JSON.stringify(evidence.cusips)) return false;
+  if (!/^\d{10}-\d{2}-\d{6}$/.test(evidence.headAccessionNumber)) return false;
+  if (all ? evidence.rootAccessionNumber !== null || !Number.isInteger(evidence.reportingPersonIndex) || evidence.reportingPersonIndex < 0 || evidence.reportingPersonIndex >= 100
+    || evidence.reportingPersonIndex !== alert.reportingPersonIndex || !/^[a-f0-9]{64}$/.test(evidence.sourceSha256)
+    || (evidence.reportingPersonCik !== null && !/^\d{10}$/.test(evidence.reportingPersonCik))
+    || evidence.positionKey !== `filing:${evidence.headAccessionNumber}:reporter:${evidence.reportingPersonIndex}`
+    : !/^\d{10}-\d{2}-\d{6}$/.test(evidence.rootAccessionNumber)) return false;
   if (alert.rootAccessionNumber !== evidence.rootAccessionNumber || alert.headAccessionNumber !== evidence.headAccessionNumber || alert.reportingPersonCik !== evidence.reportingPersonCik || alert.securityClass !== evidence.securityClass || JSON.stringify(alert.cusips) !== JSON.stringify(evidence.cusips)) return false;
   if (!Array.isArray(evidence.conditions) || !evidence.conditions.length || evidence.conditions.some((condition) => !condition || typeof condition !== "object")) return false;
   const identity = evidence.reportingPersonIdentity;

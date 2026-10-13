@@ -5,6 +5,7 @@ import {
   normalizeSc13SecurityClass,
   type CanonicalSc13MonitorCondition,
   type Sc13Monitor,
+  validateCanonicalSc13Conditions,
 } from "./monitor/sc13MonitorPersistence.ts";
 import type { Sc13IssuerCurrentStateRead } from "./sec-sc13-xml/currentState.ts";
 import type { Sc13CurrentFieldKey, Sc13StoredPosition } from "./sec-sc13-xml/lineage.ts";
@@ -19,7 +20,10 @@ export type Sc13MonitorMatchReasonCode =
   | "position_identity_ambiguous" | "reporter_identity_mismatch" | "reporter_identity_ambiguous"
   | "current_value_unresolved" | "current_provenance_invalid";
 
-export type Sc13MonitorMatchEvidence = Readonly<{
+export type Sc13SpecificMatchEvidence = Readonly<{
+  reporterScope?: never;
+  reportingPersonIndex?: never;
+  sourceSha256?: never;
   reportingPersonIdentity?: Sc13VerifiedReporterIdentity;
   scope: "complete_stored_history_not_sec_global";
   meaning: "latest_saved_filing_value_not_realtime_ownership";
@@ -36,6 +40,16 @@ export type Sc13MonitorMatchEvidence = Readonly<{
     valueRaw: string; sourceAccessionNumber: string;
   }>[];
 }>;
+export type Sc13FilingReporterMatchEvidence = Omit<Sc13SpecificMatchEvidence, "reporterScope" | "reportingPersonIndex" | "sourceSha256" | "scope" | "meaning" | "rootAccessionNumber" | "reportingPersonCik"> & Readonly<{
+  reporterScope: "all";
+  reportingPersonIndex: number;
+  sourceSha256: string;
+  scope: "single_stored_filing";
+  meaning: "reported_filing_value_not_realtime_ownership";
+  rootAccessionNumber: null;
+  reportingPersonCik: string | null;
+}>;
+export type Sc13MonitorMatchEvidence = Sc13SpecificMatchEvidence | Sc13FilingReporterMatchEvidence;
 
 export type Sc13MonitorMatchResult = Readonly<{
   version: typeof SC13_MONITOR_MATCHER_VERSION;
@@ -59,6 +73,7 @@ export function evaluateSc13Monitor(
   state: Sc13IssuerCurrentStateRead,
   monitor: Sc13Monitor,
 ): Sc13MonitorMatchResult {
+  if (monitor.target.reportingPersonScope === "all") return allIneligible(monitor, "current_provenance_invalid");
   if (!monitor.conditions.length) return result("ineligible", "condition_set_empty", []);
   if (state.status !== "available") {
     const reason = state.status === "unavailable" ? state.reason : "issuer_history_empty";
@@ -109,6 +124,60 @@ export function evaluateSc13Monitor(
       })),
     },
   };
+}
+
+/** All-reporters mode evaluates only the triggering canonical filing, never identity across filings. */
+export function evaluateSc13FilingReporters(state: Sc13IssuerCurrentStateRead, monitor: Sc13Monitor,
+  source?: Readonly<{ accessionNumber: string; sourceSha256: string }>): readonly Sc13MonitorMatchResult[] {
+  const fail = (reason: Sc13MonitorMatchReasonCode) => [result("ineligible", reason, Array.isArray(monitor.conditions)
+    ? monitor.conditions.map((condition) => conditionResult(typeof condition?.key === "string" ? condition.key : "", "ineligible", reason)) : [])];
+  if (monitor.target.reportingPersonScope !== "all" || !source || !/^\d{10}-\d{2}-\d{6}$/.test(source.accessionNumber) || !/^[a-f0-9]{64}$/.test(source.sourceSha256)) return fail("current_provenance_invalid");
+  if (state.status !== "available") return fail("reader_not_ready");
+  if (state.issuerCik !== monitor.target.issuerCik) return fail("issuer_identity_mismatch");
+  const filings = state.history.filter((read) => read.filing.accession_number === source.accessionNumber);
+  if (filings.length !== 1) return fail("position_identity_ambiguous");
+  const read = filings[0]!, filing = read.filing;
+  if (filing.issuer_cik !== monitor.target.issuerCik || filing.source_sha256 !== source.sourceSha256
+    || read.structural.status !== "parsed" || read.structural.source.sha256 !== source.sourceSha256
+    || normalizeSc13SecurityClass(filing.security_class_raw) !== monitor.target.securityClass
+    || !sameStrings(normalizeSc13Cusips(filing.cusips_raw), monitor.target.cusips)) return fail("position_identity_mismatch");
+  if (state.history.some((other) => {
+    const otherCusips = normalizeSc13Cusips(other.filing.cusips_raw);
+    return otherCusips?.some((cusip) => monitor.target.cusips.includes(cusip))
+      && (normalizeSc13SecurityClass(other.filing.security_class_raw) !== monitor.target.securityClass || !sameStrings(otherCusips, monitor.target.cusips));
+  })) return fail("position_identity_ambiguous");
+  if (!Array.isArray(monitor.conditions) || !monitor.conditions.length) return fail("condition_set_empty");
+  if (!validateCanonicalSc13Conditions(monitor.conditions).ok) return fail("condition_invalid");
+  const fields: Record<string, string> = { "sc13.aggregate_owned": "aggregate_amount_owned_raw", "sc13.percent_of_class": "percent_of_class_raw",
+    "sc13.sole_voting": "sole_voting_power_raw", "sc13.shared_voting": "shared_voting_power_raw", "sc13.sole_dispositive": "sole_dispositive_power_raw", "sc13.shared_dispositive": "shared_dispositive_power_raw" };
+  return read.reporters.map((reporter, index) => {
+    if (reporter.reporting_person_index !== index || reporter.accession_number !== source.accessionNumber || typeof reporter.reporting_person_name_raw !== "string") return allIneligible(monitor, "reporter_identity_mismatch");
+    const conditions = monitor.conditions.map((condition) => {
+      if (!condition || typeof condition !== "object") return conditionResult("", "ineligible", "condition_invalid");
+      const validation = validateMonitorConditionInput(condition)[0];
+      const field = fields[condition.key], value = reporter[field];
+      if (validation || !field || getReadyMonitorCondition(condition.key)?.family !== "sc13") return conditionResult(condition.key, "ineligible", validation || "condition_key_unknown");
+      let matched: boolean | null;
+      try {
+        if (typeof value !== "string" || !validActual(condition.key, value)) return conditionResult(condition.key, "ineligible", "current_value_unresolved");
+        matched = compareOrdering(compareExactDecimals(value, condition.value), condition.operator);
+      } catch { return conditionResult(condition.key, "ineligible", "condition_value_invalid"); }
+      if (matched === null) return conditionResult(condition.key, "ineligible", "condition_operator_unknown");
+      return conditionResult(condition.key, matched ? "match" : "no_match", matched ? "all_conditions_match" : "condition_not_met", value, source.accessionNumber);
+    });
+    const failed = conditions.find((condition) => condition.status !== "match");
+    if (failed) return result(failed.status, failed.reasonCode, conditions);
+    const supplement = read.verifiedReporterIdentity?.reportingPersonIndex === index ? read.verifiedReporterIdentity : undefined;
+    const cik = typeof reporter.reporting_person_cik === "string" ? reporter.reporting_person_cik : supplement?.reportingPersonCik ?? null;
+    return { ...result("match", "all_conditions_match", conditions), evidence: {
+      reporterScope: "all" as const, reportingPersonIndex: index, sourceSha256: source.sourceSha256,
+      scope: "single_stored_filing" as const, meaning: "reported_filing_value_not_realtime_ownership" as const,
+      positionKey: `filing:${source.accessionNumber}:reporter:${index}`, rootAccessionNumber: null, headAccessionNumber: source.accessionNumber,
+      issuerCik: monitor.target.issuerCik, reportingPersonCik: cik, reportingPersonNameRaw: reporter.reporting_person_name_raw,
+      ...(supplement ? { reportingPersonIdentity: supplement } : {}), securityClass: monitor.target.securityClass, cusips: monitor.target.cusips,
+      conditions: conditions.map((condition, i) => ({ key: condition.key, operator: monitor.conditions[i]!.operator, threshold: monitor.conditions[i]!.value, valueRaw: condition.valueRaw!, sourceAccessionNumber: source.accessionNumber })),
+    } };
+  });
 }
 
 function evaluateCondition(

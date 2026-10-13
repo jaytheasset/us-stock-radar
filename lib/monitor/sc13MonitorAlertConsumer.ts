@@ -1,4 +1,4 @@
-import { evaluateSc13Monitor, type Sc13MonitorMatchEvidence, type Sc13MonitorMatchReasonCode, type Sc13MonitorMatchStatus } from "../sc13MonitorMatcher.ts";
+import { evaluateSc13Monitor, evaluateSc13FilingReporters, type Sc13MonitorMatchEvidence, type Sc13MonitorMatchReasonCode, type Sc13MonitorMatchStatus } from "../sc13MonitorMatcher.ts";
 import { readSc13IssuerCurrentState, type Sc13IssuerCurrentStateRead } from "../sec-sc13-xml/currentState.ts";
 import {
   listActiveSc13MonitorsForConsumer,
@@ -43,7 +43,7 @@ const defaultDependencies: Sc13MonitorAlertConsumerDependencies = {
 
 /** Deterministic service consumer entry. It never invokes site analysis, an LLM, or an external sender. */
 export async function consumeSc13MonitorAlertsForIssuer(
-  input: Readonly<{ issuerCik: string; preloadedState?: Sc13IssuerCurrentStateRead }>,
+  input: Readonly<{ issuerCik: string; preloadedState?: Sc13IssuerCurrentStateRead; filingSource?: { accessionNumber: string; sourceSha256: string } }>,
   dependencies: Sc13MonitorAlertConsumerDependencies = defaultDependencies,
 ): Promise<Sc13MonitorAlertConsumerResult> {
   const monitors = await dependencies.listActiveMonitors(input.issuerCik);
@@ -53,7 +53,8 @@ export async function consumeSc13MonitorAlertsForIssuer(
   } catch {
     state = { status: "unavailable", issuerCik: null, historyComplete: false, reason: "reader_unavailable" };
   }
-  const evaluations = monitors.monitors.map((monitor) => ({ monitor, result: evaluateSc13Monitor(state, monitor) }));
+  const evaluations = monitors.monitors.flatMap((monitor) => (monitor.target.reportingPersonScope === "all"
+    ? evaluateSc13FilingReporters(state, monitor, input.filingSource) : [evaluateSc13Monitor(state, monitor)]).map((result) => ({ monitor, result })));
   const writes: Sc13MonitorAlertWriteResult[] = [];
   for (const evaluation of evaluations) {
     if (evaluation.result.status !== "match" || !evaluation.result.evidence) continue;
@@ -83,9 +84,10 @@ async function createSc13MonitorAlert(input: Readonly<{
   monitor: Sc13Monitor; evidence: Sc13MonitorMatchEvidence; createdAt: string;
 }>): Promise<Sc13MonitorAlertWriteResult> {
   const { monitor, evidence } = input;
+  const all = monitor.target.reportingPersonScope === "all";
   if (
     monitor.target.issuerCik !== evidence.issuerCik
-    || monitor.target.reportingPersonCik !== evidence.reportingPersonCik
+    || (all ? evidence.reporterScope !== "all" : evidence.reporterScope === "all" || monitor.target.reportingPersonCik !== evidence.reportingPersonCik)
     || monitor.target.securityClass !== evidence.securityClass
     || !sameStrings(monitor.target.cusips, evidence.cusips)
     || evidence.conditions.length !== monitor.conditions.length
@@ -95,7 +97,7 @@ async function createSc13MonitorAlert(input: Readonly<{
     user_id: monitor.userId,
     alert_event_id: null,
     ticker: null,
-    title: "SC13 Monitor matched a latest saved filing value (not real-time ownership)",
+    title: all ? "SC13 Monitor matched a reported filing value (not real-time ownership)" : "SC13 Monitor matched a latest saved filing value (not real-time ownership)",
     category: "insider_ownership",
     source_type: "other",
     source_label: "Schedule 13 Monitor",
@@ -115,11 +117,12 @@ async function createSc13MonitorAlert(input: Readonly<{
     sc13_root_accession: evidence.rootAccessionNumber,
     sc13_head_accession: evidence.headAccessionNumber,
     sc13_reporter_cik: evidence.reportingPersonCik,
+    ...(evidence.reporterScope === "all" ? { sc13_reporter_index: evidence.reportingPersonIndex } : {}),
     sc13_security_class: evidence.securityClass,
     sc13_cusips: evidence.cusips,
     sc13_match_evidence: evidence,
   }, {
-    onConflict: "sc13_monitor_id,sc13_root_accession,sc13_position_key,sc13_reporter_cik",
+    onConflict: all ? "sc13_monitor_id,sc13_head_accession,sc13_reporter_index" : "sc13_monitor_id,sc13_root_accession,sc13_position_key,sc13_reporter_cik",
     prefer: "resolution=ignore-duplicates,return=representation",
   });
   if (!result.ok) return { status: "failed", monitorId: monitor.id, error: result.error || `HTTP ${result.status}` };
@@ -130,9 +133,10 @@ async function createSc13MonitorAlert(input: Readonly<{
 export type Sc13MonitorAlertItem = Readonly<{
   id: string;
   monitorId: string;
-  rootAccessionNumber: string;
+  rootAccessionNumber: string | null;
   headAccessionNumber: string;
-  reportingPersonCik: string;
+  reportingPersonCik: string | null;
+  reportingPersonIndex?: number;
   securityClass: string;
   cusips: readonly string[];
   evidence: Sc13MonitorMatchEvidence;
@@ -154,9 +158,14 @@ export async function listSc13MonitorAlertsForOwner(
     const id = text(row.id), rowMonitorId = text(row.sc13_monitor_id), root = text(row.sc13_root_accession);
     const head = text(row.sc13_head_accession), reporter = text(row.sc13_reporter_cik), securityClass = text(row.sc13_security_class);
     const cusips = stringArray(row.sc13_cusips), createdAt = text(row.created_at), evidence = parseEvidence(row.sc13_match_evidence);
-    return UUID_PATTERN.test(id) && UUID_PATTERN.test(rowMonitorId) && ACCESSION_PATTERN.test(root) && ACCESSION_PATTERN.test(head)
-      && /^\d{10}$/.test(reporter) && securityClass.length > 0 && cusips.length > 0 && evidence && Number.isFinite(Date.parse(createdAt))
-      ? [{ id, monitorId: rowMonitorId, rootAccessionNumber: root, headAccessionNumber: head, reportingPersonCik: reporter, securityClass, cusips, evidence, createdAt }]
+    const all = evidence?.reporterScope === "all";
+    const validIdentity = all ? row.sc13_root_accession === null && (row.sc13_reporter_cik === null || /^\d{10}$/.test(reporter))
+      && Number.isInteger(row.sc13_reporter_index) && Number(row.sc13_reporter_index) >= 0 && row.sc13_reporter_index === evidence.reportingPersonIndex
+      : ACCESSION_PATTERN.test(root) && /^\d{10}$/.test(reporter) && row.sc13_reporter_index == null;
+    return UUID_PATTERN.test(id) && UUID_PATTERN.test(rowMonitorId) && validIdentity && ACCESSION_PATTERN.test(head)
+      && securityClass.length > 0 && cusips.length > 0 && evidence && Number.isFinite(Date.parse(createdAt))
+      ? [{ id, monitorId: rowMonitorId, rootAccessionNumber: all ? null : root, headAccessionNumber: head, reportingPersonCik: row.sc13_reporter_cik === null ? null : reporter,
+        ...(all ? { reportingPersonIndex: Number(row.sc13_reporter_index) } : {}), securityClass, cusips, evidence, createdAt }]
       : [];
   });
 }
@@ -164,14 +173,16 @@ export async function listSc13MonitorAlertsForOwner(
 async function resolveAlertRepository(): Promise<Sc13MonitorAlertReadRepository> {
   const supabase = await import("../supabase.ts");
   return { list: ({ ownerId, monitorId }) => supabase.supabaseSelect("user_alert_deliveries", {
-    select: "id,sc13_monitor_id,sc13_root_accession,sc13_head_accession,sc13_reporter_cik,sc13_security_class,sc13_cusips,sc13_match_evidence,created_at",
+    select: "id,sc13_monitor_id,sc13_root_accession,sc13_head_accession,sc13_reporter_cik,sc13_reporter_index,sc13_security_class,sc13_cusips,sc13_match_evidence,created_at",
     user_id: `eq.${ownerId}`, alert_domain: "eq.sc13", alert_lane: "eq.sc13_monitor",
     ...(monitorId ? { sc13_monitor_id: `eq.${monitorId}` } : {}), order: "delivered_at.desc,id.desc", limit: "100",
   }) };
 }
 
 function parseEvidence(value: unknown): Sc13MonitorMatchEvidence | null {
-  if (!record(value) || value.scope !== "complete_stored_history_not_sec_global" || value.meaning !== "latest_saved_filing_value_not_realtime_ownership") return null;
+  if (!record(value)) return null;
+  if (value.reporterScope === "all" ? value.scope !== "single_stored_filing" || value.meaning !== "reported_filing_value_not_realtime_ownership"
+    : value.scope !== "complete_stored_history_not_sec_global" || value.meaning !== "latest_saved_filing_value_not_realtime_ownership") return null;
   if (!Array.isArray(value.conditions) || value.conditions.length === 0) return null;
   return value as Sc13MonitorMatchEvidence;
 }

@@ -29,7 +29,7 @@ export type Sc13MonitorAutomaticTriggerDependencies = Readonly<{
     error?: string;
     result: Record<string, unknown>;
   }>): Promise<string>;
-  consume(input: Readonly<{ issuerCik: string }>): Promise<Sc13MonitorAlertConsumerResult>;
+  consume(input: Readonly<{ issuerCik: string; filingSource?: { accessionNumber: string; sourceSha256: string } }>): Promise<Sc13MonitorAlertConsumerResult>;
   reportFailure(result: Sc13MonitorAutomaticTriggerResult): void;
 }>;
 
@@ -46,7 +46,7 @@ const defaultDependencies: Sc13MonitorAutomaticTriggerDependencies = {
  * or site-analysis success.
  */
 export async function runSc13MonitorAutomaticTrigger(
-  input: Readonly<{ rawItemId: string; issuerCik: string; sourceSha256: string }>,
+  input: Readonly<{ rawItemId: string; issuerCik: string; sourceSha256: string; accessionNumber?: string }>,
   dependencies: Sc13MonitorAutomaticTriggerDependencies = defaultDependencies,
 ): Promise<Sc13MonitorAutomaticTriggerResult> {
   let attempt: Attempt | null = null;
@@ -73,7 +73,7 @@ export async function runSc13MonitorAutomaticTrigger(
   let consumer: Sc13MonitorAlertConsumerResult | undefined;
   let executionError = "";
   try {
-    consumer = await dependencies.consume({ issuerCik: input.issuerCik });
+    consumer = await dependencies.consume({ issuerCik: input.issuerCik, ...(input.accessionNumber ? { filingSource: { accessionNumber: input.accessionNumber, sourceSha256: input.sourceSha256 } } : {}) });
     if (consumer.status !== "completed") {
       executionError = consumer.status === "partial_failure"
         ? `SC13 Monitor Alert persistence failed for ${consumer.failedCount} monitor(s)`
