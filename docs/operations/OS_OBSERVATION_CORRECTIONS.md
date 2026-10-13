@@ -116,8 +116,18 @@ Final candidate verification:
   retained Unicode, zero horizontal overflow and zero console errors.
 - Anonymous GET/POST return 401; foreign-origin POST returns 403; responses
   remain no-store. The existing ordinary actor is denied by the real DB role
-  gate. A real authenticated non-Operations browser/API session was not
-  available and remains **unverified**, distinct from the DB and route tests.
+  gate. Main subsequently verified normal UI logout and login with the existing
+  ordinary account: the exact administrator page required login while logged
+  out, then denied the ordinary account with `reason=admin_required`. The
+  existing Operations login was restored through the normal UI. No accounts,
+  passwords or roles were changed, and no tokens were injected; normal Auth
+  session writes are separate from the unchanged product-data checks.
+- Authenticated API role-specific GET/POST remain **unverified**. An ordinary
+  account's address-bar GET returned 403 at the origin gate before user lookup
+  (2026-10-13 12:07:22.631 UTC), so it is not evidence of an API role denial.
+  The browser reported `ERR_BLOCKED_BY_CLIENT` for that probe; it was not
+  retried or bypassed. This is distinct from the zero-error normal Operations
+  correction flow and from the existing DB/route permission tests.
 - No real provider/GPT, new SEC collection, worker queue, external alert,
   shared/remote DB write, main merge, push or deployment was performed.
 
