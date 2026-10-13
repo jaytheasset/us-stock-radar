@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **Periodic Financial Monitor — minimal UI candidate** — existing no-target conditions, immutable financial match evidence, retained actual Silvaco10-Q validation and source/runtime limits: [`operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md`](operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md).
+
 - **Secondary Monitor alert evidence — stage 1 candidate** — immutable common display contract, Form144-only adapter, retained AMCOR/owner/browser verification and deferred families: [`operations/SECONDARY_MONITOR_EVIDENCE_STAGE1.md`](operations/SECONDARY_MONITOR_EVIDENCE_STAGE1.md).
 
 - **SEC / Kiwoom ticker verification — final local architecture and runbook** — independent A/B/C evidence, append-only comparison, current-state semantics and completed local/isolated verification boundaries: [architecture/TICKER_VERIFICATION.md](architecture/TICKER_VERIFICATION.md), [operations/TICKER_VERIFICATION_RUNBOOK.md](operations/TICKER_VERIFICATION_RUNBOOK.md). Earlier stage documents remain historical; no ticker authority or push/deploy claim.
