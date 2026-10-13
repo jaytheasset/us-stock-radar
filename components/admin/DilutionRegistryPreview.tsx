@@ -345,7 +345,7 @@ function RegistryPreview({
 
       {osPreviewRows.length ? (
         <PreviewSection
-          description="Source-bound O/S candidates only. These rows are never saved, summed, corrected, or used as an issuer total."
+          description="Source-bound O/S candidates. Apply saves verified observations to share-count history. Original observations are preserved; source-backed corrections are managed in Saved Shares Outstanding."
           title="Shares Outstanding"
         >
           <div className={styles.osList}>

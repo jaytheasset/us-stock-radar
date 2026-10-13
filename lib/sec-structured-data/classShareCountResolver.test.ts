@@ -109,7 +109,7 @@ test("I. identical input replay produces the exact deterministic result", async 
 test("official reader receives exact class and target-date filters and fails closed on read error", async () => {
   const repository = new StaticHistoryRepository([]);
   await resolveClassShareCountAt({ repository, cik: CIK, securityClassId: SINGLE, targetAt: TARGET });
-  assert.deepEqual(repository.lastFilter, { asOfTo: "2026-08-20", canonicalSecurityClassId: SINGLE });
+  assert.deepEqual(repository.lastFilter, { asOfTo: "2026-08-20", canonicalSecurityClassId: SINGLE, effectiveDates: true });
   const failed = await resolveClassShareCountAt({
     repository: { insertObservation: async () => false, readHistory: async () => { throw new Error("DB"); } },
     cik: CIK,
@@ -157,7 +157,7 @@ class StaticHistoryRepository implements ShareCountHistoryRepository {
     this.lastFilter = structuredClone(filter);
     return this.rows
       .filter((row) => row.issuerCik === cik)
-      .filter((row) => !this.honorFilter || !filter.asOfTo || row.asOf <= filter.asOfTo)
+      .filter((row) => !this.honorFilter || !filter.asOfTo || (filter.effectiveDates ? row.correction?.asOf ?? row.asOf : row.asOf) <= filter.asOfTo)
       .filter((row) => !this.honorFilter || !filter.canonicalSecurityClassId
         || row.canonicalSecurityClassId === filter.canonicalSecurityClassId)
       .map((row) => structuredClone(row));

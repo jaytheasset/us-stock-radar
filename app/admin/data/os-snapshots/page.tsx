@@ -41,6 +41,7 @@ export default async function OsSnapshotsPage({ searchParams }: { searchParams: 
       </header>
       {m.commonInvocation&&<p>공통 호출 {m.commonInvocation.id}의 O/S 직접 추출 결과입니다.</p>}
       {offeringRunId&&<p><Link href={`/admin/data/offering-plans?id=${offeringRunId}`}>같은 공시의 Offering 직접 추출 결과 보기</Link></p>}
+      <p><Link href={`/admin/data/dilution-registry?osRun=${selected.run.id}`}>View saved O/S observations and corrections</Link></p>
       <div className={ui.notice} aria-label="최근 관리자 결정">
         <strong>최근 검토: {latest ? actions[latest.action] ?? latest.action : '아직 없음'}</strong>
         {latest && <>{latest.action === 'approve' && <p>{candidateNames(latest.candidate_indexes)}</p>}<p>{latest.reason}</p><small>{displayTime(latest.created_at)}</small></>}

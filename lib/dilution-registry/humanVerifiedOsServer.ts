@@ -42,6 +42,7 @@ const HISTORY_SELECT = [
   "source_document_url", "source_content_hash", "source_evidence",
   "source_analyzer", "created_at",
   "snapshot_publication_valid",
+  "os_correction",
 ].join(",");
 
 const UNIVERSE_SELECT = [
@@ -99,11 +100,12 @@ implements ShareCountHistoryRepository {
       order: "as_of.asc,accepted_at.asc,accession_number.asc,id.asc",
       select: HISTORY_SELECT,
     };
-    if (filter.asOfFrom) search.as_of = `gte.${filter.asOfFrom}`;
-    if (filter.asOfTo) search.as_of = `lte.${filter.asOfTo}`;
+    const dateField = filter.effectiveDates ? "effective_as_of" : "as_of";
+    if (filter.asOfFrom) search[dateField] = `gte.${filter.asOfFrom}`;
+    if (filter.asOfTo) search[dateField] = `lte.${filter.asOfTo}`;
     if (filter.asOfFrom && filter.asOfTo) {
-      search.and = `(as_of.gte.${filter.asOfFrom},as_of.lte.${filter.asOfTo})`;
-      delete search.as_of;
+      search.and = `(${dateField}.gte.${filter.asOfFrom},${dateField}.lte.${filter.asOfTo})`;
+      delete search[dateField];
     }
     if (filter.securityClassCanonicalKey) {
       search["security_class_identity->>canonicalKey"] =
