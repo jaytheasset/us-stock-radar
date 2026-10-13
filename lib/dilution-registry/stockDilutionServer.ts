@@ -117,6 +117,7 @@ const SHARE_HISTORY_SELECT = [
   "source_content_hash",
   "source_evidence",
   "source_analyzer",
+  "snapshot_publication_valid",
   "created_at",
 ].join(",");
 
@@ -229,11 +230,11 @@ class SupabaseShareCountReadClient implements ShareCountHistorySqlClient {
       throw new Error("The dilution O/S adapter is read only");
     }
     let rows: Record<string, unknown>[];
-    if (/\bfrom\s+public\.share_count_history\b/i.test(text)) {
+    if (/\bfrom\s+public\.share_count_history_eligible\b/i.test(text)) {
       const [cik, asOfFrom, asOfTo, classKey, classId] = values;
       const asOfFromText = readFilterValue(asOfFrom);
       const asOfToText = readFilterValue(asOfTo);
-      rows = await selectRows("share_count_history", compactSearch({
+      rows = await selectRows("share_count_history_eligible", compactSearch({
         and: asOfFromText && asOfToText
           ? `(as_of.gte.${asOfFromText},as_of.lte.${asOfToText})`
           : "",

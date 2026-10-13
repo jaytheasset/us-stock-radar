@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import {OS_SNAPSHOT_HISTORY_SOURCE,validateOsSnapshotHistory} from './osSnapshotHistoryContract.ts';
 import type {
   SecAuthoritativeOsDecision,
   SecAuthoritativeOsEligibleDecision,
@@ -66,6 +67,7 @@ type ShareCountHistoryObservationCommon = {
     | typeof SHARE_COUNT_HISTORY_SOURCE_TYPE
     | "sec_filing_text_level2"
     | typeof HUMAN_VERIFIED_SHARE_COUNT_HISTORY_SOURCE_TYPE
+    | typeof OS_SNAPSHOT_HISTORY_SOURCE
     | typeof PROSPECTUS_TEXT_AUTHORITATIVE_OS_SOURCE_TYPE;
   authoritativeStatus: "ELIGIBLE" | null;
   authoritativeDecisionVersion:
@@ -178,7 +180,14 @@ export type ShareCountHistoryObservation =
   | AuthoritativeShareCountHistoryObservation
   | Level2ShareCountHistoryObservation
   | HumanVerifiedShareCountHistoryObservation
-  | ProspectusTextAuthoritativeShareCountHistoryObservation;
+  | ProspectusTextAuthoritativeShareCountHistoryObservation
+  | SnapshotShareCountHistoryObservation;
+
+export type SnapshotShareCountHistoryObservation = Omit<HumanVerifiedShareCountHistoryObservation,'sourceType'> & {
+  sourceType: typeof OS_SNAPSHOT_HISTORY_SOURCE;
+  /** Read-time database projection only; never persisted as proof of future validity. */
+  sourcePublicationCurrent?: boolean;
+};
 
 export type ShareCountHistoryWriteResult = { inserted: number; deduped: number };
 
@@ -654,8 +663,8 @@ export class PostgresShareCountHistoryRepository implements ShareCountHistoryRep
               source_provenance, source_type, authoritative_status,
               authoritative_decision_version, authoritative_decision_reason,
               authoritative_decision_lineage, source_document_url, source_content_hash,
-              source_evidence, source_analyzer, created_at::text
-       from public.share_count_history
+              source_evidence, source_analyzer, created_at::text, snapshot_publication_valid
+       from public.share_count_history_eligible
        where issuer_cik = $1
          and ($2::date is null or as_of >= $2::date)
          and ($3::date is null or as_of <= $3::date)
@@ -894,6 +903,7 @@ function validateObservation(row: ShareCountHistoryObservation) {
   const classIdentity = row.securityClassIdentity.identity;
   if (!compact(String(row.securityClassIdentity.canonicalKey ?? ""))) throw new Error("security-class identity is incomplete");
   validateCanonicalSecurityClass(row);
+  if(row.sourceType===OS_SNAPSHOT_HISTORY_SOURCE){validateOsSnapshotHistory(row);return;}
   if (row.sourceType === "sec_filing_text_level2") {
     validateLevel2Observation(row);
     return;
@@ -1299,6 +1309,7 @@ export function mapShareCountHistoryDatabaseRow(
     sourceFactIdentity: jsonRecord(row.source_fact_identity), sourceContext: jsonRecord(row.source_context),
     sourceDimensions: jsonArray(row.source_dimensions), sourceProvenance: jsonRecord(row.source_provenance),
     sourceType: String(row.source_type),
+    ...(row.source_type===OS_SNAPSHOT_HISTORY_SOURCE?{sourcePublicationCurrent:row.snapshot_publication_valid===true}:{}),
     authoritativeStatus: nullableStoredString(row.authoritative_status),
     authoritativeDecisionVersion: nullableStoredString(row.authoritative_decision_version),
     authoritativeDecisionReason: nullableStoredString(row.authoritative_decision_reason),

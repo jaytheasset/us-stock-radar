@@ -1,11 +1,12 @@
 import {offeringPlanRunSaved} from '../monitor/offeringPlanTrigger.ts';
+import {osSnapshotRunSaved} from '../sec-os-snapshot/historyPublication.ts';
 import {sha} from '../sec-os-snapshot/contract.ts';
 import type {OfferingProvider} from '../sec-offering-plan/runtime.ts';
 import {combinedBinding,validateCombinedResponse} from './contract.ts';
 import {hydrateCombined,repository,rpc,type Repository} from './repository.ts';
 export async function processCombinedOffering(id:string,provider:OfferingProvider,supplied?:Repository){
  const repo=supplied??await repository(),claimed=await rpc(repo,'sec_combined_offering_transition',{p_id:id,p_action:'claim'});
- if(!claimed.claimed){if(claimed.status==='COMPLETE')await offeringPlanRunSaved(id,repo);return {status:claimed.status};}
+ if(!claimed.claimed){if(claimed.status==='COMPLETE')await offeringPlanRunSaved(id,repo);return {status:claimed.status,...(claimed.status==='COMPLETE'?{historyPublication:await osSnapshotRunSaved(id,repo)}:{})};}
  const token=String(claimed.token),transition=(action:string,value?:unknown)=>rpc(repo,'sec_combined_offering_transition',{p_id:id,p_action:action,p_token:token,p_value:value??null});
  let leaseError:unknown;const heartbeat=setInterval(()=>{void transition('heartbeat').catch(e=>{leaseError=e;});},20000);
  try{
@@ -27,6 +28,6 @@ export async function processCombinedOffering(id:string,provider:OfferingProvide
   }
   const saved=await transition('finish');
   if(saved.status==='COMPLETE')await offeringPlanRunSaved(id,repo);
-  return saved;
+  return {...saved,...(saved.status==='COMPLETE'?{historyPublication:await osSnapshotRunSaved(id,repo)}:{})};
  }finally{clearInterval(heartbeat);}
 }
