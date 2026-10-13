@@ -45,6 +45,7 @@ declare global {
 const actualBridgeUrl = pathToFileURL(
   path.resolve(process.cwd(), "lib/secPeriodicOsTriggerBridge.ts"),
 ).href;
+const actualFormsUrl = pathToFileURL(path.resolve(process.cwd(), "lib/sources/sec/forms/common/forms.ts")).href;
 
 const mocks = new Map<string, string>([
   ["@/lib/monitor/offeringPlanTrigger", dataModule(`
@@ -260,16 +261,17 @@ const mocks = new Map<string, string>([
     }
   `)],
   ["@/lib/sources/sec/forms/common/forms", dataModule(`
+    export { SEC_REPORTED_HOLDING_FORMS } from ${JSON.stringify(actualFormsUrl)};
     export const SEC_FORM_ROOM_MANIFEST = [{
       slug: "periodic-reports",
       forms: ["10-Q", "10-Q/A", "8-K", "S-3", "424B5", "40-F", "40-F/A"],
-    }];
+    }, { slug: "ownership", forms: ["4", "4/A", "144", "144/A"] }];
     export const SEC_PRODUCTION_INGEST_SCHEDULE = [{
       id: "execution-test-group",
       rooms: ["periodic-reports"],
       countPerForm: 1,
       attachmentLimit: 1,
-    }];
+    }, { id: "ownership_changes", rooms: ["ownership"], countPerForm: 1, attachmentLimit: 0 }];
   `)],
   ["@/lib/sourceWorkflowConfig", dataModule(`
     export const SEC_WORKFLOW_CONFIG = { lockTtlSeconds: 7200 };
@@ -294,7 +296,7 @@ const mocks = new Map<string, string>([
         const requested = String(filters.id ?? "");
         const rows = state.items
           .filter((item) => requested.includes(item.raw_item_id))
-          .map((item) => ({ id: item.raw_item_id, metadata: {} }));
+          .map((item) => ({ id: item.raw_item_id, metadata: {}, form_type: item.form_type }));
         return { ok: true, status: 200, data: rows };
       }
       return { ok: true, status: 200, data: [] };
@@ -314,6 +316,14 @@ registerHooks({
 });
 
 const { secSourceIngestWorkflow } = await import("./source-ingest.ts");
+
+test("ownership collection includes Form3/5 originals and amendments without Primary scheduling", async () => {
+  const state = setup(["3", "3/A", "5", "5/A", "4", "144"].map((form, i) => stored(`raw-ownership-${i}`, form, "94049")));
+  await secSourceIngestWorkflow({ ...workflowInput(), groupId: "ownership_changes" });
+  assert.deepEqual(state.rawFormTypes, ["4", "4/A", "144", "144/A", "3", "3/A", "5", "5/A"]);
+  assert.deepEqual(state.analysisCalls, ["raw-ownership-4", "raw-ownership-5"]);
+  assert.deepEqual(state.bridgeCalls, []);
+});
 
 test("periodic VEEA 10-Q executes raw, normalized O/S bridge, then analysis", async () => {
   const state = setup([stored("raw-veea-q2", "10-Q", "1840317")]);

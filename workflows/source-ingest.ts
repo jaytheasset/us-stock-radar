@@ -51,6 +51,7 @@ import { runOfferingMonitorSiteAnalysisExecution } from "@/lib/monitor/offeringM
 import { runSecRawIngest } from "@/lib/secIngest";
 import {
   SEC_FORM_ROOM_MANIFEST,
+  SEC_REPORTED_HOLDING_FORMS,
   SEC_PRODUCTION_INGEST_SCHEDULE,
 } from "@/lib/sources/sec/forms/common/forms";
 import {
@@ -383,7 +384,7 @@ async function runSecGroupRawIngestStep(input: SecIngestWorkflowInput) {
         return room ? [...room.forms] : [];
       }), ...((group.rooms as readonly string[]).includes("periodic-reports")
         ? SEC_PERIODIC_OS_TRIGGER_FORMS.filter((form) => form.startsWith("40-F"))
-        : [])],
+        : []), ...(group.id === "ownership_changes" ? SEC_REPORTED_HOLDING_FORMS : [])],
     ),
   ];
 
@@ -661,7 +662,7 @@ async function findPendingSecAnalysisIds(rawItemIds: string[]) {
   if (!rawItemIds.length) return [];
 
   const rawResult = await supabaseSelect("raw_items", {
-    select: "id,metadata",
+    select: "id,metadata,form_type:raw_payload->>form_type",
     id: `in.(${rawItemIds.join(",")})`,
     limit: String(rawItemIds.length),
   });
@@ -685,6 +686,7 @@ async function findPendingSecAnalysisIds(rawItemIds: string[]) {
   );
   const pendingIds: string[] = [];
   for (const row of readRecords(rawResult.data)) {
+    if ((SEC_REPORTED_HOLDING_FORMS as readonly string[]).includes(stringValue(row.form_type))) continue;
     const rawItemId = stringValue(row.id);
     if (!rawItemId) continue;
     const eventId = completedEvents.get(rawItemId);

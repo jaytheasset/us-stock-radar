@@ -7,6 +7,8 @@ export const SEC_424B_FORMS = ["424B", "424B1", "424B2", "424B3", "424B4", "424B
 export const SEC_S8_FORMS = ["S-8", "S-8/A", "S-8 POS"] as const;
 export const SEC_EFFECT_FORMS = ["EFFECT"] as const;
 export const SEC_OWNERSHIP_FORMS = ["4", "4/A", "144", "144/A"] as const;
+// Raw-only canonical holdings; deliberately excluded from Form4/144 Primary rooms.
+export const SEC_REPORTED_HOLDING_FORMS = ["3", "3/A", "5", "5/A"] as const;
 export const SEC_SC13_FORMS = ["SC 13D", "SC 13D/A", "SC 13G", "SC 13G/A"] as const;
 export const SEC_PROXY_FORMS = [
   "DEF 14A",
