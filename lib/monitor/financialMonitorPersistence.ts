@@ -1,3 +1,4 @@
+import { financialTargetSchema, type FinancialTarget } from "./financialMonitorTarget.ts";
 import {
   getReadyMonitorCondition,
   validateMonitorConditionInput,
@@ -18,6 +19,7 @@ export type FinancialMonitor = Readonly<{
   id: string;
   userId: string;
   domain: "financial";
+  target: FinancialTarget | null;
   conditions: readonly CanonicalFinancialMonitorCondition[];
   isActive: boolean;
   createdAt: string;
@@ -26,7 +28,7 @@ export type FinancialMonitor = Readonly<{
 
 export type FinancialMonitorDiagnostic = Readonly<{
   id: string;
-  reason: "stored_conditions_invalid" | "stored_monitor_invalid";
+  reason: "stored_conditions_invalid" | "stored_monitor_invalid" | "stored_target_invalid";
   errors: readonly string[];
 }>;
 
@@ -60,7 +62,7 @@ export class FinancialMonitorPersistenceError extends Error {
 }
 
 export async function createFinancialMonitor(
-  input: Readonly<{ ownerId: string; conditions: unknown; isActive?: boolean }>,
+  input: Readonly<{ ownerId: string; conditions: unknown; target: FinancialTarget; isActive?: boolean }>,
   repository?: FinancialMonitorRepository,
 ) {
   const ownerId = requireUuid(input.ownerId, "ownerId");
@@ -69,11 +71,14 @@ export async function createFinancialMonitor(
   if (input.isActive !== undefined && typeof input.isActive !== "boolean") {
     throw invalidMonitor(["is_active_invalid"]);
   }
+  const target = financialTargetSchema.safeParse(input.target);
+  if (!target.success) throw invalidMonitor(["verified_target_required"]);
   const resolved = repository || await resolveRepository();
   const result = await resolved.create({
     user_id: ownerId,
     domain: "financial",
     conditions: validation.conditions,
+    target: target.data,
     is_active: input.isActive ?? true,
   });
   assertResult(result, "financial_monitor_write_failed");
@@ -177,6 +182,8 @@ function parseStoredMonitor(row: StoredRow | undefined, ownerId: string):
   if (!validation.ok) {
     return { ok: false, diagnostic: { id, reason: "stored_conditions_invalid", errors: validation.errors } };
   }
+  const target = row?.target === null ? null : financialTargetSchema.safeParse(row?.target);
+  if (target && !target.success) return { ok: false, diagnostic: { id, reason: "stored_target_invalid", errors: ["stored_target_invalid"] } };
   const errors: string[] = [];
   if (!UUID_PATTERN.test(id)) errors.push("monitor_id_invalid");
   if (!UUID_PATTERN.test(ownerId) || row?.user_id !== ownerId) errors.push("owner_invalid");
@@ -193,6 +200,7 @@ function parseStoredMonitor(row: StoredRow | undefined, ownerId: string):
       id,
       userId: ownerId,
       domain: "financial",
+      target: target?.data ?? null,
       conditions: validation.conditions,
       isActive: row!.is_active as boolean,
       createdAt,
@@ -203,7 +211,7 @@ function parseStoredMonitor(row: StoredRow | undefined, ownerId: string):
 
 async function resolveRepository(): Promise<FinancialMonitorRepository> {
   const supabase = await import("../supabase.ts");
-  const select = "id,user_id,domain,conditions,is_active,created_at,updated_at";
+  const select = "id,user_id,domain,conditions,target,is_active,created_at,updated_at";
   return {
     create: (row) => supabase.supabaseUpsert("financial_monitors", row, { prefer: "return=representation" }),
     list: (ownerId) => supabase.supabaseSelect("financial_monitors", {
@@ -217,7 +225,7 @@ async function resolveConsumerRepository(): Promise<FinancialMonitorConsumerRepo
   const supabase = await import("../supabase.ts");
   return {
     listActivePage: (offset, limit) => supabase.supabaseSelect("financial_monitors", {
-      select: "id,user_id,domain,conditions,is_active,created_at,updated_at",
+      select: "id,user_id,domain,conditions,target,is_active,created_at,updated_at",
       domain: "eq.financial", is_active: "eq.true", order: "created_at.asc,id.asc",
       offset: String(offset), limit: String(limit),
     }),

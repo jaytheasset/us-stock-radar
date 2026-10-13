@@ -1,3 +1,4 @@
+import { verifyFinancialMonitorSelection } from "@/lib/monitor/financialMonitorTargetReader";
 import { NextRequest, NextResponse } from "next/server";
 import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -22,7 +23,9 @@ export async function POST(request: NextRequest) {
   const parsed = parseFinancialMonitorCreateRequest(body);
   if (!parsed.ok) return financialMonitorRequestErrorResponse(parsed);
   try {
-    const monitor = await createFinancialMonitor({ ownerId: userId, conditions: parsed.value.conditions });
+    const verified = await verifyFinancialMonitorSelection(parsed.value.target);
+    if (verified.status !== "available") return NextResponse.json({ ok: false, error: "TARGET_NOT_CONFIRMED", message: "Company identity changed or could not be confirmed. Select the company again." }, { status: 422, headers: FINANCIAL_MONITOR_NO_STORE_HEADERS });
+    const monitor = await createFinancialMonitor({ ownerId: userId, conditions: parsed.value.conditions, target: verified.target });
     return NextResponse.json({ ok: true, data: { monitor } }, { status: 201, headers: FINANCIAL_MONITOR_NO_STORE_HEADERS });
   } catch (error) { return financialMonitorPersistenceErrorResponse(error, "FINANCIAL_MONITOR_CREATE_FAILED"); }
 }

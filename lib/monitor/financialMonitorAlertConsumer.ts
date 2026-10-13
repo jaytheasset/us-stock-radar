@@ -1,3 +1,6 @@
+import { readFinancialMonitorTarget } from "./financialMonitorTargetReader.ts";
+import { financialTargetSchema, type FinancialTargetResult } from "./financialMonitorTarget.ts";
+import { financialMonitorTargetFailure, type FinancialTargetReason } from "./financialMonitorTargetGate.ts";
 import {
   evaluateFinancialMonitorConditions,
   type FinancialMonitorMatchReasonCode,
@@ -12,6 +15,8 @@ import {
   type FinancialMonitorDiagnostic,
   type FinancialMonitorListResult,
 } from "./financialMonitorPersistence.ts";
+import { buildFinancialMonitorEvidence, readFinancialMonitorEvidence, type FinancialMonitorEvidence } from "./financialMonitorEvidence.ts";
+import { readPeriodicFinancialRawFilingIdentity } from "./periodicFinancialMonitor.ts";
 
 export const FINANCIAL_MONITOR_ALERT_CONSUMER_VERSION = "financial_monitor_alert_consumer_v1" as const;
 export type FinancialMonitorAlertWriteResult =
@@ -24,7 +29,9 @@ export type FinancialMonitorAlertConsumerDependencies = Readonly<{
   createAlert(input: Readonly<{
     eventId: string; monitorId: string; userId: string; sourceExecutionId: string;
     accession: string; issuerCik: string; createdAt: string;
+    evidence?: FinancialMonitorEvidence;
   }>): Promise<FinancialMonitorAlertWriteResult>;
+  readTarget?(ticker: string): Promise<FinancialTargetResult>;
   now(): Date;
 }>;
 
@@ -36,7 +43,7 @@ export type FinancialMonitorAlertConsumerResult = Readonly<{
   readerReason?: string;
   monitorCount: number;
   diagnostics: readonly FinancialMonitorDiagnostic[];
-  evaluations: readonly Readonly<{ monitorId: string; status: FinancialMonitorMatchStatus; reasonCode: FinancialMonitorMatchReasonCode }>[];
+  evaluations: readonly Readonly<{ monitorId: string; status: FinancialMonitorMatchStatus; reasonCode: FinancialMonitorMatchReasonCode | FinancialTargetReason }>[];
   writes: readonly FinancialMonitorAlertWriteResult[];
   createdCount: number;
   existingCount: number;
@@ -58,14 +65,26 @@ export async function consumeFinancialMonitorAlertsForEvent(
   let facts: FinancialMonitorFactReadResult;
   try { facts = input.preloadedFacts || await dependencies.readFacts(input.eventId); }
   catch { facts = { status: "not_ready", version: "financial_monitor_fact_reader_v1", reason: "reader_unavailable" }; }
-  const evaluations = monitors.monitors.map((monitor) => ({
-    monitor,
-    result: evaluateFinancialMonitorConditions(facts, monitor.conditions, input.eventId),
+  const targets = new Map<string, Promise<FinancialTargetResult>>();
+  const evaluations = await Promise.all(monitors.monitors.map(async monitor => {
+    let current: FinancialTargetResult | null = null;
+    const saved = financialTargetSchema.safeParse(monitor.target);
+    if (saved.success) {
+      if (!targets.has(saved.data.ticker)) targets.set(saved.data.ticker,
+        (dependencies.readTarget ?? readFinancialMonitorTarget)(saved.data.ticker).catch(() => ({ status: "unavailable" as const })));
+      current = await targets.get(saved.data.ticker)!;
+    }
+    const reason = financialMonitorTargetFailure(monitor.target, current, facts);
+    return { monitor, current, result: reason ? { status: "ineligible" as const, reasonCode: reason }
+      : evaluateFinancialMonitorConditions(facts, monitor.conditions, input.eventId) };
   }));
   const writes: FinancialMonitorAlertWriteResult[] = [];
+  const companyName = facts.status === "available" && evaluations.some(e => e.result.status === "match")
+    ? await readFilingCompanyName(facts) : null;
   for (const evaluation of evaluations) {
     if (evaluation.result.status !== "match" || facts.status !== "available") continue;
     try {
+      const createdAt = dependencies.now().toISOString();
       writes.push(await dependencies.createAlert({
         eventId: facts.eventId,
         monitorId: evaluation.monitor.id,
@@ -73,7 +92,9 @@ export async function consumeFinancialMonitorAlertsForEvent(
         sourceExecutionId: facts.sourceExecutionId,
         accession: facts.accession,
         issuerCik: facts.issuerCik,
-        createdAt: dependencies.now().toISOString(),
+        createdAt,
+        evidence: buildFinancialMonitorEvidence(facts, evaluation.monitor.conditions, createdAt, companyName,
+          evaluation.monitor.target && evaluation.current?.status === "available" ? { selected: evaluation.monitor.target, confirmed: evaluation.current.target } : undefined),
       }));
     } catch (error) {
       writes.push({ status: "failed", monitorId: evaluation.monitor.id, error: message(error) });
@@ -98,6 +119,7 @@ export async function consumeFinancialMonitorAlertsForEvent(
 export async function createFinancialMonitorAlert(input: Readonly<{
   eventId: string; monitorId: string; userId: string; sourceExecutionId: string;
   accession: string; issuerCik: string; createdAt: string;
+  evidence?: FinancialMonitorEvidence;
 }>): Promise<FinancialMonitorAlertWriteResult> {
   const repository = await import("../supabase.ts");
   const result = await repository.supabaseUpsert("user_alert_deliveries", {
@@ -123,6 +145,7 @@ export async function createFinancialMonitorAlert(input: Readonly<{
     financial_source_execution_id: input.sourceExecutionId,
     financial_accession: input.accession,
     financial_issuer_cik: input.issuerCik,
+    ...(input.evidence ? { financial_match_evidence: input.evidence } : {}),
   }, { onConflict: "financial_monitor_id,alert_event_id", prefer: "resolution=ignore-duplicates,return=representation" });
   if (!result.ok) return { status: "failed", monitorId: input.monitorId, error: result.error || `HTTP ${result.status}` };
   const row = Array.isArray(result.data) && record(result.data[0]) ? result.data[0] : undefined;
@@ -131,6 +154,7 @@ export async function createFinancialMonitorAlert(input: Readonly<{
 
 export type FinancialMonitorAlertItem = Readonly<{
   id: string; monitorId: string; eventId: string; accession: string; issuerCik: string; createdAt: string;
+  display: ReturnType<typeof readFinancialMonitorEvidence>;
 }>;
 export type FinancialMonitorAlertReadRepository = Readonly<{
   list(input: Readonly<{ ownerId: string; monitorId?: string }>): Promise<Readonly<{ ok: boolean; status?: number; data: unknown; error?: string }>>;
@@ -150,7 +174,8 @@ export async function listFinancialMonitorAlertsForOwner(
     const accession = text(row.financial_accession), issuerCik = text(row.financial_issuer_cik), createdAt = text(row.created_at);
     return UUID_PATTERN.test(id) && UUID_PATTERN.test(rowMonitorId) && UUID_PATTERN.test(eventId)
       && /^\d{10}-\d{2}-\d{6}$/.test(accession) && /^\d{10}$/.test(issuerCik) && Number.isFinite(Date.parse(createdAt))
-      ? [{ id, monitorId: rowMonitorId, eventId, accession, issuerCik, createdAt }]
+      ? [{ id, monitorId: rowMonitorId, eventId, accession, issuerCik, createdAt,
+        display: readFinancialMonitorEvidence(row.financial_match_evidence, { eventId, accession, issuerCik, sourceExecutionId: text(row.financial_source_execution_id) }) }]
       : [];
   });
 }
@@ -158,10 +183,22 @@ export async function listFinancialMonitorAlertsForOwner(
 async function resolveAlertRepository(): Promise<FinancialMonitorAlertReadRepository> {
   const supabase = await import("../supabase.ts");
   return { list: ({ ownerId, monitorId }) => supabase.supabaseSelect("user_alert_deliveries", {
-    select: "id,alert_event_id,financial_monitor_id,financial_accession,financial_issuer_cik,created_at",
+    select: "id,alert_event_id,financial_monitor_id,financial_accession,financial_issuer_cik,created_at,financial_match_evidence,financial_source_execution_id",
     user_id: `eq.${ownerId}`, alert_domain: "eq.financial", alert_lane: "eq.financial_monitor",
     ...(monitorId ? { financial_monitor_id: `eq.${monitorId}` } : {}), order: "delivered_at.desc,id.desc", limit: "100",
   }) };
+}
+
+async function readFilingCompanyName(facts: Extract<FinancialMonitorFactReadResult, { status: "available" }>): Promise<string | null> {
+  try {
+    const { supabaseSelect } = await import("../supabase.ts");
+    const r = await supabaseSelect("raw_items", { id: `eq.${facts.rawItemId}`, select: "id,source_unique_id,raw_payload,metadata", limit: "1" });
+    const raw = r.ok && Array.isArray(r.data) && record(r.data[0]) ? r.data[0] : null;
+    if (!raw) return null;
+    const identity = readPeriodicFinancialRawFilingIdentity(raw, facts.accession);
+    const payload = record(raw.raw_payload) ? raw.raw_payload : null;
+    return identity.issuerCik === facts.issuerCik && identity.form === facts.form && text(payload?.company_name) ? text(payload?.company_name) : null;
+  } catch { return null; }
 }
 
 function requireUuid(value: string) { const normalized = text(value); if (!UUID_PATTERN.test(normalized)) throw new Error("UUID required"); return normalized; }
