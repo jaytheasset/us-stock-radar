@@ -1,4 +1,10 @@
-# Offering Structured v1 candidate
+# Offering Structured v1 — original extraction gate and integration status
+
+## Current local integration checkpoint — 2026-10-13
+
+The O/S/Offering/direct FACT Monitor integration is in local main `7651dad75da9137458de78efdb345de7ba65195c`. See [current architecture, verification and migration record](OFFERING_PLAN_MONITOR_DIRECT_FACTS.md) for the authoritative current checkpoint. Projected calculations are retired; the unused calculator was removed, while historical result contracts/readback remain. PASS direct facts do not require routine administrator approval. Existing Registry/share-count history remains separate and unchanged. Primary is unchanged; no production deployment is claimed.
+
+**The candidate sections below are dated history.** Their unmerged/unverified statements describe those checkpoints, not the completed local integration. Frozen original extraction gates are retained; newer combined/ATM contracts do not retroactively rewrite their evidence.
 
 Candidate: `b31e/US-Stock Radar`, detached from `8d21d3196468a16d07a9c1f97c1ca3cbb7146780`. No main integration, push, deployment or remote DB operation. Main/GitHub main/Vercel commit equality is **unverified** and is the main integration owner's subsequent gate.
 

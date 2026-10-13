@@ -1,4 +1,10 @@
-# SEC O/S Snapshot v1 candidate
+# SEC O/S Snapshot v1 — original gate and integration status
+
+## Current local integration checkpoint — 2026-10-13
+
+The O/S/Offering/direct FACT Monitor integration is in local main `7651dad75da9137458de78efdb345de7ba65195c`. See [current architecture, verification and migration record](../operations/OFFERING_PLAN_MONITOR_DIRECT_FACTS.md) for the authoritative current checkpoint. Projected calculations are retired; the unused calculator was removed, while historical result contracts/readback remain. PASS direct facts do not require routine administrator approval. Existing Registry/share-count history remains separate and unchanged. Primary is unchanged; no production deployment is claimed.
+
+**The candidate sections below are dated history.** Their unmerged/unverified statements describe those checkpoints, not the completed local integration. Frozen original extraction gates are retained; newer combined/ATM contracts do not retroactively rewrite their evidence.
 
 Base: `d7347e4d2e75a5c412f69218003d2dfd407c79c5`, detached candidate at `C:\Users\PC\.codex\worktrees\8e9d\US-Stock Radar`.
 

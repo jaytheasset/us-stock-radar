@@ -1,6 +1,6 @@
 # Structured Data — 도메인 inventory
 
-> **No inference.** 이전 1단계 도메인 inventory에 2026-10-05 Proxy local main 확인 범위를 추가했다. 전체 도메인의 처리 흐름·권위 source 우선순위·production 활성화를 확정하는 지도가 아니다.
+> **No inference.** 이전 도메인 inventory에 날짜별 local main 확인 범위를 추가한다. 최신 Offering/O/S 추가 범위는 2026-10-13 절에 한정한다. 전체 도메인의 처리 흐름·권위 source 우선순위·production 활성화를 확정하는 지도가 아니다.
 
 ## 쉽게 읽기
 
@@ -12,7 +12,7 @@ Structured Data Pipeline은 공시를 설명하는 글을 만드는 Primary Anal
 
 - 기준 코드: `8cb52893a84c8de73051ae2b87427a054b9897cf`. Inventory 확인 당시 main: `7a53848a43436aceb591b12eebeaa6c64111708a` — Architecture Map 문서 기준점.
 - 근거 수준: **CODE EXISTS**, 그리고 직접 호출을 확인한 일부 **WIRED — CODE**. 저장 구조는 코드·migration 선언의 존재를 뜻한다.
-- 위 inventory 감사 당시 **STORAGE VERIFIED / PRODUCT E2E VERIFIED가 아니었다.** 아래 Proxy 행만 별도의 local 코드·저장·실행·브라우저 근거를 가진다. 다른 도메인은 기존 범위를 유지한다.
+- 위 inventory 감사 당시 **STORAGE VERIFIED / PRODUCT E2E VERIFIED가 아니었다.** 아래 Proxy 및 날짜별 Offering/O/S 추가 행은 별도의 local 코드·저장·실행·브라우저 근거를 가진다. 나머지 도메인은 기존 범위를 유지한다.
 - Proxy 기준: main merge `53e1f79098563a0ac6e761d900ada2fbf623c0ae`. 이번 동기화는 현재 코드와 보존 검증 자료만 사용하며 새 DB/모델/제품 실행을 하지 않는다.
 
 ### Proxy Structured product v1 — local main 통합 완료
@@ -33,6 +33,14 @@ Local automatic filing → internal Alert E2E 및 재실행 dedupe/멱등성 PAS
 | EFFECT | `raw_items.documents[].effectOriginalSource` XML/URL/hash; `readEffectFacts`; 기존 `user_alert_deliveries`의 match evidence/registration key | 명시적으로 확인한 CIK/file number/form/accession 대상만. RPC가 원본/대상 재검증 및 등록별 중복 방지; `/monitor`·`/alerts` 재사용 |
 
 Local migration `20261005183052` 적용 및 main 기존 데이터 보존 확인. 합본 회귀 243건, main 집중 회귀 94건·typecheck·인증 화면 검증 PASS. [EFFECT 기록](../effect-registration-monitor-v1.md)은 fresh 후보 E2E와 합본 replay/main read-only smoke를 구분한다. 기존 inventory의 다른 UNKNOWN은 유지한다. 전체 연결 도식은 [SEC Primary 지도](01-primary-analysis.md)의 기존 Mermaid가 단일 원본이다. 생산 환경 활성화는 별도다.
+
+### Offering / O/S / direct FACT Monitor — 2026-10-13 local main
+
+통합 `7651dad7`, 정리 후보 `eac0545b`. S-1/S-1A/S-3/S-3A/424B3/424B5는 원문에서 GPT 1회로 O/S와 Offering 결과를 만들고 각각 검증·조회한다. F-1/F-1A는 기존 독립 추출을 유지한다. Primary와 Registry의 목적·기존 실행 계약은 그대로다.
+
+PASS는 관리자 개입 없이 direct FACT reader → 기존 Matcher → internal Custom alert로 이어진다. REVIEW_REQUIRED만 기존 예외 검토를 사용하며 hold/reject는 차단한다. 조건은 같은 component의 직접 수량·seller·security·unit이며, 희석률/ADS/워런트 합산 계산은 없다. 공시 event는 여전히 필요하다. `ai_runs`/`ai_outputs`의 불변 결과와 exact source binding, 기존 관리자 결정 이력, Alert evidence를 구분한다.
+
+[상세 구조도·코드 경로·migration·검증](../../operations/OFFERING_PLAN_MONITOR_DIRECT_FACTS.md)이 연결 Mermaid의 단일 원본이다. 실제 iBio source/보존 응답과 TEST ONLY 접수번호·날짜로 자동 저장→알림 양성·replay 0을 검증했으며 fresh 모델 호출과 구분한다. 합본 회귀/typecheck/build, main 코드의 로그인/격리 DB 화면 및 main DB 기존 알림 readback 완료. 다른 도메인의 UNKNOWN이나 SEC 전체 완료 상태를 바꾸지 않는다.
 
 ## 도메인 지도 / Domain Inventory
 
@@ -66,7 +74,7 @@ Structured LLM + typed facts"]
         shares["주식수·증권 클래스 / Shares & Security Classes
 SEC XBRL/HTML + Human observations
 Mixed / PARTIAL"]
-        offering["공모·발행 조건 / Offering Facts
+        offering["Registry-backed 공모 조건 / Offering Facts
 Structured candidates + Registry snapshots
 Validated facts / PARTIAL"]
         delisting["상장제거 상태 / Delisting State
@@ -78,23 +86,29 @@ Derived reader / PARTIAL"]
 SEC raw + parser discovery source
 Call1 / Call2 / Validator + durable reader / Monitor"]
 
+    os_plan["O/S Snapshot and Offering Plan / local main integrated
+Domestic combined GPT / independent F-1
+Direct source facts - no projected calculation"]
+    plan_monitor["Offering direct FACT Monitor / local verified
+PASS automatic / same-component conditions
+Internal Alert evidence and dedupe"]
     end
 
     classDef scope fill:#edf2ff,stroke:#5271b8,color:#17223b
     classDef readyBox fill:#edf8f3,stroke:#4c8870,color:#173b2d
     classDef partialBox fill:#fff6e6,stroke:#b3863b,color:#523b14
     class structured scope
-    class ownership,financials,dilution,listing,identity,actions,proxy readyBox
+    class ownership,financials,dilution,listing,identity,actions,proxy,os_plan,plan_monitor readyBox
     class shares,offering,delisting partialBox
 ```
 
 **아직 전체 lifecycle로 확대 금지 / TO AUDIT:** 신규상장, 일반 merger, 전체 delisting lifecycle. 이 세 번째 상태 그룹은 조사 경계이며 도메인 박스로 추가하지 않는다.
 
-박스는 도메인, 기존 그룹은 원래 상세 감사 준비 수준이다. `상세 감사 가능`은 구현 완료나 제품 E2E PASS를 뜻하지 않는다. Proxy는 별도의 dated local 완료 근거를 갖는다. 한국어는 빠른 이해용 설명, 영어는 기술 용어 대응이다. 화살표는 **0개**이며, 박스의 위치도 의존관계·권위·처리 순서가 아니다.
+박스는 도메인, 기존 그룹은 원래 상세 감사 준비 수준이다. `상세 감사 가능`은 구현 완료나 제품 E2E PASS를 뜻하지 않는다. Proxy와 Offering/O/S 추가 박스는 각각 별도의 dated local 근거를 갖는다. 한국어는 빠른 이해용 설명, 영어는 기술 용어 대응이다. 화살표는 **0개**이며, 박스의 위치도 의존관계·권위·처리 순서가 아니다.
 
 ## 확인된 도메인
 
-Proxy 외 consumer는 이전 감사에서 직접 확인한 호출자만 적었다. Proxy의 local 검증은 해당 행에 명시한다. 코드 참조나 local E2E가 배포 환경의 전체 production 경로를 검증한 것은 아니다.
+날짜별 추가 행 외 consumer는 이전 감사에서 직접 확인한 호출자만 적었다. 날짜별 local 검증은 해당 행과 추가 절에 명시한다. 코드 참조나 local E2E가 배포 환경의 전체 production 경로를 검증한 것은 아니다.
 
 | 도메인 | 목적 | 주요 Source | 현재 확인된 처리 방식 | 저장 구조 존재 여부 | Reader 존재 여부 | 확인된 Consumer | 현재 검증 수준 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -102,6 +116,7 @@ Proxy 외 consumer는 이전 감사에서 직접 확인한 호출자만 적었�
 | Financials | 매출·영업손익·순손익·영업현금흐름·현금의 기간별 재무값 | SEC CompanyFacts JSON, filing XBRL | Deterministic resolver/history | 있음: filing ledger, company facts, structured raw source; Monitor 결과의 AI 실행 envelope 사용 | `resolvePeriodicFinancials`, `resolvePeriodicFinancialHistory`, `readCurrentPeriodicFinancialFacts` | 종목 재무 API, Financial Monitor 입력·Alert 소비 코드 | CODE EXISTS; 일부 WIRED — CODE. DB/E2E UNKNOWN |
 | Shares / O/S / Security Classes | 증권 클래스·시점별 주식수 근거 | SEC XBRL, prospectus HTML, structured 후보, Human observation | Deterministic 추출 + 품질 조건을 적용한 후보/Human 처리 | 있음: `share_count_history`, `issuer_common_class_universe_snapshots` 선언 | `readShareCountHistory`, class-share resolver, issuer-total aggregator | Stock Dilution 조회 코드에서 참조 | PARTIAL; CODE EXISTS 및 소비 참조 확인. source 우선순위·전체 경로 UNKNOWN |
 | Dilution Registry | 증권별 발행 조건·잔여량·활동 snapshot | SEC 근거를 참조하는 Registry JSON | GPT/Human-assisted 입력 계약 + 검증·적용. GPT 생성 실행 자체는 미검증 | 있음: `dilution_instruments`, snapshots, activity, totals 및 조정 관련 선언 | `fetchStockDilution`, Registry-backed Offering reader | 종목 Dilution API, Registry-backed Offering Monitor 입력 | CODE EXISTS; 일부 WIRED — CODE. DB/E2E UNKNOWN |
+| O/S Snapshot / Offering Plan direct FACT | 공시별 직접 O/S와 공모 계획·조건·원문 보존 | 저장된 SEC 원문, exact accession/source binding | Domestic 독립 공통 GPT 1회 + 분리 검증; F-1 독립 도메인 추출; 계산 없음 | `ai_runs` checkpoint / `ai_outputs` 불변 domain 결과 / 기존 결정 이력 / Alert match evidence | combined/source reader, `readOfferingPlanFacts`, owner Alert/current-validity reader | 기존 관리자, typed 동일-component Monitor, Custom alerts | Local main CODE/DB/retained-response automatic E2E/BROWSER PASS. Fresh 모델 평가와 생산 환경 활성화는 별도 |
 | Offering Facts | 공시 accession별 공모·발행 조건 | 같은 accession의 Registry snapshot | 현행 Registry adapter; 옛 Gemini Stage 2 실행·application promotion 제거 | Registry snapshot; 역사 전용 `event_offering_monitor_canonical` 보존 | 현행 `readRegistryBackedOfferingFacts`; 역사 전용 `readOfferingMonitorCanonical` | Registry → 순수 Offering Matcher → 내부 Alert. 현행 경로에서 역사 reader import 없음 | 일부 WIRED — CODE; ATM/non-ATM 의미 매핑은 unavailable 유지. 오프라인 fixture 검증, 실제 DB/UI E2E 미검증 |
 | Listing Risk | 상장 위험의 사건·상태·거래소·증권·날짜 | SEC/News에서 준비한 근거 | Structured LLM 분석 + validation + typed facts | 있음: `event_listing_risk_results`, `event_listing_risk_facts` 선언 | `readCurrentListingRiskFacts` | Listing Monitor Matcher/Alert | CODE EXISTS; analyzer·persistence 호출과 reader 소비 일부 WIRED — CODE. DB/E2E UNKNOWN |
 | Proxy Structured | 공시별 제안 FACT와 source/evidence history | 저장 SEC raw → Proxy Parser / discoveryBlocks | 별도 Call1 → Call2 → Validator; Primary와 독립 | `ai_runs` stage checkpoint / `ai_outputs`: canonical은 검증된 Call2만 | `readProxyStructured`, `readProxyAccession`, `readCurrentProxyFacts` | typed boolean 2개 → Generic Matcher/internal Alert; `/monitor`, `/alerts` | Local main CODE/STORAGE/automatic E2E PASS (합성 source + 보존 응답 replay); 실제 Alternus/BigBear fresh 분석 별도 검증. Production 미검증 |

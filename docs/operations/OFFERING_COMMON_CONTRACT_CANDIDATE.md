@@ -1,6 +1,12 @@
-# Common Offering contract candidate — 2026-10-10
+# Common Offering contract — implementation history
 
-## Current status — administrator common execution history, 2026-10-13
+## Current local integration checkpoint — 2026-10-13
+
+The O/S/Offering/direct FACT Monitor integration is in local main `7651dad75da9137458de78efdb345de7ba65195c`. See [current architecture, verification and migration record](OFFERING_PLAN_MONITOR_DIRECT_FACTS.md) for the authoritative current checkpoint. Projected calculations are retired; the unused calculator was removed, while historical result contracts/readback remain. PASS direct facts do not require routine administrator approval. Existing Registry/share-count history remains separate and unchanged. Primary is unchanged; no production deployment is claimed.
+
+**The candidate sections below are dated history.** Their unmerged/unverified statements describe those checkpoints, not the completed local integration. Frozen original extraction gates are retained; newer combined/ATM contracts do not retroactively rewrite their evidence.
+
+## Historical candidate status — administrator common execution history, 2026-10-13
 
 Base: `75000bf5f9f4a2c8b28d877b04ab5941837938ad`, detached candidate in the existing `1f6c` worktree. Automatic projected calculations and new Projected Alerts remain intentionally retired. Direct O/S/Offering results, evidence, independent review decisions and immutable historical Alerts remain available. Primary is outside this task.
 

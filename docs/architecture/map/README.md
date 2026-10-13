@@ -58,6 +58,7 @@ Architecture Map은 합의한 서비스 모델과 앞으로 확인할 실제 구
 - [03b Ownership — Form 3/5](03b-ownership-form3-5.md) — `VERIFIED AS-IS`: CODE/WIRED + DB STRUCTURE VERIFIED. accession 이력·lineage와 수동 Matcher; 실제 저장·제품 E2E는 UNKNOWN.
 - [03c Ownership — SC13](03c-ownership-sc13.md) — `VERIFIED AS-IS`: CODE/WIRED + DB STRUCTURE VERIFIED. 신고인별 저장·current projection·종목 상세·내부 Monitor Alert; 실제 저장·제품 E2E는 UNKNOWN.
 - [03d Ownership — Overview](03d-ownership-overview.md) — 세 family의 독립 저장·reader·consumer 상위 지도. 개념적 공통점과 CODE/WIRED·NOT WIRED·UNKNOWN 구분.
+- [Offering / O/S / direct FACT Monitor](../../operations/OFFERING_PLAN_MONITOR_DIRECT_FACTS.md) — local main `7651dad7`; 상세 연결 Mermaid의 단일 원본. 한 번의 domestic 공통 추출, 독립 F-1 경로, PASS 자동 알림, Registry와의 경계, 계산 제거·역사 보존 및 실제/시험 E2E 구분. 운영 배포 완료 아님.
 - [Proxy Structured product v1](../proxy-structured-product-v1.md) — local main merge `53e1f790…` 완료, migration 정합·internal Alert/dedupe·브라우저 검증. push/deploy·외부 발송은 별도이며 중복 Mermaid를 만들지 않음.
 - [EFFECT registration Monitor](../effect-registration-monitor-v1.md) — `def88790` local main 통합, migration `20261005183052` 적용·main smoke 완료. 등록 대상 명시적 선택/원본 XML 검증/등록별 internal Alert dedupe. 배포·cron·외부 발송 완료 아님.
 - [S-4/F-4 MCP handoff](../../../lib/sources/sec/forms/s4-f4/MCP_EVIDENCE_HANDOFF.md) — `3e15836c` main 통합 및 `def88790` 합본 보존. 독립 source-only MCP, 기존 Primary 유지, 정확한 제출 form Monitor; merger semantic FACT 없음. 위 두 경로의 최신 연결은 01/02의 2026-10-06 절에 명시한다.

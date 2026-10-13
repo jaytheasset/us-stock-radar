@@ -1,6 +1,12 @@
 # F-1 projected offering dilution v1
 
-## Current status — administrator common execution history, 2026-10-13
+## Current local integration checkpoint — 2026-10-13
+
+The O/S/Offering/direct FACT Monitor integration is in local main `7651dad75da9137458de78efdb345de7ba65195c`. See [current architecture, verification and migration record](../operations/OFFERING_PLAN_MONITOR_DIRECT_FACTS.md) for the authoritative current checkpoint. Projected calculations are retired; the unused calculator was removed, while historical result contracts/readback remain. PASS direct facts do not require routine administrator approval. Existing Registry/share-count history remains separate and unchanged. Primary is unchanged; no production deployment is claimed.
+
+**The candidate sections below are dated history.** Their unmerged/unverified statements describe those checkpoints, not the completed local integration. Frozen original extraction gates are retained; newer combined/ATM contracts do not retroactively rewrite their evidence.
+
+## Historical candidate status — administrator common execution history, 2026-10-13
 
 Base: `75000bf5f9f4a2c8b28d877b04ab5941837938ad`, detached candidate in the existing `1f6c` worktree. Automatic projected calculations and new Projected Alerts remain intentionally retired. Direct O/S/Offering results, evidence, independent review decisions and immutable historical Alerts remain available. Primary is outside this task.
 
@@ -58,7 +64,7 @@ Handoff: permanent main `C:/Users/PC/Documents/Codex/US-Stock Radar` remains loc
 This section supersedes the historical calculation/publication behavior below. Stage base: `597d0b3f1a2a1d3d3c69deac3d0af87c61accbc4`, existing detached candidate. This stage only disconnects execution and verifies offline boundaries; it does not complete the product UI or authorize integration.
 
 - O/S, Offering and combined runtime finish/replay no longer trigger Projected work. The two administrator decision routes retain their independent authorization, origin checks and decision RPCs, without calculation or Alert post-processing. Direct extraction, immutable raw/hash checkpoints and domain validation are preserved.
-- `prepare` returns null. Refresh entry points return `retired`; the current reader returns `projected_calculation_retired`. These entry points neither open a repository nor calculate/write anything, including when no repository is injected. The frozen calculator remains historical code with no production runtime importer.
+- `prepare` returns null. Refresh entry points return `retired`; the current reader returns `projected_calculation_retired`. These entry points neither open a repository nor calculate/write anything, including when no repository is injected. At this checkpoint the frozen calculator remained unused historical code; it was subsequently removed by `eac0545b`, retaining only the historical Fact contract.
 - All seven exact `projected.*` definitions are retained as `RETIRED` for historical identification and typed display. New catalog/preset/compiler context, create, edits/conversion and resume exclude them. Owners can still read and pause their saved sets. Mixed sets are excluded as a whole, including direct matcher, EFFECT and Form 4 entry points. Other condition families keep their existing behavior.
 - Explicit Projected publication/replay is a zero-write result; generic/filing fanout does not load these facts. The direct Alert writer rejects the Projected payload before opening a DB repository.
 - Historical Alert reads retain the original fact, source evidence and run/decision identity under `recorded`, with `current:false`, `retired:true` and a non-current `read` result. Source fingerprints still control evidence availability. Owner checks precede history reads and private administrator fields stay excluded. No read recomputes a fact. Existing numerical panels receive no current value; dedicated historical presentation remains a later UI task.

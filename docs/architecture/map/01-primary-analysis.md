@@ -1,5 +1,9 @@
 # SEC Primary Analysis — VERIFIED AS-IS
 
+### Offering / O/S integration update — 2026-10-13
+
+Local main `7651dad7` adds independent raw-triggered Offering/O/S extraction and direct FACT Monitor consumption; the existing Primary runner, prompts, output and filing pages are unchanged. Domestic S-1/S-1/A/S-3/S-3/A/424B3/424B5 share one separate extraction; F-1/F-1/A retain independent domain paths. No Primary prose/score supplies FACT evidence. Alert matching still needs a persisted filing event; later-event handling is in the existing event orchestration, not a new Primary analysis rule. See the [single-source Offering Mermaid and current acceptance evidence](../../operations/OFFERING_PLAN_MONITOR_DIRECT_FACTS.md). The older general Primary diagram below remains its dated scope.
+
 > **No inference.** 이 문서는 SERVICE MODEL이 아니라 Architecture Map 3단계-A 감사에서 확인한 현재 구조의 기록이다. 확인하지 못한 실행·연결은 `UNKNOWN / TO AUDIT`로 남긴다.
 
 - 기준 코드 commit: `8cb52893a84c8de73051ae2b87427a054b9897cf` (`main`).

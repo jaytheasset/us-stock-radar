@@ -3,6 +3,13 @@
 Next.js local app for reading the existing Supabase `events` table through
 server-side API routes.
 
+## Architecture and current implementation
+
+- [Architecture Map](docs/architecture/map/README.md) — source Markdown diagrams and dated verification boundaries.
+- [Offering / O/S / direct FACT Monitor](docs/operations/OFFERING_PLAN_MONITOR_DIRECT_FACTS.md) — current detailed Mermaid, persistence/readers, automatic internal Alerts, migrations and integration evidence.
+- [Main handoff](docs/operations/ASTRA_6_MAIN_HANDOFF.md) — latest local integration and GitHub/deployment distinction.
+- [Diagnostics index](docs/DIAGNOSTICS_INDEX.md) — family-specific investigation references.
+
 ## Local Run
 
 ```bash
@@ -10,10 +17,9 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
-
-This workspace currently uses `http://localhost:3001` when port 3000 is already
-occupied.
+For this repository's permanent main review workspace, use `npm run dev -- -p 3110`
+and open `http://localhost:3110`. Candidate worktrees use a separate port >= 3111.
+Check `AGENTS.md` before starting or restarting an existing server.
 
 ## Market Universe
 
