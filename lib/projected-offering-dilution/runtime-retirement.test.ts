@@ -23,7 +23,7 @@ for(const domain of ['os-snapshot','offering-plan','combined-offering'] as const
   const source={filing:{accession:'0000000001-26-000001'},fingerprint:'original'},binding={source,rawItemId:'raw',contractVersion:'frozen'};
   const value={status:'PASS',current_os:[{quantity:'100',evidence_blocks:['e1']}],plan:{components:[{quantity:{value:'20'},evidence_blocks:['e1']}]},review:null};
   const raw=JSON.stringify({label:'LOCAL ONLY Pré — £',...value}),rawHash=sha(raw),calls:string[]=[];
-  let checkpoint:any=null,finished=false,recoverCheckpoint=false,providerCalls=0,repositories=0,planEvaluations=0;
+  let checkpoint:any=null,finished=false,recoverCheckpoint=false,providerCalls=0,repositories=0,planEvaluations=0,historyPublications=0;
   const repo={rpc:async(name:string,args:any)=>{
    assert.equal(name,rpcName);calls.push(args.p_action);
    if(args.p_action==='claim')return {claimed:!finished,token:'lease',status,binding,attempt:1,checkpoint:recoverCheckpoint?checkpoint:null};
@@ -37,7 +37,8 @@ for(const domain of ['os-snapshot','offering-plan','combined-offering'] as const
    if(domain==='offering-plan')assert.equal(version,'frozen');
    return {ok:true,value,meaning:'NOT_ASSESSED'};
   },evidenceRefs:()=>['e1'],combinedBinding:()=>binding,validateCombinedResponse:()=>({os_snapshot:{ok:true,value:{status:'PASS',current_os:value.current_os,review:null}},offering_plan:{ok:true,value:{status:'PASS',plan:value.plan,review:null}}})};
-  const runtime=load(`lib/sec-${domain}/runtime.ts`,{'./contract.ts':contract,'../sec-os-snapshot/contract.ts':{sha},'./repository.ts':repositoryModule,'../monitor/offeringPlanTrigger.ts':{offeringPlanRunSaved:async(id:string)=>{assert.equal(id,'run');planEvaluations++;return {status:'completed'};}}});
+  const historyPublisher={osSnapshotRunSaved:async(id:string)=>{assert.equal(id,'run');historyPublications++;return {status:'not_published'};}};
+  const runtime=load(`lib/sec-${domain}/runtime.ts`,{'./historyPublication.ts':historyPublisher,'../sec-os-snapshot/historyPublication.ts':historyPublisher,'./contract.ts':contract,'../sec-os-snapshot/contract.ts':{sha},'./repository.ts':repositoryModule,'../monitor/offeringPlanTrigger.ts':{offeringPlanRunSaved:async(id:string)=>{assert.equal(id,'run');planEvaluations++;return {status:'completed'};}}});
   const run=runtime[domain==='os-snapshot'?'processSnapshot':domain==='offering-plan'?'processOfferingPlan':'processCombinedOffering'];
   const provider={run:async()=>{providerCalls++;return {raw,stdout:'',stderr:'',exitCode:0,cliVersion:'offline mock',startedAt:'',finishedAt:''};}};
   // Deliberately omit supplied repository: the former hooks used only this branch.
@@ -51,6 +52,7 @@ for(const domain of ['os-snapshot','offering-plan','combined-offering'] as const
   assert.equal((await run('run',provider)).status,status);
   assert.equal(JSON.stringify(checkpoint),saved);assert.equal(providerCalls,1);assert.equal(repositories,3);
   assert.equal(planEvaluations,domain==='os-snapshot'?0:3);
+  assert.equal(historyPublications,domain==='offering-plan'?0:3);
   assert.deepEqual(calls,['claim','provider_started','checkpoint','finish','claim','claim','finish']);
  });
 }
@@ -78,8 +80,9 @@ const runId='00000000-0000-4000-a000-000000000001',requestId='00000000-0000-4000
 for(const domain of ['os-snapshots','offering-plans']){
  test(`${domain}: independent approve/hold/reject/retry forward exact decision once; authorization/origin gates remain`,async()=>{
   const calls:{name:string;args:any}[]=[],domainName=domain==='os-snapshots'?'os_snapshot':'offering_plan';
-  let user:string|null='operations',permission=true,planEvaluations=0;
+  let user:string|null='operations',permission=true,planEvaluations=0,historyPublications=0;
   const route=load(`app/api/admin/data/${domain}/[id]/route.ts`,{
+   '@/lib/sec-os-snapshot/historyPublication':{osSnapshotRunSaved:async(id:string)=>{assert.equal(id,runId);assert.equal(calls.at(-1)?.args.p_action,'approve');historyPublications++;return {status:'not_published'};}},
    '@/lib/monitor/offeringPlanTrigger':{offeringPlanRunSaved:async(id:string)=>{assert.equal(id,runId);assert.equal(calls.at(-1)?.args.p_action,'approve');planEvaluations++;return {status:'completed'};}},
    'next/server':{NextResponse:response},
    '@/lib/admin/api':{ADMIN_PRIVATE_RESPONSE_HEADERS:privateHeaders,applyAdminAuthCookies:()=>{},AdminApiError:ApiError,
@@ -96,6 +99,7 @@ for(const domain of ['os-snapshots','offering-plans']){
   }
   assert.equal(calls.length,4);
   assert.equal(planEvaluations,domain==='offering-plans'?1:0);
+  assert.equal(historyPublications,domain==='os-snapshots'?1:0);
   assert.equal((await invoke(request('approve','http://foreign.test'))).status,403);
   user=null;assert.equal((await invoke(request('approve'))).status,401);
   user='ordinary';permission=false;assert.equal((await invoke(request('approve'))).status,403);

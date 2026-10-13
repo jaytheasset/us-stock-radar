@@ -41,6 +41,7 @@ const HISTORY_SELECT = [
   "authoritative_decision_reason", "authoritative_decision_lineage",
   "source_document_url", "source_content_hash", "source_evidence",
   "source_analyzer", "created_at",
+  "snapshot_publication_valid",
 ].join(",");
 
 const UNIVERSE_SELECT = [
@@ -111,7 +112,7 @@ implements ShareCountHistoryRepository {
     if (filter.canonicalSecurityClassId) {
       search.canonical_security_class_id = `eq.${filter.canonicalSecurityClassId}`;
     }
-    const result = await supabaseSelect("share_count_history", search);
+    const result = await supabaseSelect("share_count_history_eligible", search);
     if (!result.ok) throw new Error("share_count_history read failed");
     return rows(result.data).map(mapShareCountHistoryDatabaseRow);
   }

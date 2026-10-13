@@ -5,6 +5,7 @@ import {
   type ShareCountHistoryObservation,
   type ShareCountHistoryRepository,
 } from "./shareCountHistory.ts";
+import {OS_SNAPSHOT_HISTORY_SOURCE} from './osSnapshotHistoryContract.ts';
 
 export const CLASS_SHARE_COUNT_RESOLVER_VERSION = "class-share-count-resolver-v1" as const;
 
@@ -143,6 +144,10 @@ function eligibleAt(
   if (row.sourceType === "sec_authoritative_os") {
     return row.acceptedAtSource === "sec_filing_ledger"
       && row.acceptedAtProvenance.source === "sec_filing_ledger.accepted_at";
+  }
+  if(row.sourceType===OS_SNAPSHOT_HISTORY_SOURCE){
+    return row.sourcePublicationCurrent===true&&row.acceptedAtSource==='sec_filing_ledger'
+      &&row.acceptedAtProvenance.source==='sec_filing_ledger.accepted_at';
   }
   if (row.sourceType === "sec_filing_text_human_verified") {
     const approval = record(row.sourceProvenance.approval);

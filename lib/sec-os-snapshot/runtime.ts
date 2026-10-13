@@ -1,13 +1,14 @@
 import { sha, validateOutput, record } from "./contract.ts";
 import type { Binding } from "./source.ts";
 import { repository, rpc, type Repository } from "./repository.ts";
+import {osSnapshotRunSaved} from './historyPublication.ts';
 export type ProviderResult = { raw: string; stdout: string; stderr: string; exitCode: number | null; cliVersion: string; startedAt: string; finishedAt: string; technicalError?: string; retrySafe?: boolean; freeze?: string; integrityError?: string };
 export interface OsSnapshotProvider { journalId?: string; run(binding: Binding, attempt: number, recoverOnly?: boolean): Promise<ProviderResult> }
 export async function processSnapshot(id: string, provider: OsSnapshotProvider, supplied?: Repository) {
   const repo = supplied ?? await repository();
   const claimed = await rpc(repo,"sec_os_snapshot_transition",{p_id:id,p_action:"claim"});
   if (!claimed.claimed) {
-    return {status:claimed.status};
+    return {status:claimed.status,...(['PASS','REVIEW_REQUIRED'].includes(claimed.status)?{historyPublication:await osSnapshotRunSaved(id,repo)}:{})};
   }
   const token = String(claimed.token);
   const transition = (action: string, value?: unknown) => rpc(repo,"sec_os_snapshot_transition",{p_id:id,p_action:action,p_token:token,p_value:value??null});
@@ -27,6 +28,6 @@ export async function processSnapshot(id: string, provider: OsSnapshotProvider, 
       await transition("checkpoint",cp);
     }
     const saved = await transition("finish");
-    return {status:saved.status};
+    return {status:saved.status,...(['PASS','REVIEW_REQUIRED'].includes(saved.status)?{historyPublication:await osSnapshotRunSaved(id,repo)}:{})};
   } finally { clearInterval(heartbeat); }
 }
