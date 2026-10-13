@@ -175,6 +175,7 @@ test("alert reads are owner-scoped, filterable, paginated, and expose a minimal 
       eventId: EVENT_ID,
       createdAt: "2026-08-14T01:02:03.000Z",
       matchEvidence: null,
+      secondaryDisplay: { status: "not_preserved", evidence: null },
     }],
     total: 1,
     limit: 5,

@@ -95,6 +95,8 @@ export type ListingMonitorMatchResult = Readonly<{
   readerReason?: string;
   conditions: readonly ListingMonitorConditionResult[];
   form4PurchaseEvidence?: Form4PurchaseMatchEvidence;
+  /** Exact row chosen by the existing ownership conjunction, never a later re-evaluation. */
+  form144MatchedRowIndex?: number;
   form4PurchaseTrace?: Form4PurchaseEvaluationTrace;
 }>;
 
@@ -233,7 +235,12 @@ export function evaluateMonitorConditions(
       ? ownershipEvaluation.reasonCode
       : firstIneligible!.reasonCode, evaluated);
   }
-  return result("match", "all_conditions_match", evaluated);
+  return {
+    ...result("match", "all_conditions_match", evaluated),
+    ...(readers.ownership.status === "available" && readers.ownership.form === "form144"
+      && ownershipEvaluation.matchedRowIndex !== undefined
+      ? { form144MatchedRowIndex: ownershipEvaluation.matchedRowIndex } : {}),
+  };
 }
 
 export function evaluateForm4InsiderPurchaseMonitor(
@@ -489,6 +496,7 @@ function evaluateOwnershipConditionGroup(
   status: ListingMonitorMatchStatus | null;
   reasonCode: ListingMonitorMatchReasonCode;
   results: readonly Readonly<{ index: number; result: ListingMonitorConditionResult }>[];
+  matchedRowIndex?: number;
 }> {
   if (entries.length === 0) {
     return { status: null, reasonCode: "all_conditions_match", results: [] };
@@ -562,9 +570,10 @@ function evaluateOwnershipConditionGroup(
     }
     return evaluateOwnershipRowCondition(row, definition, condition, evaluationDay);
   }));
-  const matchingRow = rowEvaluations.find((row) => row.every((item) => item.status === "match"));
-  if (matchingRow) {
+  const matchingRowIndex = rowEvaluations.findIndex((row) => row.every((item) => item.status === "match"));
+  if (matchingRowIndex >= 0) {
     return {
+      matchedRowIndex: matchingRowIndex,
       status: "match",
       reasonCode: "all_conditions_match",
       results: entries.map((entry) => ({
