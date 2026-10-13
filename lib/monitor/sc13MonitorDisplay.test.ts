@@ -66,4 +66,3 @@ test("source enrichment requires canonical issuer, reporter, class and CUSIP; ne
   assert.equal(failedRead[0]?.sources.length, 0);
   assert.equal((await buildSc13AlertDisplay([{ ...alert, securityClass: "OTHER" }], reader)).length, 0);
 });
-
