@@ -1,11 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {existsSync} from 'node:fs';
+import * as historicalContract from './historicalContract.ts';
 import {prepare,refreshProjectedForRun,refreshProjected,readProjectedFacts,PROJECTED_RETIRED_REASON} from './repository.ts';
 import {createListingMonitor,listListingMonitorsForOwner,readListingMonitorForOwner,pauseListingMonitor,resumeListingMonitor,updateListingMonitor,listActiveListingMonitorsForConsumer,validateCanonicalListingConditions,type ListingMonitorRepository} from '../monitor/listingMonitorPersistence.ts';
 
 const owner='00000000-0000-4000-a000-000000000001',id='00000000-0000-4000-a000-000000000002',other='00000000-0000-4000-a000-000000000003';
 const retired={key:'projected.issuer_new_shares_base',operator:'gte',value:100};
 const ordinary={key:'event.sec_form',operator:'eq',value:'S-4'};
+
+test('historical contract preserves recorded versions without a calculator or selection executor',()=>{
+ assert.deepEqual({...historicalContract},{
+  VERSION:'projected_offering_dilution_v1',
+  CALCULATION_REVISION:'projected_offering_dilution_v1-calc-r2',
+ });
+ assert.equal(existsSync(new URL('./calculate.ts',import.meta.url)),false);
+});
 
 test('retired repository entry points never read, calculate, persist or resolve default database access',async()=>{
  let calls=0;const forbidden=async()=>{calls++;throw Error('repository must remain unopened');};

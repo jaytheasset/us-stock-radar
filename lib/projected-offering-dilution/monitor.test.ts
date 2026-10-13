@@ -7,7 +7,7 @@ import {buildNaturalLanguageConditionCompilerPrompt} from '../prompts/naturalLan
 import {evaluateMonitorConditions,evaluateListingMonitorEvent,evaluateForm4InsiderPurchaseMonitor} from '../listingMonitorMatcher.ts';
 import {consumeListingMonitorAlertsForEvent,createListingMonitorAlert,type ListingMonitorAlertConsumerDependencies} from '../monitor/listingMonitorAlertConsumer.ts';
 import type {ReadResult} from './repository.ts';
-import type {Fact} from './calculate.ts';
+import type {Fact} from './historicalContract.ts';
 import type {CanonicalListingMonitorCondition} from '../monitor/listingMonitorPersistence.ts';
 
 const conditions=[{key:'projected.projected_increase_percent_base',operator:'gte' as const,value:10}];

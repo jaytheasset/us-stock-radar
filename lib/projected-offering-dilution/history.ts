@@ -4,7 +4,7 @@ import {buildSource as offeringSource} from '../sec-offering-plan/source.ts';
 import {readCombinedDomainSource} from '../sec-combined-offering/repository.ts';
 import {PROJECTED_RETIRED_REASON} from './repository.ts';
 import {readMatchingOsRun} from '../sec-offering-plan/repository.ts';
-import type {Fact} from './calculate.ts';
+import type {Fact} from './historicalContract.ts';
 
 export type ImpactRead={status:'not_ready';reason:string}|{status:'available';facts:Fact;sourceUrl:string;evidence:{id:string;text:string}[]};
 export type ImpactHistory={factId:string;createdAt:string;read:Extract<ImpactRead,{status:'not_ready'}>;current:false;retired:true;evidenceAvailable:boolean;

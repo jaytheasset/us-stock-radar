@@ -1,5 +1,5 @@
 import type {Repository} from '../sec-os-snapshot/repository.ts';
-import type {Fact} from './calculate.ts';
+import type {Fact} from './historicalContract.ts';
 
 export const PROJECTED_RETIRED_REASON = 'projected_calculation_retired' as const;
 
