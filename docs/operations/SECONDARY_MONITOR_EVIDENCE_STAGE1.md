@@ -2,6 +2,16 @@
 
 2026-10-14 KST. Candidate only; no integration, push or deployment.
 
+## Narrow follow-up: explicit USD display
+
+Continued from clean detached candidate `e11238a1c5e5a74d8b4565efdd1e1ba03257845b` in the same worktree. `formatSecondaryMonitorValue` reuses the existing Registry `display.numberFormat` currency contract for both stored FACT and expected condition value, with the explicit currency code: `USD 1,437,000.00` and `USD 1,000,000.00`. Shares, dates and other non-currency values keep their previous presentation. No numeric, comparison, schema, migration or saved-evidence changes.
+
+Evidence: `C:/Users/PC/AppData/Local/Temp/secondary-monitor-usd-7f32/`. Relevant tests36/36, full typecheck, production build and diffcheck PASS. Normal existing owner/other login plus anonymous were rechecked at 1440x900,900x900 and exactly390x900; USD appears on both amounts, saved25000/FACT30000 remain distinct from current35000. Owner API returns the unchanged snapshot, other returns zero and anonymous401. The owner actually clicked the internal filing link; the accession-bound SEC href was checked without refetching SEC. All three owner screenshots were visually inspected; no overflow, signed-in console/page/HTTP errors0. No real Pro-account test is claimed.
+
+The full-row hashes of all172 public product tables (including the snapshot column), original XML SHA, existing FACT and alert records are unchanged. Only normal auth sessions changed. No new Monitor/Alert, provider, worker, message or DB DDL. The temporary guard permits no product writes; bootstrap upsert attempts to existing profile/subscription/preferences/channel tables are deliberately blocked. They are guard events, not successful writes or browser errors. An initial server-connection interruption was discarded and verification repeated against the maintained foreground server session.
+
+Keep the final3147 candidate server running for independent parent review, using isolated API59621/PG59622. The final commit, PID, build ID and target are recorded in the evidence folder's `environment.json`, `owned-process.json` and completion report. No main/shared environment or server was operated. The main/GitHub/Vercel non-equality and remote-state limitations below remain in force.
+
 ## Scope and contract
 
 The first adapter connects Form144 to a small shared `secondary_match_evidence` display snapshot on the existing `user_alert_deliveries` table. The existing ownership conjunction now returns the exact matching row index. The consumer copies that row's direct facts and the evaluated conditions into the alert INSERT. Matching, eligibility, activation, dedupe, compiler, extraction and delivery policy are unchanged.

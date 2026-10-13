@@ -1,5 +1,6 @@
 import type { SecondaryMonitorDisplay } from "@/lib/monitor/secondaryMonitorEvidence";
 import { MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS } from "@/lib/monitor/conditionRegistry";
+import { formatSecondaryMonitorValue } from "@/lib/monitor/secondaryMonitorDisplay";
 
 /** Renders only the saved snapshot supplied by the owner-scoped alert API. */
 export function SecondaryMonitorAlertDetails({ display, createdAt }: {
@@ -20,8 +21,8 @@ export function SecondaryMonitorAlertDetails({ display, createdAt }: {
     <span>Accession: {evidence.accessionNumber} · Filing row {evidence.rowIndex + 1}</span>
     <div aria-label="Matched facts and saved conditions">
       {evidence.conditions.map((condition, index) => <p key={`${condition.key}-${index}`}>
-        <b>{condition.label}</b>: {condition.factStatus === "stored" ? formatValue(condition.fact) : "Fact not preserved"}
-        {" · Saved condition: "}{MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS[condition.operator]} {formatValue(condition.expected)}
+        <b>{condition.label}</b>: {condition.factStatus === "stored" ? formatSecondaryMonitorValue(condition.key, condition.fact) : "Fact not preserved"}
+        {" · Saved condition: "}{MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS[condition.operator]} {formatSecondaryMonitorValue(condition.key, condition.expected)}
         {condition.operator === "within_days" ? " days at evaluation time" : ""}
       </p>)}
     </div>
@@ -33,9 +34,4 @@ export function SecondaryMonitorAlertDetails({ display, createdAt }: {
 
 function formatTimestamp(value: string) {
   return new Date(value).toLocaleString("en-US", { timeZoneName: "short" });
-}
-
-function formatValue(value: unknown): string {
-  if (Array.isArray(value)) return value.map(formatValue).join(", ");
-  return typeof value === "number" ? value.toLocaleString("en-US", { maximumFractionDigits: 20 }) : String(value ?? "Unconfirmed");
 }
