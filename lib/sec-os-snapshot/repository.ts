@@ -1,3 +1,4 @@
+import {adminHistoryFilter,commonSummaryFields,commonExecution,readAdminHistoryRun} from "../sec-combined-offering/adminHistory.ts";
 import { record, PURPOSE } from "./contract.ts";
 import { buildSource, bindingFor } from "./source.ts";
 export interface Repository {
@@ -28,22 +29,41 @@ export async function enqueueOsSnapshot(rawItemId: string, repo?: Repository) {
   return rpc(repo,"reserve_sec_os_snapshot",{p_binding:bindingFor(rawItemId,source)});
 }
 export async function listSnapshots(repo?: Repository) {
-  const rows = await select(repo ?? await repository(),"ai_runs",{prompt_key:`eq.${PURPOSE}`,
-    select:"id,raw_item_id,started_at,finished_at,osStatus:metadata->>osStatus,attempt:metadata->attempt,filing:metadata->binding->source->filing,ticker:metadata->binding->source->ticker,sourceFingerprint:metadata->binding->>sourceFingerprint,contractVersion:metadata->binding->>contractVersion",
+  const rows = await select(repo ?? await repository(),"ai_runs",{or:adminHistoryFilter(PURPOSE),
+    select:commonSummaryFields+",id,raw_item_id,started_at,finished_at,osStatus:metadata->>osStatus,attempt:metadata->attempt,filing:metadata->binding->source->filing,ticker:metadata->binding->source->ticker,sourceFingerprint:metadata->binding->>sourceFingerprint,contractVersion:metadata->binding->>contractVersion",
     order:"metadata->>reservedAt.desc",limit:"100"});
-  return rows.map(r=>({id:String(r.id),started_at:r.started_at,finished_at:r.finished_at,metadata:{osStatus:r.osStatus,attempt:r.attempt,binding:{source:{filing:r.filing,ticker:r.ticker},sourceFingerprint:r.sourceFingerprint,contractVersion:r.contractVersion}}}));
+  return rows.map(r=>({commonExecution:commonExecution(r),id:String(r.id),started_at:r.started_at,finished_at:r.finished_at,metadata:{osStatus:r.osStatus,attempt:r.attempt,binding:{source:{filing:r.filing,ticker:r.ticker},sourceFingerprint:r.sourceFingerprint,contractVersion:r.contractVersion}}}));
 }
 export async function readSnapshot(id: string, repo?: Repository) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw Error("os_id_invalid");
   repo ??= await repository();
-  const run = (await select(repo,"ai_runs",{id:`eq.${id}`,prompt_key:`eq.${PURPOSE}`,select:"*",limit:"1"}))[0];
-  if (!run) throw Error("os_run_missing");
-  const decisions = await select(repo,"sec_os_snapshot_decisions",{run_id:`eq.${id}`,select:"*",order:"created_at.asc"});
+  const {run,commonExecution} = await readAdminHistoryRun(id,PURPOSE,repo);
+  if (commonExecution) return {run,commonExecution,decisions:[],current:false};
+  const decisions = await select(repo,"sec_os_snapshot_decisions",{run_id:`eq.${run.id}`,select:"*",order:"created_at.asc"});
   // Explicit current-source comparison; historical runs never overwrite a latest pointer.
   let current = false;
   try {
-    const raw = (await select(repo,"raw_items",{id:`eq.${run.raw_item_id}`,select:"*",limit:"1"}))[0];
-    current = buildSource(raw).fingerprint === run.metadata.binding.sourceFingerprint;
+    if(run.metadata.executionKind==='derived_domain_view'){
+      run.metadata={...run.metadata,commonInvocation:await (await import('../sec-combined-offering/repository.ts')).readCommonInvocation(run,repo)};
+      const combined=await (await import('../sec-combined-offering/repository.ts')).readCombinedDomainSource(run,repo);
+      current=true;
+      // Read-only display hydration; no stored run or original response is rewritten.
+      run.metadata={...run.metadata,binding:{...run.metadata.binding,source:combined.source},
+        commonInvocation:run.metadata.commonInvocation};
+    }else{
+      const raw = (await select(repo,"raw_items",{id:`eq.${run.raw_item_id}`,select:"*",limit:"1"}))[0];
+      current = buildSource(raw).fingerprint === run.metadata.binding.sourceFingerprint;
+    }
   } catch { /* Missing/unready current raw is not proof of absence. */ }
-  return {run,decisions,current};
+  return {run,decisions,current,commonExecution:null};
+}
+
+/** Exact selected-run navigation only; no calculation or amendment fallback. */
+export async function readMatchingOfferingRun(run:Record<string,any>,repo:Repository):Promise<string|null>{
+  if(run.metadata?.executionKind==='derived_domain_view'){
+    const common=await (await import('../sec-combined-offering/repository.ts')).readCommonInvocation(run,repo);
+    return common.offeringRunId;
+  }
+  const pair=await rpc(repo,'read_projected_offering_inputs',{p_raw_id:run.raw_item_id});
+  return pair.raw?.id===run.raw_item_id&&pair.os?.id===run.id&&typeof pair.offering?.id==='string'?pair.offering.id:null;
 }

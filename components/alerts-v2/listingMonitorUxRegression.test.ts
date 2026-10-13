@@ -143,12 +143,12 @@ test("monitor review groups only present domains and keeps the curated picker cl
 });
 
 test("Alerts entry links to the landing while preserving monitor management actions", () => {
-  assert.match(alerts, /href="\/monitor">Open AI Monitor/);
+  assert.match(alerts, /href="\/monitor">Create Custom alerts/);
   assert.match(alerts, /<ListingMonitorManagement \/>/);
   assert.match(builder, /Pause/);
   assert.match(builder, /Resume/);
   assert.match(builder, /Delete/);
-  assert.match(builder, /Monitor alerts/);
+  assert.match(builder, /Custom alerts/);
   assert.match(builder, /method: "PATCH"/);
   assert.match(builder, /method: "DELETE"/);
 });

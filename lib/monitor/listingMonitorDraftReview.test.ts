@@ -350,7 +350,7 @@ test("AI Monitor UI invokes Compiler only from submit and creates only from expl
   assert.match(component, /createGate\?\.ready/);
   assert.match(component, /\/login\?next=%2Fmonitor/);
   assert.match(parent, /<ListingMonitorManagement \/>/);
-  assert.match(parent, /href="\/monitor">Open AI Monitor/);
+  assert.match(parent, /href="\/monitor">Create Custom alerts/);
   assert.match(monitorPage, /<ListingMonitorDraftBuilder \/>/);
   assert.match(monitorPage, /Tell Stock Radar what to watch\./);
   assert.doesNotMatch(component, /Requirements needing a decision|Explicit confirmation required|Abandon requirement|Review mapped conditions|Build draft preview/);

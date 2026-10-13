@@ -18,3 +18,4 @@ lib/sec-offering-plan/contracts/** -text whitespace=blank-at-eol,blank-at-eof,sp
 lib/sec-offering-plan/fixtures/** -text
 lib/sec-offering-plan/output-writer.mjs -text
 lib/sec-offering-plan/protocol-tests/** -text
+lib/sec-combined-offering/contracts/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

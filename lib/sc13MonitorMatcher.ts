@@ -13,7 +13,7 @@ export const SC13_MONITOR_MATCHER_VERSION = "sc13_monitor_matcher_v1" as const;
 export type Sc13MonitorMatchStatus = "match" | "no_match" | "ineligible";
 export type Sc13MonitorMatchReasonCode =
   | "all_conditions_match" | "condition_not_met" | "condition_set_empty" | "condition_invalid"
-  | "condition_key_unknown" | "condition_operator_unknown" | "condition_value_invalid"
+  | "condition_key_unknown" | "condition_key_retired" | "condition_operator_unknown" | "condition_value_invalid"
   | "reader_not_ready" | "issuer_identity_mismatch" | "position_identity_mismatch"
   | "position_identity_ambiguous" | "reporter_identity_mismatch" | "reporter_identity_ambiguous"
   | "current_value_unresolved" | "current_provenance_invalid";

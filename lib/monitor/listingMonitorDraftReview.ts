@@ -1,7 +1,10 @@
+import {offeringPlanConditionErrors} from './offeringPlanConditions.ts';
 import { effectConditionErrors, hasEffect } from "../sec-effect/conditions.ts";
 import {
   getReadyMonitorCondition,
   getReadyMonitorConditions,
+  getStoredMonitorCondition,
+  validateStoredMonitorConditionInput,
   MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS,
   validateMonitorConditionInput,
   type MonitorConditionDefinition,
@@ -40,7 +43,7 @@ export type ListingMonitorDraftReview = Readonly<{
 export type ListingMonitorConditionEditorCatalogItem = Readonly<{
   key: string;
   label: string;
-  valueType: Extract<MonitorConditionValueType, "text" | "boolean" | "date" | "number">;
+  valueType: Extract<MonitorConditionValueType, "text" | "boolean" | "date" | "number" | "decimal">;
   exclusiveMinimum?: number;
   operators: readonly Readonly<{ value: MonitorConditionOperator; label: string }>[];
   values: readonly Readonly<{ value: string; label: string }>[];
@@ -193,8 +196,8 @@ export function getListingMonitorDraftCreateGate(
 export function formatListingMonitorConditionPreview(
   condition: CanonicalListingMonitorCondition,
 ): ListingMonitorConditionPreview {
-  const definition = getListingDefinition(condition.key);
-  if (!definition || validateMonitorConditionInput(condition).length > 0) {
+  const definition = getStoredMonitorCondition(condition.key);
+  if (!definition?.monitorDomains?.includes('listing') || !definition.display || validateStoredMonitorConditionInput(condition).length > 0) {
     return Object.freeze({ label: "Condition", value: "Choose a valid value", text: "Condition — Choose a valid value" });
   }
   const value = formatConditionValue(definition, condition.operator, condition.value);
@@ -206,15 +209,17 @@ export function formatListingMonitorConditionPreview(
 }
 
 export type ListingMonitorConditionDomain =
+  | "projected"
   | "effect"
   | "market"
   | "corporate-actions"
   | "listing-risk"
-  | "proxy";
+  | "proxy"
+  | "offering-plan";
 
 export type ListingMonitorConditionDomainGroup = Readonly<{
   id: ListingMonitorConditionDomain;
-  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Registration EFFECT";
+  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Registration EFFECT" | "예상 공모 희석" | "Offering Plan";
   items: readonly Readonly<{
     condition: CanonicalListingMonitorCondition;
     index: number;
@@ -241,7 +246,9 @@ const CONDITION_DOMAIN_DEFINITIONS: readonly Readonly<{
     title: "Listing Risk",
     matches: (condition) => condition.key.startsWith("listing."),
   },
+  { id: "offering-plan", title: "Offering Plan", matches: condition => condition.key.startsWith("offering_plan.") },
   { id: "proxy", title: "Proxy", matches: condition => condition.key.startsWith("proxy.") },
+  { id: "projected", title: "예상 공모 희석", matches: condition => condition.key.startsWith("projected.") },
   { id: "effect", title: "Registration EFFECT", matches: condition => condition.key.startsWith("effect.") },
 ];
 
@@ -340,6 +347,7 @@ function validateListingConditionSet(
     }
     conditions.push(cloneCondition(condition));
   });
+  if (requireNonempty) errors.push(...offeringPlanConditionErrors(conditions));
   if (findEqContradictions(conditions).length > 0) errors.push("conditions_contradictory");
   return {
     valid: errors.length === 0,
@@ -451,7 +459,7 @@ function defaultValue(definition: MonitorConditionDefinition, operator: MonitorC
   const eligibleEnum = definition.enumValues?.find((value) => !definition.eligibility?.ineligibleValues?.includes(value));
   const scalar = eligibleEnum ?? (definition.valueType === "boolean"
     ? true
-    : definition.valueType === "number"
+    : definition.valueType === "decimal" ? "1" : definition.valueType === "number"
       ? Math.max(1, (definition.numberValidation?.exclusiveMinimum ?? 0) + 1)
       : "");
   return operator === "in" || operator === "not_in" ? (scalar === "" ? [] : [scalar]) : scalar;
@@ -463,7 +471,7 @@ function getListingDefinition(key: string) {
 }
 
 function isListingValueType(value: MonitorConditionValueType): value is ListingMonitorConditionEditorCatalogItem["valueType"] {
-  return value === "text" || value === "boolean" || value === "date" || value === "number";
+  return value === "text" || value === "boolean" || value === "date" || value === "number" || value === "decimal";
 }
 
 function isCanonicalConditionShape(value: unknown): value is CanonicalListingMonitorCondition {

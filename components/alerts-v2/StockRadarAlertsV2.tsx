@@ -1,4 +1,5 @@
 "use client";
+import {alertPresentation} from "@/lib/alerts/alertPresentation";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -780,11 +781,11 @@ export function StockRadarAlertsV2({
 
           <section className={styles.aiMonitorEntry} aria-labelledby="alerts-ai-monitor-title">
             <div>
-              <span>AI Monitor</span>
+              <span>Custom alerts</span>
               <h2 id="alerts-ai-monitor-title">Tell Stock Radar what to watch.</h2>
-              <p>Describe a signal in plain language, review it, and create a monitor.</p>
+              <p>Save conditions to receive Custom alerts when they match. Review or adjust them in Monitor.</p>
             </div>
-            <Link href="/monitor">Open AI Monitor</Link>
+            <Link href="/monitor">Create Custom alerts</Link>
           </section>
 
           <ListingMonitorManagement />
@@ -1276,6 +1277,7 @@ export function StockRadarAlertsV2({
           <div className={styles.cardHeader}>
             <div>
             <h2 id="alerts-v2-recent-title">Recent alerts</h2>
+            <p>News &amp; filing alerts use event importance and your alert settings. Calendar alerts follow your saved events.</p>
           </div>
         </div>
 
@@ -1305,7 +1307,7 @@ export function StockRadarAlertsV2({
             >
               <strong role="cell">{alert.ticker || "MARKET"}</strong>
               <span role="cell">{getDeliveredAlertType(alert)}</span>
-              <p role="cell">{alert.title}</p>
+              <p role="cell">{alert.title}<br /><small>{getDeliveredAlertCategory(alert)}</small></p>
               <time dateTime={alert.deliveredAt} role="cell">
                 {formatRelativeTime(alert.deliveredAt)}
               </time>
@@ -1447,6 +1449,10 @@ export function StockRadarAlertsV2({
 }
 
 function getDeliveredAlertType(alert: DeliveredAlertItem) {
+  return alertPresentation(alert.alertLane).label;
+}
+
+function getDeliveredAlertCategory(alert: DeliveredAlertItem) {
   if (alert.categoryLabel) return alert.categoryLabel;
   if (alert.sourceLabel) return alert.sourceLabel;
   if (alert.alertLane === "calendar_follow") return "Calendar follow";

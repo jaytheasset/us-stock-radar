@@ -1,5 +1,6 @@
 "use client";
 
+import {OfferingPlanAlertDetails} from './OfferingPlanAlertDetails';
 import Link from "next/link";
 import { AlertTriangle, BellRing, CheckCircle2, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -18,7 +19,7 @@ import {
 } from "@/lib/monitor/listingMonitorDraftReview";
 import type { ListingMonitorAlertItem } from "@/lib/monitor/listingMonitorApi";
 import type { CanonicalListingMonitorCondition, ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
-import type { MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
+import { hasRetiredMonitorConditions, type MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
 import {
   createMonitorPresetDraft,
@@ -32,6 +33,7 @@ import {
   Form4PurchaseMonitorSummary,
 } from "./Form4InsiderPurchaseMonitor";
 import styles from "./ListingMonitorDraftBuilder.module.css";
+import {ProjectedAlertDetails} from './ProjectedAlertDetails';
 
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
 const EDITOR_BY_KEY = new Map(EDITOR_CATALOG.map((item) => [item.key, item]));
@@ -241,10 +243,10 @@ export function ListingMonitorDraftBuilder() {
   }
 
   return (
-    <section className={styles.builder} aria-label="AI Monitor builder">
+    <section className={styles.builder} aria-label="Custom alerts builder">
       {authRequired ? (
         <div className={styles.authNotice} role="status">
-          <span>Sign in to build and create an AI Monitor.</span>
+          <span>Sign in to create Custom alerts from saved conditions.</span>
           <Link href="/login?next=%2Fmonitor">Sign in</Link>
         </div>
       ) : null}
@@ -482,6 +484,10 @@ export function ListingMonitorManagement() {
   }, []);
 
   async function setMonitorActive(monitor: ListingMonitor, isActive: boolean) {
+    if (isActive && hasRetiredMonitorConditions(monitor.conditions)) {
+      setMessage('This condition is retired and cannot be resumed.');
+      return;
+    }
     setActionId(monitor.id);
     setMessage("");
     try {
@@ -525,9 +531,9 @@ export function ListingMonitorManagement() {
     <section className={styles.management} aria-labelledby="monitor-management-title">
       <div className={styles.managementHeading}>
         <div>
-          <span>AI Monitor</span>
-          <h2 id="monitor-management-title">Your monitors</h2>
-          <p>Pause, resume, or remove the monitors you’ve created.</p>
+          <span>Custom alerts</span>
+          <h2 id="monitor-management-title">Your saved conditions</h2>
+          <p>Manage the saved conditions that trigger your Custom alerts.</p>
         </div>
         <strong>{loading ? "Loading..." : `${monitors.length} total`}</strong>
       </div>
@@ -541,16 +547,18 @@ export function ListingMonitorManagement() {
       {message ? <p className={styles.managementMessage} role="status">{message}</p> : null}
 
       {!loading && !authRequired && monitors.length === 0 ? (
-        <p className={styles.emptyState}>No monitors yet. Open AI Monitor to create your first one.</p>
+        <p className={styles.emptyState}>No monitors yet. Open Custom alerts to create your first one.</p>
       ) : null}
       <div className={styles.monitorRows}>
-        {monitors.map((monitor) => (
-          <article key={monitor.id}>
+        {monitors.map((monitor) => {
+          const retired = hasRetiredMonitorConditions(monitor.conditions);
+          return <article key={monitor.id} data-retired={retired ? 'true' : undefined}>
             <div className={styles.monitorStatus}>
-              <strong>{monitor.kind === "form4_insider_purchase" ? "Form 4 purchase alert" : "AI Monitor"}</strong>
-              <span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span>
+              <strong>{monitor.kind === "form4_insider_purchase" ? "Form 4 purchase alert" : "Custom alerts"}</strong>
+              <span data-active={!retired && monitor.isActive ? "true" : "false"}>{retired ? 'Retired condition' : monitor.isActive ? "Active" : "Paused"}</span>
             </div>
-            {monitor.kind === "form4_insider_purchase" ? (
+            {retired && <p>This condition no longer runs or creates alerts. Its saved settings are kept for reference.</p>}
+            {monitor.kind === "form4_insider_purchase" && !retired ? (
               <Form4PurchaseMonitorSummary
                 busy={actionId === monitor.id}
                 editing={editingId === monitor.id}
@@ -572,14 +580,14 @@ export function ListingMonitorManagement() {
             )}
             <div className={styles.monitorActions}>
               <span>Created {formatMonitorDate(monitor.createdAt)}</span>
-              <button
+              {(!retired || monitor.isActive) && <button
                 disabled={actionId === monitor.id}
                 onClick={() => void setMonitorActive(monitor, !monitor.isActive)}
                 type="button"
               >
                 {monitor.isActive ? <Pause aria-hidden="true" size={15} /> : <Play aria-hidden="true" size={15} />}
                 {monitor.isActive ? "Pause" : "Resume"}
-              </button>
+              </button>}
               <button
                 className={styles.deleteMonitor}
                 disabled={actionId === monitor.id}
@@ -589,23 +597,27 @@ export function ListingMonitorManagement() {
                 <Trash2 aria-hidden="true" size={15} /> Delete
               </button>
             </div>
-          </article>
-        ))}
+          </article>;
+        })}
       </div>
 
       {!authRequired ? (
         <section className={styles.generatedAlerts} aria-labelledby="monitor-alerts-title">
           <div>
-            <h3 id="monitor-alerts-title"><BellRing aria-hidden="true" size={17} /> Monitor alerts</h3>
+            <h3 id="monitor-alerts-title"><BellRing aria-hidden="true" size={17} /> Custom alerts</h3>
             <span>{loading ? "Loading..." : `${alertTotal} total`}</span>
           </div>
           {!loading && alerts.length === 0 ? (
-            <p>No monitor alerts yet.</p>
+            <p>No Custom alerts yet. Alerts appear when your saved conditions match.</p>
           ) : (
             <ul>
               {alerts.map((alert) => (
-                <li className={alert.effectEvidence ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
-                  {alert.effectEvidence ? (
+                <li className={alert.offeringPlanEvidence || alert.effectEvidence || alert.projectedScenario ? styles.effectAlert : undefined} id={`monitor-alert-${alert.id}`} key={alert.id} data-alert-id={alert.id}>
+                  {alert.offeringPlanEvidence ? (
+                    <OfferingPlanAlertDetails id={alert.id} evidence={alert.offeringPlanEvidence}/>
+                  ) : alert.projectedScenario ? (
+                    <ProjectedAlertDetails id={alert.id} scenario={alert.projectedScenario}/>
+                  ) : alert.effectEvidence ? (
                     <>
                       <strong>Registration EFFECT confirmed</strong>
                       <span>{alert.effectEvidence.registrationForm} · {alert.effectEvidence.fileNumber} · CIK {alert.effectEvidence.cik}</span>
@@ -659,7 +671,7 @@ function ConditionDomainCards({
   }>[];
 }>) {
   const groups = groupListingMonitorConditionsByDomain(conditions);
-  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect"] as const).filter((id) =>
+  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect", "projected", "offering-plan"] as const).filter((id) =>
     groups.some((group) => group.id === id) || (id === "corporate-actions" && proposals.length > 0),
   );
   const titles = {
@@ -668,6 +680,8 @@ function ConditionDomainCards({
     "listing-risk": "Listing Risk",
     "proxy": "Proxy",
     "effect": "Registration EFFECT",
+    "projected": "Projected offering dilution",
+    "offering-plan": "Offering Plan",
   } as const;
 
   return (

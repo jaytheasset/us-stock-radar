@@ -6,14 +6,14 @@ import {gunzipSync} from 'node:zlib';
 import {tmpdir,hostname} from 'node:os';
 import {join} from 'node:path';
 import {spawn,spawnSync} from 'node:child_process';
-import {validateOutput,sha,type Source} from './contract.ts';
+import {validateOutput,sha,LEGACY_REVISION,REVISION,type Source} from './contract.ts';
 import {bindingFor,familyFor,compactBinding,buildSource,hydrateBinding} from './source.ts';
 import {CodexCliOfferingProvider} from './provider.ts';
 import {CodexCliOsSnapshotProvider,type RunProcess} from '../sec-os-snapshot/provider.ts';
 const manifest=JSON.parse(readFileSync('lib/sec-offering-plan/fixtures/manifest.json','utf8'));
 const fixture=(id:string)=>({raw:readFileSync(`lib/sec-offering-plan/fixtures/${id}.json`,'utf8'),source:JSON.parse(gunzipSync(readFileSync(`lib/sec-offering-plan/fixtures/${id}.source.json.gz`)).toString()) as Source});
 for(const f of manifest.fixtures)test('frozen gate fixture '+f.id,()=>{const {raw,source}=fixture(f.id);assert.equal(sha(raw),f.rawHash);const v=validateOutput(raw,source);assert.equal(v.ok,true,JSON.stringify(v.errors));assert.equal(JSON.stringify(v.value),JSON.stringify(JSON.parse(raw)));});
-const {raw,source}=fixture('arm-f1a'),binding=bindingFor('00000000-0000-5000-a000-000000000001',source);
+const {raw,source}=fixture('arm-f1a'),binding=bindingFor('00000000-0000-5000-a000-000000000001',source,LEGACY_REVISION);
 
 test('compact binding has no source body and reconstructs both formats without changing the key',()=>{
  const rawItem={id:binding.rawItemId,source_code:'sec_edgar',source_unique_id:source.filing.accession,raw_payload:{accession_number:source.filing.accession,company_name:source.filing.issuer,cik:source.filing.cik,form_type:source.filing.form,filing_date:source.filing.filing_date,primary_document_html:'<p>Original £0.01 Ω</p>',primary_document_html_truncated:false}};
@@ -28,7 +28,8 @@ test('family needs official nonconflicting numbers; amendment and revisions stay
  assert.equal(familyFor({...f,file_number:null,registration_number:null}).key,null);
  assert.equal(familyFor({...f,registration_number:'333-999999'}).key,null);
  assert.equal(familyFor({...f,file_number:'unknown',registration_number:null}).key,null);
- assert.notEqual(bindingFor(binding.rawItemId,source,'next').id,binding.id);
+ assert.notEqual(bindingFor(binding.rawItemId,source,REVISION).id,binding.id);
+ assert.throws(()=>bindingFor(binding.rawItemId,source,'next'),/unsupported/);
  assert.notEqual(bindingFor(binding.rawItemId,{...source,fingerprint:sha('new')}).id,binding.id);
  assert.notEqual(bindingFor(binding.rawItemId,{...source,filing:{...f,accession:'0000000001-26-000001'}}).id,binding.id);
 });

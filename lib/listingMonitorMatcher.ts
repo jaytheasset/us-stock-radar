@@ -1,8 +1,11 @@
+import {hasOfferingPlan} from './monitor/offeringPlanConditions.ts';
+import {matchOfferingPlan,type OfferingPlanFacts} from './monitor/offeringPlanFacts.ts';
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./monitor/currentPrice.ts";
 import type { NtLifecycleReadResult } from "./monitor/ntLifecycleRuntime.ts";
 import type { S8MonitorFacts } from "./monitor/s8StructuredFacts.ts";
 import type { TenderMonitorFacts } from "./monitor/tenderStructuredFacts.ts";
 import type { ProxyMonitorFacts } from "./monitor/proxyStructuredFacts.ts";
+import type { ReadResult as ProjectedFacts } from './projected-offering-dilution/repository.ts';
 import { readEventFilingMetadata, type EventFilingMetadata } from "./monitor/eventFilingMetadata.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "./sec-form25-identity/consumption.ts";
 import { form25HumanMonitorField } from "./sec-form25-analysis-review/consumer.ts";
@@ -22,6 +25,7 @@ import {
 } from "./monitor/ownershipMonitorPersistence.ts";
 import {
   getReadyMonitorCondition,
+  hasRetiredMonitorConditions,
   monitorDateOnlyUtcDay,
   validateMonitorConditionInput,
   type MonitorConditionDefinition,
@@ -50,6 +54,7 @@ export type ListingMonitorMatchReasonCode =
   | "condition_set_empty"
   | "condition_invalid"
   | "condition_key_unknown"
+  | "condition_key_retired"
   | "condition_operator_unknown"
   | "condition_value_invalid"
   | "evaluation_date_invalid"
@@ -106,6 +111,7 @@ export type ListingMonitorEventMatchResult = Readonly<{
 }>;
 
 export type ListingMonitorMatcherDependencies = Readonly<{
+  readProjectedFacts?(eventId:string):Promise<ProjectedFacts>;
   readFilingMetadata?(eventId: string): Promise<EventFilingMetadata>;
   readTenderFacts?(eventId: string): Promise<TenderMonitorFacts>;
   readProxyFacts?(eventId: string): Promise<ProxyMonitorFacts>;
@@ -121,6 +127,8 @@ export type ListingMonitorMatcherDependencies = Readonly<{
 }>;
 
 export type MonitorFactReaders = Readonly<{
+  offeringPlan?: OfferingPlanFacts;
+  projected?: ProjectedFacts;
   filing?: EventFilingMetadata;
   effect?: EffectFacts;
   tender?: TenderMonitorFacts;
@@ -171,6 +179,14 @@ export function evaluateMonitorConditions(
     currentPrice?: CurrentPrice;
   }>,
 ): ListingMonitorMatchResult {
+  if (hasRetiredMonitorConditions(conditions)) {
+    return result('ineligible', 'condition_key_retired', conditions.map(c => conditionResult(recordValue(c) ? String(c.key) : '', 'ineligible', 'condition_key_retired')));
+  }
+  if (hasOfferingPlan(conditions as readonly import('./monitor/offeringPlanConditions.ts').PlanCondition[])) {
+    const status=matchOfferingPlan(readers.offeringPlan,conditions as readonly import('./monitor/offeringPlanConditions.ts').PlanCondition[]);
+    const reason=status==='match'?'all_conditions_match':status==='no_match'?'condition_not_met':'fact_unavailable';
+    return result(status,reason,conditions.map(c=>conditionResult(String(c.key),status,reason)));
+  }
   if (hasEffect(conditions)) {
     const status = matchEffect(readers.effect, conditions as readonly EffectCondition[]);
     const reason = status === "match" ? "all_conditions_match" : status === "no_match" ? "condition_not_met" : "fact_unavailable";
@@ -226,6 +242,9 @@ export function evaluateForm4InsiderPurchaseMonitor(
   settings: Form4InsiderPurchaseSettings,
   targetStatus: "eligible" | "no_match" | "unavailable",
 ): ListingMonitorMatchResult {
+  if (hasRetiredMonitorConditions(conditions)) {
+    return result('ineligible', 'condition_key_retired', conditions.map(c => conditionResult(recordValue(c) ? String(c.key) : '', 'ineligible', 'condition_key_retired')));
+  }
   const specialized = evaluateForm4InsiderPurchase(current, settings);
   const evaluatedConditions = conditions.map((condition) => conditionResult(
     String(condition.key),
@@ -277,7 +296,7 @@ export async function evaluateListingMonitorEvent(
       readerReason: identity.reason, conditions: [],
     } })),
   };
-  const conditions = input.conditionSets.flatMap((set) => set.conditions);
+  const conditions = input.conditionSets.filter(set => !hasRetiredMonitorConditions(set.conditions)).flatMap((set) => set.conditions);
   const listingRequested = conditions.some((condition) => conditionUsesReader(
     condition,
     "read_current_event_listing_risk_facts",

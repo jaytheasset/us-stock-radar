@@ -1,3 +1,4 @@
+import {consumeOfferingPlanEvent} from '@/lib/monitor/offeringPlanTrigger';
 import { createHash } from "node:crypto";
 import {
   FatalError,
@@ -130,6 +131,7 @@ export async function secSourceIngestWorkflow(input: SecIngestWorkflowInput) {
             ),
           }
         : analysisResult;
+      if (analysis.eventId) await evaluateOfferingPlanEventStep(analysis.eventId);
       analyses.push(analysis);
       if (analysis.monitorJobIdentity) {
         monitorJobs.push(await enqueueOfferingMonitorJobStep(analysis.monitorJobIdentity));
@@ -868,3 +870,10 @@ function readNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 }
+
+/** Secondary matching only; committed Primary output is never read or changed. */
+async function evaluateOfferingPlanEventStep(eventId: string) {
+  "use step";
+  return consumeOfferingPlanEvent(eventId);
+}
+evaluateOfferingPlanEventStep.maxRetries = 3;

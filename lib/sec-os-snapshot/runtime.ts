@@ -6,7 +6,9 @@ export interface OsSnapshotProvider { journalId?: string; run(binding: Binding, 
 export async function processSnapshot(id: string, provider: OsSnapshotProvider, supplied?: Repository) {
   const repo = supplied ?? await repository();
   const claimed = await rpc(repo,"sec_os_snapshot_transition",{p_id:id,p_action:"claim"});
-  if (!claimed.claimed) return {status:claimed.status};
+  if (!claimed.claimed) {
+    return {status:claimed.status};
+  }
   const token = String(claimed.token);
   const transition = (action: string, value?: unknown) => rpc(repo,"sec_os_snapshot_transition",{p_id:id,p_action:action,p_token:token,p_value:value??null});
   let leaseError: unknown;

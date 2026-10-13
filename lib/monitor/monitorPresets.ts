@@ -16,18 +16,24 @@ export type MonitorPreset = Readonly<{
 
 export type MonitorAddConditionOption = Readonly<{
   id: string;
-  category: "common" | "corporate-actions" | "listing-risk" | "proxy";
+  category: "common" | "corporate-actions" | "listing-risk" | "proxy" | "projected";
   title: string;
   condition: CanonicalListingMonitorCondition;
 }>;
 
 export type MonitorAddConditionGroup = Readonly<{
   id: MonitorAddConditionOption["category"];
-  title: "Common" | "Corporate Actions" | "Listing Risk" | "Proxy";
+  title: "Common" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Projected offering dilution";
   options: readonly MonitorAddConditionOption[];
 }>;
 
 const PRESET_DEFINITIONS = Object.freeze([
+  Object.freeze({id:"offering-plan-shares",title:"Stated offering-plan shares",description:"Watch the stated quantity of an issuer common-stock plan component. Review its source scenario; a plan does not establish issuance.",category:"Offering Plan",priority:5,conditions:Object.freeze([
+    Object.freeze({key:"offering_plan.stated_component_quantity",operator:"gte" as const,value:"100000"}),
+    Object.freeze({key:"offering_plan.seller_type",operator:"eq" as const,value:"issuer"}),
+    Object.freeze({key:"offering_plan.security_type",operator:"eq" as const,value:"common_stock"}),
+    Object.freeze({key:"offering_plan.quantity_unit",operator:"eq" as const,value:"shares"}),
+  ])}),
   Object.freeze({
     id: "low-price-reverse-split",
     title: "Low-price reverse split",
@@ -156,6 +162,7 @@ export function validateMonitorAddConditionCatalog(value: unknown): readonly Mon
     "corporate-actions",
     "listing-risk",
     "proxy",
+    "projected",
   ]);
   const ids = new Set<string>();
   const options = value.map((candidate, index): MonitorAddConditionOption => {
@@ -181,6 +188,7 @@ export function validateMonitorAddConditionCatalog(value: unknown): readonly Mon
     { id: "corporate-actions", title: "Corporate Actions" },
     { id: "listing-risk", title: "Listing Risk" },
     ...(options.some(option => option.category === "proxy") ? [{id:"proxy" as const,title:"Proxy" as const}] : []),
+    ...(options.some(option => option.category === "projected") ? [{id:"projected" as const,title:"Projected offering dilution" as const}] : []),
   ];
   return Object.freeze(groups.map((group) => {
     const groupOptions = options.filter((option) => option.category === group.id);

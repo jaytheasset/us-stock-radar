@@ -97,13 +97,14 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect" | "projected" | "offering_plan";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
     column?: string;
     subject: "event" | "ticker" | "issuer";
     reader?:
+      | "read_offering_plan_components"
       | "readRegistryBackedOfferingFacts"
       | "read_current_event_listing_risk_facts"
       | "read_current_event_corporate_action_facts"
@@ -115,6 +116,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_tender_structured"
       | "read_event_filing_metadata"
       | "read_effect_registration"
+      | "read_projected_offering_dilution"
       | "read_sc13_issuer_current_state"
       | "get_current_price";
     jsonPath?: readonly string[];
@@ -133,12 +135,13 @@ export type MonitorConditionDefinition = Readonly<{
     requiredDataModes?: readonly "realtime"[];
     maximumAgeSeconds?: number;
   }>;
-  status: "READY" | "PARTIAL";
+  status: "READY" | "PARTIAL" | "RETIRED";
 }>;
 
 export type MonitorConditionInputValidationError =
   | "condition_invalid"
   | "condition_key_unknown"
+  | "condition_key_retired"
   | "condition_operator_unknown"
   | "condition_value_invalid";
 
@@ -156,6 +159,23 @@ const publicCorporateActionStages = monitorableCorporateActionVocabulary(
 );
 
 const registry = [
+  ...([
+    ['issuer_new_shares_base','Projected issuer new shares (offering plan)'],
+    ['projected_increase_percent_base','Projected O/S increase (%)'],
+    ['projected_increase_percent_full_overallotment','Projected O/S increase with full over-allotment (%)'],
+  ] as const).map<MonitorConditionDefinition>(([field,label])=>({
+    key:`projected.${field}`,valueType:'number',allowedOperators:['gte'],family:'projected',domain:'projected',monitorDomains:['listing'],
+    display:{label,numberFormat:{style:'decimal',maximumFractionDigits:4},operatorValueTemplates:{gte:'at least {value}'}},description:label,numberValidation:{minimum:0},
+    source:{subject:'event',reader:'read_projected_offering_dilution',jsonPath:[field]},qualityCapability:['derived'],status:'RETIRED',
+  })),
+  ...([
+    ['resale_only','Resale only'],['has_prefunded_warrants','Pre-funded warrants included'],
+    ['has_warrants','Potential warrant dilution included'],['calculation_issue','Calculation unavailable, partial or conflicting'],
+  ] as const).map<MonitorConditionDefinition>(([field,label])=>({
+    key:`projected.${field}`,valueType:'boolean',allowedOperators:['eq'],family:'projected',domain:'projected',monitorDomains:['listing'],
+    display:{label,booleanValueLabels:{true:'Yes',false:'No'}},description:`Offering plan: ${label}`,
+    source:{subject:'event',reader:'read_projected_offering_dilution',jsonPath:[field]},qualityCapability:['derived'],status:'RETIRED',
+  })),
   {
     key: "event.sec_form", valueType: "text", allowedOperators: ["eq", "in"],
     enumValues: ["S-4", "S-4/A", "F-4", "F-4/A"],
@@ -336,6 +356,20 @@ const registry = [
       },
     },
   ),
+  ...([
+    ["component_quantity", "decimal", "Historical offering-plan quantity", undefined],
+    ["stated_component_quantity", "decimal", "Stated offering-plan component quantity", undefined],
+    ["seller_type", "text", "Offering-plan seller", ["issuer", "selling_shareholders"]],
+    ["security_type", "text", "Offering-plan security", ["common_stock", "ordinary_shares", "ads"]],
+    ["quantity_unit", "text", "Offering-plan unit (exact source text)", undefined],
+  ] as const).map(([name, valueType, label, enums]): MonitorConditionDefinition => ({
+    key: `offering_plan.${name}`, valueType, allowedOperators: valueType === "decimal" ? ["gte"] : ["eq"],
+    ...(enums ? {enumValues: enums, enumValueDescriptions:Object.fromEntries(enums.map(v=>[v,`Directly stated ${v.replaceAll("_", " ")} component in the current offering plan.`]))} : {}),
+    description: "The stated quantity of one plan component with the same seller, security and exact unit. Review its source scenario; no issuance, conversion or totals are established.",
+    display: {label, ...(valueType === "decimal" ? {operatorValueTemplates:{gte:"At least {value}"}} : {}), ...(enums ? {enumValueLabels: Object.fromEntries(enums.map(v => [v, v.replaceAll('_', ' ')]))} : {})},
+    monitorDomains: ["listing"], family: "offering_plan", domain: "offering_plan",
+    source: {subject: "event", reader: "read_offering_plan_components"}, qualityCapability: ["exact"], status: name === "component_quantity" ? "RETIRED" : "READY",
+  })),
   canonicalOfferingCondition("offering.side", "text", enumOperators, "classification", "canonical", ["primary_or_resale"], ["primary", "resale", "mixed"]),
   canonicalOfferingCondition("offering.amount", "number", numericOperators, "capital_raising", "canonical", ["facts", "actual_primary_offering_amount"]),
   canonicalOfferingCondition("offering.offering_price", "number", numericOperators, "capital_raising", "canonical", ["facts", "offering_price"]),
@@ -612,11 +646,30 @@ export function getReadyMonitorCondition(key: string) {
   return getReadyMonitorConditions().find((entry) => entry.key === key) || null;
 }
 
+/** Exact historical definitions, never a source of executable conditions. */
+export function getStoredMonitorCondition(key: string) {
+  return MONITOR_CONDITION_REGISTRY.find(entry => entry.key === key && entry.status !== 'PARTIAL') ?? null;
+}
+export function isRetiredMonitorCondition(key: string) {
+  return getStoredMonitorCondition(key)?.status === 'RETIRED';
+}
+export function hasRetiredMonitorConditions(value: unknown) {
+  return Array.isArray(value) && value.some(c => record(c) && typeof c.key === 'string' && isRetiredMonitorCondition(c.key));
+}
+
+export function validateStoredMonitorConditionInput(value: unknown): readonly MonitorConditionInputValidationError[] {
+  return validateConditionInput(value, true);
+}
+
 export function validateMonitorConditionInput(value: unknown): readonly MonitorConditionInputValidationError[] {
+  return validateConditionInput(value, false);
+}
+function validateConditionInput(value: unknown, historical: boolean): readonly MonitorConditionInputValidationError[] {
   if (!record(value)) return ["condition_invalid"];
   const key = typeof value.key === "string" ? value.key : "";
   const operator = typeof value.operator === "string" ? value.operator : "";
-  const definition = getReadyMonitorCondition(key);
+  if (!historical && isRetiredMonitorCondition(key)) return ['condition_key_retired'];
+  const definition = historical ? getStoredMonitorCondition(key) : getReadyMonitorCondition(key);
   if (!definition) return ["condition_key_unknown"];
   if (!definition.allowedOperators.includes(operator as MonitorConditionOperator)) {
     return ["condition_operator_unknown"];

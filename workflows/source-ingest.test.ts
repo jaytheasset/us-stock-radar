@@ -26,6 +26,7 @@ type ExecutionState = {
   bridgeCalls: string[][];
   prospectusBridgeCalls: string[][];
   analysisCalls: string[];
+  offeringPlanCalls: string[];
   completedEvents: Record<string, string>;
   monitorIdentityEnabled: boolean;
   monitorRegistryState: "none" | "pending" | "failed" | "completed";
@@ -46,6 +47,12 @@ const actualBridgeUrl = pathToFileURL(
 ).href;
 
 const mocks = new Map<string, string>([
+  ["@/lib/monitor/offeringPlanTrigger", dataModule(`
+    export async function consumeOfferingPlanEvent(eventId) {
+      globalThis.__secWorkflowExecutionState.offeringPlanCalls.push(eventId);
+      return { createdCount: 0, failedCount: 0 };
+    }
+  `)],
   ["workflow", dataModule(`
     export class FatalError extends Error {}
     export class RetryableError extends Error {
@@ -316,6 +323,7 @@ test("periodic VEEA 10-Q executes raw, normalized O/S bridge, then analysis", as
   assert.deepEqual(state.bridgeCalls, [["0001840317"]]);
   assert.deepEqual(state.rawFormTypes, ["10-Q", "10-Q/A", "8-K", "S-3", "424B5", "40-F", "40-F/A"]);
   assert.deepEqual(state.analysisCalls, ["raw-veea-q2"]);
+  assert.deepEqual(state.offeringPlanCalls, ["event:raw-veea-q2"]);
   assert.deepEqual(state.order, ["raw", "os:0001840317", "analysis:raw-veea-q2"]);
   assert.equal(result.osCollection.status, "completed");
 });
@@ -492,6 +500,7 @@ test("failed Offering Monitor replays only the Monitor and completes without rep
   assert.equal(state.sidecarEnqueueCalls, 1);
 
   const noOpReplay = await secSourceIngestWorkflow(workflowInput());
+  assert.deepEqual(state.offeringPlanCalls, [`event:${rawItemId}`, `event:${rawItemId}`]);
   assert.equal(noOpReplay.analyses.length, 0);
   assert.deepEqual(state.analysisCalls, [rawItemId]);
   assert.deepEqual(state.monitorRegistryRetryCalls, [`event:${rawItemId}`]);
@@ -541,6 +550,7 @@ function setup(
     bridgeCalls: [],
     prospectusBridgeCalls: [],
     analysisCalls: [],
+    offeringPlanCalls: [],
     completedEvents: {},
     monitorIdentityEnabled: false,
     monitorRegistryState: "none",

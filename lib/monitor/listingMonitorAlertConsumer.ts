@@ -1,7 +1,11 @@
+import {hasOfferingPlan} from './offeringPlanConditions.ts';
+import {offeringPlanEvidence,type OfferingPlanEvidence,type OfferingPlanFacts} from './offeringPlanFacts.ts';
+import {readOfferingPlanFacts} from './offeringPlanReader.ts';
 import { readMonitorCurrentPrice, type MonitorCurrentPriceProjectionReaders } from "./currentPrice.ts";
 import type { NtLifecycleReadResult } from "./ntLifecycleRuntime.ts";
 import type { TenderMonitorFacts } from "./tenderStructuredFacts.ts";
 import type { ProxyMonitorFacts } from "./proxyStructuredFacts.ts";
+import type { ReadResult as ProjectedFacts } from '../projected-offering-dilution/repository.ts';
 import { readEventFilingMetadata, registrationFilingAlertText, type EventFilingMetadata, type RegistrationFilingForm } from "./eventFilingMetadata.ts";
 import { readSecForm25EventIdentity, type Form25IdentityGate } from "../sec-form25-identity/consumption.ts";
 import {
@@ -18,7 +22,7 @@ import {
 import {
   type CurrentPrice,
 } from "../market-data/marketDataProvider.ts";
-import { getReadyMonitorCondition } from "./conditionRegistry.ts";
+import { getReadyMonitorCondition, hasRetiredMonitorConditions } from "./conditionRegistry.ts";
 import { hasEffect } from "../sec-effect/conditions.ts";
 import { readEffectFacts, effectEvidence, type EffectEvidence, type EffectFacts } from "../sec-effect/reader.ts";
 import {
@@ -88,6 +92,8 @@ export type ListingMonitorAlertConsumerResult = Readonly<{
 }>;
 
 export type ListingMonitorAlertConsumerDependencies = Readonly<{
+  readOfferingPlanFacts?(eventId:string):Promise<OfferingPlanFacts>;
+  readProjectedFacts?(eventId:string):Promise<ProjectedFacts>;
   readFilingMetadata?(eventId: string): Promise<EventFilingMetadata>;
   readEffectFacts?(eventId: string): Promise<EffectFacts>;
   readTenderFacts?(eventId: string): Promise<TenderMonitorFacts>;
@@ -112,10 +118,12 @@ export type ListingMonitorAlertConsumerDependencies = Readonly<{
     monitorId: string;
     userId: string;
     createdAt: string;
-    matchEvidence?: Form4PurchaseMatchEvidence;
+    offeringPlanEvidence?: OfferingPlanEvidence;
+  matchEvidence?: Form4PurchaseMatchEvidence;
     ntAlert?: "notice" | "report";
     tenderAlert?: boolean;
     proxyAlert?: boolean;
+    projectedAlert?: {factId:string;conditions:unknown;scenario:string};
     filingForm?: RegistrationFilingForm;
     effectEvidence?: EffectEvidence;
   }>): Promise<ListingMonitorAlertWriteResult>;
@@ -146,11 +154,26 @@ const defaultDependencies: ListingMonitorAlertConsumerDependencies = {
  * diagnostic and never prevent valid monitors from running.
  */
 export async function consumeListingMonitorAlertsForEvent(
-  input: Readonly<{ eventId: string; alertEventId?: string; conditionFamily?: "proxy" | "tender" | "filing" }>,
+  input: Readonly<{ eventId: string; alertEventId?: string; conditionFamily?: "proxy" | "tender" | "filing" | "projected" | "offering_plan" }>,
   dependencies: ListingMonitorAlertConsumerDependencies = defaultDependencies,
 ): Promise<ListingMonitorAlertConsumerResult> {
-  const allMonitors = await dependencies.listActiveMonitors();
-  const listingMonitors = (input.conditionFamily === "proxy" || input.conditionFamily === "tender") ? { ...allMonitors,
+  if(input.conditionFamily==='projected')return {
+    version:LISTING_MONITOR_ALERT_CONSUMER_VERSION,status:'completed',eventId:input.eventId,
+    readerStatus:'not_ready',readerReason:'projected_calculation_retired',
+    corporateActionReaderStatus:'not_ready',ownershipReaderStatus:'not_ready',
+    evaluationDate:dependencies.now().toISOString().slice(0,10),monitorCount:0,diagnostics:[],evaluations:[],
+    writes:[],evaluationHistoryWrites:[],createdCount:0,existingCount:0,failedCount:0,
+  };
+  const loadedMonitors = await dependencies.listActiveMonitors();
+  // Defensive boundary for injected/legacy callers as well as the persistence reader.
+  // Never remove only the retired predicates and execute a different condition set.
+  const allMonitors = {
+    monitors: loadedMonitors.monitors.filter(m => !hasRetiredMonitorConditions(m.conditions)),
+    diagnostics: [...loadedMonitors.diagnostics, ...loadedMonitors.monitors
+      .filter(m => hasRetiredMonitorConditions(m.conditions))
+      .map(m => ({id:m.id,reason:'stored_conditions_retired' as const,errors:['condition_key_retired']}))],
+  };
+  const listingMonitors = (input.conditionFamily === "proxy" || input.conditionFamily === "tender" || input.conditionFamily === "offering_plan") ? { ...allMonitors,
     monitors: allMonitors.monitors.filter(m => m.conditions.some(c => getReadyMonitorCondition(c.key)?.family === input.conditionFamily)) }
     : input.conditionFamily === "filing" ? { ...allMonitors,
       monitors: allMonitors.monitors.filter(m => m.conditions.some(c => c.key === "event.sec_form")) } : allMonitors;
@@ -178,6 +201,7 @@ export async function consumeListingMonitorAlertsForEvent(
     ? `sec_amendment_current_state_${amendmentState.reason}`
     : "";
   const readers: MonitorFactReaders = {
+    offeringPlan: hasOfferingPlan(allConditions) ? await (dependencies.readOfferingPlanFacts ?? readOfferingPlanFacts)(currentEventId) : {status:"not_ready",reason:"reader_not_requested"},
     filing: allConditions.some(c => c.key === "event.sec_form")
       ? await safeReadFacts(currentEventId, dependencies.readFilingMetadata ?? readEventFilingMetadata)
       : { status: "not_ready", reason: "reader_not_requested" },
@@ -287,6 +311,7 @@ export async function consumeListingMonitorAlertsForEvent(
         evaluatedAt: evaluationTime.toISOString(),
         ...(currentPrice ? { currentPrice } : {}),
       });
+    const planActive = !hasOfferingPlan(monitor.conditions) || (readers.offeringPlan?.status === "available" && Date.parse(monitor.createdAt) <= Date.parse(readers.offeringPlan.filedAt));
     const usesNt = monitor.conditions.some(condition => getReadyMonitorCondition(condition.key)?.family === "nt");
     const usesTender = monitor.conditions.some(condition => getReadyMonitorCondition(condition.key)?.family === "tender");
     const tenderActive = readers.tender?.status === "available" && Number.isFinite(Date.parse(monitor.createdAt))
@@ -300,7 +325,7 @@ export async function consumeListingMonitorAlertsForEvent(
     // Conservative filing-day activation: same-day order is not known from a date-only SEC field.
     const ntActive = readers.nt?.status === "available" && Number.isFinite(Date.parse(monitor.createdAt))
       && Date.parse(monitor.createdAt) <= Date.parse(readers.nt.filedAt);
-    return { monitor, result: ((usesTender && !tenderActive) || (usesNt && !ntActive) || (usesProxy && !proxyActive) || (usesFiling && !filingActive)) && evaluated.status === "match"
+    return { monitor, result: (!planActive || (usesTender && !tenderActive) || (usesNt && !ntActive) || (usesProxy && !proxyActive) || (usesFiling && !filingActive)) && evaluated.status === "match"
       ? { ...evaluated, status: "no_match" as const, reasonCode: "monitor_activation_not_met" as const } : evaluated };
   }));
   const writes: ListingMonitorAlertWriteResult[] = [];
@@ -318,6 +343,7 @@ export async function consumeListingMonitorAlertsForEvent(
           monitorId: evaluation.monitor.id,
           userId: evaluation.monitor.userId,
           createdAt: lineage.persistedAt,
+          ...(hasOfferingPlan(evaluation.monitor.conditions) ? {offeringPlanEvidence: offeringPlanEvidence(readers.offeringPlan,evaluation.monitor.conditions) ?? undefined} : {}),
           ...(evaluation.monitor.conditions.some(c => c.key === "event.sec_form") && readers.filing?.status === "available"
             ? { filingForm: readers.filing.facts.form } : {}),
           ...(readers.effect && hasEffect(evaluation.monitor.conditions)
@@ -446,6 +472,7 @@ function matchingLineage(
   readers: MonitorFactReaders,
   conditions: readonly Readonly<{ key: string }>[],
 ) {
+  if (conditions.some(c=>c.key.startsWith("offering_plan."))) return readers.offeringPlan?.status === "available" ? readers.offeringPlan : null;
   if (conditions.some(condition => condition.key === "event.sec_form")) {
     return readers.filing?.status === "available" ? readers.filing : null;
   }
@@ -501,13 +528,18 @@ export async function createListingMonitorAlert(input: Readonly<{
   monitorId: string;
   userId: string;
   createdAt: string;
+  offeringPlanEvidence?: OfferingPlanEvidence;
   matchEvidence?: Form4PurchaseMatchEvidence;
   ntAlert?: "notice" | "report";
   tenderAlert?: boolean;
   proxyAlert?: boolean;
+  projectedAlert?: {factId:string;conditions:unknown;scenario:string};
   filingForm?: RegistrationFilingForm;
   effectEvidence?: EffectEvidence;
 }>): Promise<ListingMonitorAlertWriteResult> {
+  if(input.projectedAlert){
+    return {status:'failed',monitorId:input.monitorId,error:'Projected calculation alerts have been retired.'};
+  }
   const repository = await import("../supabase.ts");
   if (input.effectEvidence) {
     const saved = await repository.supabaseRpc("create_effect_monitor_alert", {
@@ -522,12 +554,12 @@ export async function createListingMonitorAlert(input: Readonly<{
     user_id: input.userId,
     alert_event_id: input.eventId,
     ticker: input.matchEvidence?.ticker ?? null,
-    title: input.tenderAlert ? "Tender filing monitor matched" : input.filingForm ? registrationFilingAlertText(input.filingForm).title : input.proxyAlert ? "Proxy filing monitor matched" : input.ntAlert ? input.ntAlert === "report" ? "Delayed periodic report filed" : "SEC late-filing notice filed"
+    title: input.offeringPlanEvidence ? "Stated offering plan matched" : input.tenderAlert ? "Tender filing monitor matched" : input.filingForm ? registrationFilingAlertText(input.filingForm).title : input.proxyAlert ? "Proxy filing monitor matched" : input.ntAlert ? input.ntAlert === "report" ? "Delayed periodic report filed" : "SEC late-filing notice filed"
       : input.matchEvidence ? `${input.matchEvidence.ticker} Form 4 purchase` : "Listing monitor matched",
     // Proxy and Tender reuse Generic Monitor storage; title/source identify the filing family.
-    category: input.ntAlert ? "financial_risk" : input.matchEvidence ? "insider_ownership" : "listing_risk",
+    category: input.offeringPlanEvidence ? "dilution_risk" : input.ntAlert ? "financial_risk" : input.matchEvidence ? "insider_ownership" : "listing_risk",
     source_type: "other",
-    source_label: input.tenderAlert ? "Tender Monitor" : input.filingForm ? "SEC Filing Monitor" : input.proxyAlert ? "Proxy Monitor" : input.ntAlert ? "SEC Filing Monitor" : input.matchEvidence ? "Form 4 Purchase Monitor" : "Listing Monitor",
+    source_label: input.offeringPlanEvidence ? "Offering Plan Monitor" : input.tenderAlert ? "Tender Monitor" : input.filingForm ? "SEC Filing Monitor" : input.proxyAlert ? "Proxy Monitor" : input.ntAlert ? "SEC Filing Monitor" : input.matchEvidence ? "Form 4 Purchase Monitor" : "Listing Monitor",
     alert_lane: "listing_monitor",
     severity: null,
     delivered_channels: [],
@@ -542,6 +574,7 @@ export async function createListingMonitorAlert(input: Readonly<{
     alert_domain: "listing",
     listing_source_execution_id: input.sourceExecutionId,
     listing_match_evidence: input.matchEvidence ?? null,
+    ...(input.offeringPlanEvidence ? {offering_plan_match_evidence: input.offeringPlanEvidence} : {}),
   }, {
     onConflict: "listing_monitor_id,alert_event_id",
     prefer: "resolution=ignore-duplicates,return=representation",
