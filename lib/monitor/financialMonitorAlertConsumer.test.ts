@@ -107,7 +107,7 @@ test("thresholds are strict decimal strings and preserve values beyond Number sa
 test("stored condition consumer writes once and concurrent/replay calls are duplicate-safe", async () => {
   const facts = availableFacts("AAPL 2025 10-K");
   const monitor = {
-    id: MONITOR_ID, userId: USER_ID, domain: "financial" as const,
+    id: MONITOR_ID, userId: USER_ID, target: null, domain: "financial" as const,
     conditions: [condition("financial.revenue.annual.current", "gt", "0", "USD")],
     isActive: true, createdAt: "2026-09-10T00:00:00Z", updatedAt: "2026-09-10T00:00:00Z",
   };

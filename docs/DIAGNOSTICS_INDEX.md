@@ -2,7 +2,7 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
-- **Periodic Financial Monitor — minimal UI candidate** — existing no-target conditions, immutable financial match evidence, retained actual Silvaco10-Q validation and source/runtime limits: [`operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md`](operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md).
+- **Periodic Financial Monitor — issuer targeting candidate** — verified ticker/CIK selection, immutable target and evidence, explicit legacy all-issuer scope, actual Silvaco positive/Apple exclusion and runtime limits: [`operations/PERIODIC_FINANCIAL_MONITOR_TARGETING.md`](operations/PERIODIC_FINANCIAL_MONITOR_TARGETING.md). Historical minimal UI/source evidence: [`operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md`](operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md).
 
 - **Secondary Monitor alert evidence — stage 1 candidate** — immutable common display contract, Form144-only adapter, retained AMCOR/owner/browser verification and deferred families: [`operations/SECONDARY_MONITOR_EVIDENCE_STAGE1.md`](operations/SECONDARY_MONITOR_EVIDENCE_STAGE1.md).
 

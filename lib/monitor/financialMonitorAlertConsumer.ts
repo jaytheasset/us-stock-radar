@@ -1,3 +1,6 @@
+import { readFinancialMonitorTarget } from "./financialMonitorTargetReader.ts";
+import { financialTargetSchema, type FinancialTargetResult } from "./financialMonitorTarget.ts";
+import { financialMonitorTargetFailure, type FinancialTargetReason } from "./financialMonitorTargetGate.ts";
 import {
   evaluateFinancialMonitorConditions,
   type FinancialMonitorMatchReasonCode,
@@ -28,6 +31,7 @@ export type FinancialMonitorAlertConsumerDependencies = Readonly<{
     accession: string; issuerCik: string; createdAt: string;
     evidence?: FinancialMonitorEvidence;
   }>): Promise<FinancialMonitorAlertWriteResult>;
+  readTarget?(ticker: string): Promise<FinancialTargetResult>;
   now(): Date;
 }>;
 
@@ -39,7 +43,7 @@ export type FinancialMonitorAlertConsumerResult = Readonly<{
   readerReason?: string;
   monitorCount: number;
   diagnostics: readonly FinancialMonitorDiagnostic[];
-  evaluations: readonly Readonly<{ monitorId: string; status: FinancialMonitorMatchStatus; reasonCode: FinancialMonitorMatchReasonCode }>[];
+  evaluations: readonly Readonly<{ monitorId: string; status: FinancialMonitorMatchStatus; reasonCode: FinancialMonitorMatchReasonCode | FinancialTargetReason }>[];
   writes: readonly FinancialMonitorAlertWriteResult[];
   createdCount: number;
   existingCount: number;
@@ -61,9 +65,18 @@ export async function consumeFinancialMonitorAlertsForEvent(
   let facts: FinancialMonitorFactReadResult;
   try { facts = input.preloadedFacts || await dependencies.readFacts(input.eventId); }
   catch { facts = { status: "not_ready", version: "financial_monitor_fact_reader_v1", reason: "reader_unavailable" }; }
-  const evaluations = monitors.monitors.map((monitor) => ({
-    monitor,
-    result: evaluateFinancialMonitorConditions(facts, monitor.conditions, input.eventId),
+  const targets = new Map<string, Promise<FinancialTargetResult>>();
+  const evaluations = await Promise.all(monitors.monitors.map(async monitor => {
+    let current: FinancialTargetResult | null = null;
+    const saved = financialTargetSchema.safeParse(monitor.target);
+    if (saved.success) {
+      if (!targets.has(saved.data.ticker)) targets.set(saved.data.ticker,
+        (dependencies.readTarget ?? readFinancialMonitorTarget)(saved.data.ticker).catch(() => ({ status: "unavailable" as const })));
+      current = await targets.get(saved.data.ticker)!;
+    }
+    const reason = financialMonitorTargetFailure(monitor.target, current, facts);
+    return { monitor, current, result: reason ? { status: "ineligible" as const, reasonCode: reason }
+      : evaluateFinancialMonitorConditions(facts, monitor.conditions, input.eventId) };
   }));
   const writes: FinancialMonitorAlertWriteResult[] = [];
   const companyName = facts.status === "available" && evaluations.some(e => e.result.status === "match")
@@ -80,7 +93,8 @@ export async function consumeFinancialMonitorAlertsForEvent(
         accession: facts.accession,
         issuerCik: facts.issuerCik,
         createdAt,
-        evidence: buildFinancialMonitorEvidence(facts, evaluation.monitor.conditions, createdAt, companyName),
+        evidence: buildFinancialMonitorEvidence(facts, evaluation.monitor.conditions, createdAt, companyName,
+          evaluation.monitor.target && evaluation.current?.status === "available" ? { selected: evaluation.monitor.target, confirmed: evaluation.current.target } : undefined),
       }));
     } catch (error) {
       writes.push({ status: "failed", monitorId: evaluation.monitor.id, error: message(error) });

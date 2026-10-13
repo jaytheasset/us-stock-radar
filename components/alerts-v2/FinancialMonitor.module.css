@@ -1,0 +1,20 @@
+/* Preserve the shared autocomplete's flex control inside the financial form. */
+.panel .companyPicker > label {
+  display: flex;
+  min-height: 42px;
+}
+.panel .companyPicker input[type="search"] {
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.panel .companyPicker button[role="option"] {
+  color: var(--sr-color-text-primary);
+  background: transparent;
+}
+.panel .companyPicker button[role="option"]:hover,
+.panel .companyPicker button[role="option"][data-active="true"] {
+  background: var(--sr-color-surface-option);
+}

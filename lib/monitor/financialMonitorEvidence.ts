@@ -1,3 +1,4 @@
+import { financialTargetSchema, type FinancialTarget } from "./financialMonitorTarget.ts";
 import { z } from "zod";
 import { getReadyMonitorCondition } from "./conditionRegistry.ts";
 import { safeSecEvidenceUrl } from "./secondaryMonitorEvidence.ts";
@@ -20,6 +21,7 @@ export const financialMonitorEvidenceSchema = z.object({
   accession: z.string().regex(/^\d{10}-\d{2}-\d{6}$/), issuerCik: z.string().regex(/^\d{10}$/), form: text,
   filedAt: text, evaluatedAt: text, persistedAt: text,
   companyName: text.nullable(), ticker: text.nullable(),
+  target: z.object({ selected: financialTargetSchema, confirmed: financialTargetSchema }).strict().optional(),
   matches: z.array(z.object({
     condition: z.object({ key: text, operator: z.enum(["eq", "neq", "gt", "gte", "lt", "lte"]), value: decimal, currency: z.string().regex(/^[A-Z]{3}$/) }).strict(),
     label: text, basis: z.enum(["QUARTER", "YEAR_TO_DATE", "ANNUAL", "INSTANT", "QUARTER_AND_YEAR_TO_DATE"]),
@@ -27,6 +29,9 @@ export const financialMonitorEvidenceSchema = z.object({
   }).strict()).min(1),
 }).strict().superRefine((e, ctx) => {
   if (![e.filedAt, e.evaluatedAt, e.persistedAt].every(t => Number.isFinite(Date.parse(t)))) ctx.addIssue({ code: "custom", message: "Invalid timestamp" });
+  if (e.target && (e.target.selected.issuerCik !== e.issuerCik || e.target.confirmed.issuerCik !== e.issuerCik
+    || e.target.selected.ticker !== e.target.confirmed.ticker || e.ticker !== e.target.selected.ticker
+    || e.companyName !== e.target.selected.companyName)) ctx.addIssue({ code: "custom", message: "Invalid target binding" });
   for (const m of e.matches) {
     const def = getReadyMonitorCondition(m.condition.key);
     if (def?.family !== "financial" || def.source.jsonPath?.[1] !== m.basis || m.condition.currency !== m.current.currency
@@ -41,12 +46,13 @@ export const financialMonitorEvidenceSchema = z.object({
 export type FinancialMonitorEvidence = z.infer<typeof financialMonitorEvidenceSchema>;
 
 /** Only called after MATCH, with the same already-read official result. No recalculation. */
-export function buildFinancialMonitorEvidence(facts: Extract<FinancialMonitorFactReadResult, { status: "available" }>, conditions: readonly CanonicalFinancialMonitorCondition[], evaluatedAt: string, companyName: string | null): FinancialMonitorEvidence {
+export function buildFinancialMonitorEvidence(facts: Extract<FinancialMonitorFactReadResult, { status: "available" }>, conditions: readonly CanonicalFinancialMonitorCondition[], evaluatedAt: string, companyName: string | null, target?: { selected: FinancialTarget; confirmed: FinancialTarget }): FinancialMonitorEvidence {
   return financialMonitorEvidenceSchema.parse({
     version: "financial_monitor_evidence_v1", eventId: facts.eventId, rawItemId: facts.rawItemId, sourceExecutionId: facts.sourceExecutionId,
     accession: facts.accession, issuerCik: facts.issuerCik, form: facts.form,
     filedAt: facts.analysis.filing?.acceptedAt || facts.analysis.filing?.filedDate,
-    evaluatedAt, persistedAt: facts.persistedAt, companyName, ticker: null,
+    evaluatedAt, persistedAt: facts.persistedAt, companyName: target?.selected.companyName ?? companyName, ticker: target?.selected.ticker ?? null,
+    ...(target ? { target } : {}),
     matches: conditions.map(condition => {
       const definition = getReadyMonitorCondition(condition.key)!;
       const [metric, basis] = definition.source.jsonPath!;

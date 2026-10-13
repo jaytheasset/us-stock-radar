@@ -1,3 +1,4 @@
+import { financialTargetSelectionSchema } from "./financialMonitorTarget.ts";
 import { validateCanonicalFinancialConditions } from "./financialMonitorPersistence.ts";
 
 export type FinancialMonitorApiRequestError = Readonly<{
@@ -5,17 +6,19 @@ export type FinancialMonitorApiRequestError = Readonly<{
 }>;
 
 export function parseFinancialMonitorCreateRequest(value: unknown) {
-  if (!record(value) || Object.keys(value).length !== 1 || !("conditions" in value)) return invalid("INVALID_REQUEST", 400, ["request_shape_invalid"]);
+  if (!record(value) || Object.keys(value).sort().join(",") !== "conditions,target") return invalid("INVALID_REQUEST", 400, ["request_shape_invalid"]);
+  const target = financialTargetSelectionSchema.safeParse(value.target);
+  if (!target.success) return invalid("INVALID_REQUEST", 400, ["verified_target_required"]);
   const validation = validateCanonicalFinancialConditions(value.conditions);
   return validation.ok
-    ? { ok: true as const, value: { conditions: validation.conditions } }
+    ? { ok: true as const, value: { conditions: validation.conditions, target: target.data } }
     : invalid("INVALID_CONDITIONS", 422, validation.errors);
 }
 
 export function validateFinancialMonitorCandidate(value: unknown) {
   const parsed = parseFinancialMonitorCreateRequest(value);
   return parsed.ok
-    ? { valid: true as const, conditions: parsed.value.conditions, errors: [] as readonly string[] }
+    ? { valid: true as const, conditions: parsed.value.conditions, target: parsed.value.target, errors: [] as readonly string[] }
     : { valid: false as const, conditions: [], errors: parsed.errors, error: parsed };
 }
 

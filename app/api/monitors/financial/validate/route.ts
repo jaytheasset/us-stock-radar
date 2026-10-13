@@ -1,3 +1,4 @@
+import { verifyFinancialMonitorSelection } from "@/lib/monitor/financialMonitorTargetReader";
 import { NextRequest, NextResponse } from "next/server";
 import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -12,6 +13,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => undefined);
   if (body === undefined) return NextResponse.json({ ok: false, valid: false, conditions: [], errors: ["invalid_json"], error: "INVALID_JSON" }, { status: 400, headers: FINANCIAL_MONITOR_NO_STORE_HEADERS });
   const validation = validateFinancialMonitorCandidate(body);
+  if (validation.valid) {
+    const verified = await verifyFinancialMonitorSelection(validation.target);
+    if (verified.status !== "available") return NextResponse.json({ ok: false, valid: false, error: "TARGET_NOT_CONFIRMED", errors: ["target_not_confirmed"] }, { status: 422, headers: FINANCIAL_MONITOR_NO_STORE_HEADERS });
+  }
   return validation.valid
     ? NextResponse.json({ ok: true, ...validation }, { headers: FINANCIAL_MONITOR_NO_STORE_HEADERS })
     : NextResponse.json({ ok: false, ...validation, error: validation.error.code, message: validation.error.message }, { status: validation.error.status, headers: FINANCIAL_MONITOR_NO_STORE_HEADERS });

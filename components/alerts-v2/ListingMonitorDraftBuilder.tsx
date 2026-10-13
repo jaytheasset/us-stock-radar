@@ -37,7 +37,7 @@ import styles from "./ListingMonitorDraftBuilder.module.css";
 import {ProjectedAlertDetails} from './ProjectedAlertDetails';
 import { Sc13MonitorBuilder, Sc13TargetSummary, Sc13AlertDetails, useSc13Management } from "./Sc13Monitor";
 import { FinancialMonitorBuilder, FinancialAlertDetails, useFinancialManagement } from "./FinancialMonitor";
-import { FINANCIAL_SCOPE, financialConditionText } from "@/lib/monitor/financialMonitorDisplay";
+import { FINANCIAL_SCOPE, FINANCIAL_LEGACY_SCOPE, financialConditionText } from "@/lib/monitor/financialMonitorDisplay";
 import { sc13ConditionText } from "@/lib/monitor/sc13MonitorDisplay";
 
 const EDITOR_CATALOG = getListingMonitorConditionEditorCatalog();
@@ -563,7 +563,7 @@ export function ListingMonitorManagement() {
       <div className={styles.monitorRows}>
         {financial.monitors.map(monitor => <article key={`financial-${monitor.id}`} data-financial-monitor-id={monitor.id}>
           <div className={styles.monitorStatus}><strong>Periodic financial alert</strong><span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span></div>
-          <p>{FINANCIAL_SCOPE}</p><ul>{monitor.conditions.map((c, i) => <li key={i}>{financialConditionText(c)}</li>)}</ul>
+          <p>{monitor.target ? `${monitor.target.ticker} · ${monitor.target.companyName} · CIK ${monitor.target.issuerCik}` : FINANCIAL_LEGACY_SCOPE}</p><p>{monitor.target ? FINANCIAL_SCOPE : null}</p><ul>{monitor.conditions.map((c, i) => <li key={i}>{financialConditionText(c)}</li>)}</ul>
           <span>Created {formatMonitorDate(monitor.createdAt)}</span>
         </article>)}
         {sc13.monitors.map((monitor) => <article key={`sc13-${monitor.id}`}>

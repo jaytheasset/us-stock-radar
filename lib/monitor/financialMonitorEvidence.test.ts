@@ -5,7 +5,7 @@ import { resolvePeriodicFinancials } from "../sec-structured-data/periodicFinanc
 import { buildPeriodicFinancialMonitorAnalysis } from "./periodicFinancialMonitor.ts";
 import { evaluateFinancialMonitorConditions } from "../financialMonitorMatcher.ts";
 import { buildFinancialMonitorEvidence, readFinancialMonitorEvidence } from "./financialMonitorEvidence.ts";
-import { formatFinancialAmount, FINANCIAL_SCOPE, FINANCIAL_FIELDS } from "./financialMonitorDisplay.ts";
+import { formatFinancialAmount, FINANCIAL_LEGACY_SCOPE, FINANCIAL_FIELDS } from "./financialMonitorDisplay.ts";
 import { listFinancialMonitorAlertsForOwner } from "./financialMonitorAlertConsumer.ts";
 
 const id = "97000000-0000-4000-8000-000000000001";
@@ -69,9 +69,9 @@ test("owner-scoped read errors are not empty results and snapshots need no curre
   await assert.rejects(listFinancialMonitorAlertsForOwner({ ownerId: id }, { list: async () => ({ ok: false, status: 403, data: null }) }), /403/);
 });
 
-test("financial display never rounds exact decimals or implies an issuer target", () => {
+test("financial display never rounds exact decimals and labels legacy scope explicitly", () => {
   assert.equal(formatFinancialAmount("9007199254740993.123456789", "CAD"), "CAD 9,007,199,254,740,993.123456789");
   assert.equal(formatFinancialAmount("-10925000.00", "USD"), "USD -10,925,000.00");
-  assert.match(FINANCIAL_SCOPE, /does not target a particular company or ticker/);
+  assert.match(FINANCIAL_LEGACY_SCOPE, /Legacy — all supported issuers/);
   assert(FINANCIAL_FIELDS.every(f => f.monitorDomains?.includes("financial")));
 });
