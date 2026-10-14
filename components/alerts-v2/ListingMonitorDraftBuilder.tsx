@@ -36,6 +36,8 @@ import {
 import styles from "./ListingMonitorDraftBuilder.module.css";
 import {ProjectedAlertDetails} from './ProjectedAlertDetails';
 import { Sc13MonitorBuilder, Sc13TargetSummary, Sc13AlertDetails, useSc13Management } from "./Sc13Monitor";
+import { ReportedHoldingsMonitorBuilder, useReportedHoldingsManagement } from "./ReportedHoldingsMonitor";
+import { REPORTED_HOLDINGS_SCOPE, reportedHoldingsConditionText } from "@/lib/monitor/reportedHoldings";
 import { FinancialMonitorBuilder, FinancialAlertDetails, useFinancialManagement } from "./FinancialMonitor";
 import { FINANCIAL_SCOPE, FINANCIAL_LEGACY_SCOPE, financialConditionText } from "@/lib/monitor/financialMonitorDisplay";
 import { sc13ConditionText } from "@/lib/monitor/sc13MonitorDisplay";
@@ -259,6 +261,7 @@ export function ListingMonitorDraftBuilder() {
       <Form4InsiderPurchaseBuilder authRequired={authChecking || authRequired} />
       <Sc13MonitorBuilder authRequired={authChecking || authRequired} />
       <FinancialMonitorBuilder authRequired={authChecking || authRequired} />
+      <ReportedHoldingsMonitorBuilder authRequired={authChecking || authRequired} />
 
       <form className={styles.promptForm} onSubmit={compileDraft}>
         <label htmlFor="monitor-natural-language">What should Stock Radar watch?</label>
@@ -456,6 +459,7 @@ export function ListingMonitorDraftBuilder() {
 export function ListingMonitorManagement() {
   const sc13 = useSc13Management();
   const financial = useFinancialManagement();
+  const holdings = useReportedHoldingsManagement();
   const [monitors, setMonitors] = useState<readonly ListingMonitor[]>([]);
   const [alerts, setAlerts] = useState<readonly ListingMonitorAlertItem[]>([]);
   const [alertTotal, setAlertTotal] = useState(0);
@@ -544,7 +548,7 @@ export function ListingMonitorManagement() {
           <h2 id="monitor-management-title">Your saved conditions</h2>
           <p>Manage the saved conditions that trigger your Custom alerts.</p>
         </div>
-        <strong>{loading || sc13.loading || financial.loading ? "Loading..." : `${monitors.length + sc13.monitors.length + financial.monitors.length} total`}</strong>
+        <strong>{loading || sc13.loading || financial.loading || holdings.loading ? "Loading..." : `${monitors.length + sc13.monitors.length + financial.monitors.length + holdings.monitors.length} total`}</strong>
       </div>
 
       {authRequired ? (
@@ -555,12 +559,19 @@ export function ListingMonitorManagement() {
       ) : null}
       {message ? <p className={styles.managementMessage} role="status">{message}</p> : null}
       {sc13.error ? <p className={styles.managementMessage} role="status">{sc13.error}</p> : null}
+      {holdings.error ? <p className={styles.managementMessage} role="status">{holdings.error}</p> : null}
       {financial.error ? <p className={styles.managementMessage} role="status">{financial.error}</p> : null}
 
-      {!loading && !sc13.loading && !financial.loading && !sc13.error && !financial.error && !authRequired && monitors.length + sc13.monitors.length + financial.monitors.length === 0 ? (
+      {!loading && !sc13.loading && !financial.loading && !holdings.loading && !sc13.error && !financial.error && !holdings.error && !authRequired && monitors.length + sc13.monitors.length + financial.monitors.length + holdings.monitors.length === 0 ? (
         <p className={styles.emptyState}>No monitors yet. Open Custom alerts to create your first one.</p>
       ) : null}
       <div className={styles.monitorRows}>
+        {holdings.monitors.map(monitor => <article key={`holdings-${monitor.id}`} data-reported-holding-monitor-id={monitor.id}>
+          <div className={styles.monitorStatus}><strong>Reported holding alert</strong><span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span></div>
+          <p>{monitor.target.ticker} · {monitor.target.companyName} · CIK {monitor.target.issuerCik}</p>
+          <p>{REPORTED_HOLDINGS_SCOPE}</p><p>{reportedHoldingsConditionText(monitor.settings)}</p>
+          <span>Created {formatMonitorDate(monitor.createdAt)}</span>
+        </article>)}
         {financial.monitors.map(monitor => <article key={`financial-${monitor.id}`} data-financial-monitor-id={monitor.id}>
           <div className={styles.monitorStatus}><strong>Periodic financial alert</strong><span data-active={monitor.isActive ? "true" : "false"}>{monitor.isActive ? "Active" : "Paused"}</span></div>
           <p>{monitor.target ? `${monitor.target.ticker} · ${monitor.target.companyName} · CIK ${monitor.target.issuerCik}` : FINANCIAL_LEGACY_SCOPE}</p><p>{monitor.target ? FINANCIAL_SCOPE : null}</p><ul>{monitor.conditions.map((c, i) => <li key={i}>{financialConditionText(c)}</li>)}</ul>
@@ -627,12 +638,13 @@ export function ListingMonitorManagement() {
         <section className={styles.generatedAlerts} aria-labelledby="monitor-alerts-title">
           <div>
             <h3 id="monitor-alerts-title"><BellRing aria-hidden="true" size={17} /> Custom alerts</h3>
-            <span>{loading || sc13.loading || financial.loading ? "Loading..." : `${alertTotal + sc13.alerts.length + financial.alerts.length} total${sc13.alerts.length === 100 ? " (latest 100 Schedule 13 alerts)" : ""}${financial.alerts.length === 100 ? " (latest 100 financial alerts)" : ""}`}</span>
+            <span>{loading || sc13.loading || financial.loading || holdings.loading ? "Loading..." : `${alertTotal + sc13.alerts.length + financial.alerts.length + holdings.alerts.length} total${sc13.alerts.length === 100 ? " (latest 100 Schedule 13 alerts)" : ""}${holdings.alerts.length === 100 ? " (latest 100 reported holding alerts)" : ""}${financial.alerts.length === 100 ? " (latest 100 financial alerts)" : ""}`}</span>
           </div>
-          {!loading && !sc13.loading && !financial.loading && !sc13.error && !financial.error && alerts.length + sc13.alerts.length + financial.alerts.length === 0 ? (
+          {!loading && !sc13.loading && !financial.loading && !holdings.loading && !sc13.error && !financial.error && !holdings.error && alerts.length + sc13.alerts.length + financial.alerts.length + holdings.alerts.length === 0 ? (
             <p>No Custom alerts yet. Alerts appear when your saved conditions match.</p>
           ) : (
             <ul>
+              {holdings.alerts.map(alert => <li className={styles.effectAlert} key={`holdings-${alert.id}`} data-alert-id={alert.id}><SecondaryMonitorAlertDetails display={alert.display} createdAt={alert.createdAt} /></li>)}
               {financial.alerts.map(alert => <li className={styles.effectAlert} key={`financial-${alert.id}`} data-alert-id={alert.id}><FinancialAlertDetails alert={alert} /></li>)}
               {sc13.alerts.map((alert) => <li className={styles.effectAlert} id={`monitor-alert-${alert.id}`} key={`sc13-${alert.id}`} data-alert-id={alert.id}><Sc13AlertDetails alert={alert} /></li>)}
               {alerts.map((alert) => (

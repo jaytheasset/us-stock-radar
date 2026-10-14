@@ -564,13 +564,16 @@ async function persistSection16XmlAfterRawSave(input: {
     if (result.status === "not_applicable") return result;
     input.stats.section16_xml_available_count += 1;
     if (result.writeStatus === "replayed") input.stats.section16_xml_replayed_count += 1;
-    try {
-      await persistence.recordSection16CanonicalPersistenceState({ rawItemId: input.rawItemId, state: result });
-      return { ...result, stateRecorded: true };
-    } catch {
-      input.stats.section16_xml_state_recording_failed_count += 1;
-      return { ...result, stateRecorded: false };
-    }
+    let stateRecorded = true;
+    try { await persistence.recordSection16CanonicalPersistenceState({ rawItemId: input.rawItemId, state: result }); }
+    catch { input.stats.section16_xml_state_recording_failed_count += 1; stateRecorded = false; }
+    // Canonical XML success drives reported holdings independently of Primary.
+    // Exact raw replay retries this consumer; the Alert unique key remains atomic.
+    const reportedHoldings = await import("./monitor/reportedHoldingsConsumer.ts")
+      .then(({ consumeReportedHoldings }) => consumeReportedHoldings({ rawItemId: input.rawItemId, accessionNumber: result.accessionNumber, sourceSha256: result.sourceSha256 }))
+      .catch(() => ({ status: "failed", reason: "reported_holdings_consumer_failed", createdCount: 0 }));
+    console.info("[reported-holdings] canonical ingest evaluation", { rawItemId: input.rawItemId, accessionNumber: result.accessionNumber, ...reportedHoldings });
+    return { ...result, stateRecorded, reportedHoldings };
   } catch (error) {
     input.stats.section16_xml_failed_count += 1;
     const failureState = persistence?.section16PersistenceFailureState(error)

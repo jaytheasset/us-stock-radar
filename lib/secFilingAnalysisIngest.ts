@@ -35,6 +35,7 @@ import { isTenderStructuredForm } from "@/lib/sec-tender/source";
 import { consumeProxyAlertsForRaw } from "@/lib/sec-proxy/runtime";
 import { enqueueProxyStructured } from "@/lib/sec-proxy/starter";
 import { isProxyForm, record as proxyRecord } from "@/lib/sec-proxy/source";
+import { SEC_REPORTED_HOLDING_FORMS } from "@/lib/sources/sec/forms/common/forms";
 
 export {
   buildSecFilingGroupDedupe,
@@ -69,6 +70,9 @@ export async function runSecFilingAnalysisIngest(options: AnalyzeOptions = {}) {
       status: rawResult.status,
       error: rawResult.error || "SEC raw item not found",
     };
+  }
+  if ((SEC_REPORTED_HOLDING_FORMS as readonly string[]).includes(stringValue(proxyRecord(rawResult.rawItem.raw_payload).form_type))) {
+    return { ok: true, stage: "raw_only", skipped: true, reason: "reported_holdings_canonical_only" };
   }
   updateSecAnalysisAccession(rawResult.rawItem.source_unique_id);
   traceSecAnalysis("raw_loaded", {
