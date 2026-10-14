@@ -22,6 +22,7 @@ import {
 import { parseSc13StructuralXml } from "@/lib/sources/sec/forms/sc13/structuralParser";
 import {
   selectSourceBackedSecTickerRow,
+  findSourceBackedSecTradingPairs,
   type SecTickerSelectionRow,
 } from "@/lib/sources/sec/sourceTickerSelection";
 import { secFetch } from "./secFetch";
@@ -30,6 +31,8 @@ import { buildForm25IdentityEvidence, SEC_TICKER_CATALOG } from "../../sec-form2
 import { captureForm25Document, FORM25_SOURCE_VERSION, type Form25OriginalDocument } from "./forms/form25/storedSource";
 import { captureS8Document, isS8Form, S8_SOURCE_VERSION, type S8Document } from "../../sec-s8/directFacts";
 import { captureSc13ReporterIdentitySource, sc13IdentitySubmissionUrl, sc13SingleReporterIdentityCandidate, SC13_IDENTITY_MAX_SUBMISSION_BYTES, type Sc13ReporterIdentitySource } from "../../sec-sc13-xml/reporterIdentity.ts";
+import { buildCommonFormParserInput } from "./forms/common/formAdapterRuntime.ts";
+import { parseSec425AdapterInput } from "./forms/425/adapter.ts";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -522,6 +525,17 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           document_count: detail.documents.length,
         },
       });
+      if (formType === "425") {
+        const item = items[items.length - 1];
+        try {
+          const parsed = parseSec425AdapterInput({ ...buildCommonFormParserInput(item, formType), metadata: item.metadata, rawPayload: item.raw_payload });
+          item.raw_payload.sec425_trading_pairs = {
+            status: tickerCatalogAvailable ? "available" : "unavailable",
+            catalogSource: SEC_TICKER_CATALOG, observedAt: fetchedAt,
+            rows: findSourceBackedSecTradingPairs(parsed.raw.cleaned_source_blocks, [...tickerLookup.values()].flat()),
+          };
+        } catch { item.raw_payload.sec425_trading_pairs = { status: "unavailable", rows: [] }; }
+      }
     }
 
     return {

@@ -24,10 +24,10 @@ import {
 } from "./routerPrompt";
 import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
-import { sec425PromptIdentity, sec425FilingRoles, sec425OfficialCompanies } from "./verification.ts";
+import { sec425PromptIdentity, sec425FilingRoles, sec425OfficialCompanies, sec425SourceCompanies } from "./verification.ts";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v11";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v12";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -322,6 +322,7 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
       current_filing: sec425PromptIdentity(sourcePromptInput.current_filing, input.parser_output.raw.cleaned_source_blocks, input.filing_package, input.identity_evidence),
       filing_roles: sec425FilingRoles(input.filing_package, input.parser_output.facts),
       official_company_observations: sec425OfficialCompanies(input.filing_package),
+      source_company_observations: sec425SourceCompanies(input.filing_package, input.parser_output.raw.cleaned_source_blocks),
       filing_timestamps: input.filing_package.sec425_filing_timestamps ?? null,
       cleaned_source_blocks: analysisSourceBlocks,
       analysis_source_block_count: analysisSourceBlocks.length,

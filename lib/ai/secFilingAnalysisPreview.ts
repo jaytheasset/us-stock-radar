@@ -4649,24 +4649,7 @@ async function runGeminiJsonPromptAttempts(
     const attemptNumber = attemptOffset + attempt;
     const providerPhase = readSecProviderPhase(prompt.key);
     const attemptStages = readSecProviderAttemptStages(providerPhase);
-    const requestBody = JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: prompt.system }],
-      },
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt.user }],
-        },
-      ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: readGeminiResponseSchema(prompt),
-        maxOutputTokens: readMaxOutputTokens(prompt.key),
-        temperature: 0,
-        ...readGeminiThinkingConfig(llmConfig.model),
-      },
-    });
+    const requestBody = JSON.stringify(buildSecGeminiRequestBody(prompt, llmConfig.model));
     const attemptFields = {
       provider_phase: providerPhase,
       model: llmConfig.model,
@@ -4836,6 +4819,14 @@ function readSecProviderErrorClass(
   if (!responseBody) return "ProviderBodyParseError";
   if (/safety|blocked/i.test(error || "")) return "ProviderSafetyError";
   return "ProviderOutputParseError";
+}
+
+/** Pure serialization shared by runtime and bounded diagnostics; no dispatch/retry. */
+export function buildSecGeminiRequestBody(prompt: OpenAiPrompt, model: string) {
+  return { systemInstruction: { parts: [{ text: prompt.system }] },
+    contents: [{ role: "user", parts: [{ text: prompt.user }] }],
+    generationConfig: { responseMimeType: "application/json", responseSchema: readGeminiResponseSchema(prompt),
+      maxOutputTokens: readMaxOutputTokens(prompt.key), temperature: 0, ...readGeminiThinkingConfig(model) } };
 }
 
 function readGeminiResponseSchema(prompt: OpenAiPrompt) {

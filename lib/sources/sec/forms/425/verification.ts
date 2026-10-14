@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { normalizeCik } from "../../../../sec-structured-data/normalization.ts";
 import { normalizeMainSubmissions } from "../../../../sec-structured-data/mainSubmissions.ts";
 import type { SecStructuredSourceDocument } from "../../../../sec-structured-data/types.ts";
+import { findSourceBackedSecTradingPairs, type SecTickerSelectionRow } from "../../sourceTickerSelection.ts";
 
 export type VerificationBlock = { block_id: string; text: string; heading?: string | null };
 export type VerificationProof = { block_id: string; source_field: "text" | "heading"; quote: string };
@@ -155,6 +156,43 @@ export function sec425OfficialCompanies(filing: Record<string, unknown>) {
         tickerStatus: !row.catalogAvailable ? "unavailable" : row.catalogRows.length ? "observed_in_catalog" : "not_in_catalog",
         observedAt: row.observedAt, catalogConfirmedAt: null, transactionRole: null, historicalTickerVerified: false };
     } catch { return { status: "unavailable" as const, reason: "invalid_official_company_reference", transactionRole: null }; }
+  });
+}
+
+export function sec425SourceCompanies(filing: Record<string, unknown>, blocks: readonly VerificationBlock[]) {
+  const provenance = filing.sec425_identity_provenance as { sourceTradingPairs?: { status?: string; catalogSource?: string; observedAt?: string; rows?: unknown } } | undefined;
+  const pairs = provenance?.sourceTradingPairs;
+  if (pairs?.status !== "available" || pairs.catalogSource !== "https://www.sec.gov/files/company_tickers_exchange.json" || !Array.isArray(pairs.rows)) return [];
+  return pairs.rows.map(value => {
+    const observed = value as { status: string; row: SecTickerSelectionRow | null; evidence: VerificationProof };
+    try {
+      if (observed.status !== "corroborated" || !observed.row || !exactProof(observed.evidence, blocks)) throw Error("unresolved_pair");
+      const repeated = findSourceBackedSecTradingPairs(blocks.filter(b => b.block_id === observed.evidence.block_id), [observed.row]);
+      if (!repeated.some(p => p.status === "corroborated" && p.evidence.source_field === observed.evidence.source_field && p.evidence.quote === observed.evidence.quote)) throw Error("changed_pair");
+      return { status: "corroborated" as const, cik: normalizeCik(observed.row.cik), companyName: observed.row.name,
+        ticker: observed.row.ticker, exchange: observed.row.exchange, evidence: structuredClone(observed.evidence),
+        catalogSource: pairs.catalogSource, observedAt: pairs.observedAt, catalogConfirmedAt: null,
+        filingRole: null, transactionRole: null, historicalTickerVerified: false };
+    } catch { return { status: "unresolved" as const, reason: "source_company_pair_not_verified", transactionRole: null }; }
+  });
+}
+
+/** Compare unchanged model party claims to automatically collected official observations.
+ * No alias expansion, ticker replacement, or approval of the model's transaction role. */
+export function compareSec425PartyIdentities(parties: readonly { name?: unknown; ticker?: unknown; role?: unknown }[], filing: Record<string, unknown>, blocks: readonly VerificationBlock[]) {
+  const key = (v: unknown) => typeof v === "string" ? v.trim().toUpperCase().split(/[\s.,]+/).filter(Boolean).join(" ") : "";
+  const indexed = sec425OfficialCompanies(filing).flatMap(c => c.status === "identified" ? c.listings.map(r => ({ cik: c.cik, name: r.name, ticker: r.ticker, evidence: { indexUrl: c.indexUrl, indexSha256: c.indexSha256, filingRole: c.filingRole } })) : []);
+  const cited = sec425SourceCompanies(filing, blocks).flatMap(c => c.status === "corroborated" ? [{ cik: c.cik, name: c.companyName, ticker: c.ticker, evidence: { sourceProof: c.evidence } }] : []);
+  const observed = [...indexed, ...cited];
+  return parties.map((party, index) => {
+    const nameMatches = observed.filter(r => key(party?.name) && key(r.name) === key(party.name));
+    const matches = nameMatches.filter(r => typeof party?.ticker === "string" && r.ticker === party.ticker);
+    const ciks = [...new Set(matches.map(r => r.cik))];
+    const status = ciks.length === 1 ? "corroborated" : nameMatches.length && !matches.length && party?.ticker != null ? "conflict" : "unresolved";
+    return { claim: structuredClone(party), index, status, verifiedCik: ciks.length === 1 ? ciks[0] : null,
+      verifiedTicker: ciks.length === 1 ? party.ticker : null, evidence: ciks.length === 1 ? matches.map(r => r.evidence) : [],
+      reason: ciks.length === 1 ? "exact_model_claim_matches_collected_official_identity" : "model_claim_not_uniquely_corroborated",
+      historicalTickerVerified: false, transactionRoleVerified: false };
   });
 }
 

@@ -123,6 +123,7 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
         filingRoles: toRecord(rawPayload.sec425_filing_roles),
         observedAt: nullableString(rawItem.fetched_at),
         officialCompanies: recordArray(rawPayload.sec425_official_companies),
+        sourceTradingPairs: toRecord(rawPayload.sec425_trading_pairs),
       },
       sec425_primary_source: {
         url: nullableString(primaryDocumentUrl),

@@ -6,6 +6,7 @@ import { adaptSec425AnalysisPromptResultForAnalysis, buildSec425AnalysisPromptFo
 import type { SecFilingAnalysisInput } from "../../prompts/secFilingAnalysis.ts";
 import { buildSec425FactInput } from "../../ai/sec425FactInput.ts";
 import { sec425Adapter } from "./forms/425/adapter.ts";
+import { compareSec425PartyIdentities } from "./forms/425/verification.ts";
 
 test("actual collection → package → Primary prompt/projection preserves official catalog positive and distinct index roles, no external calls", async t => {
   const accession = "0001234567-26-000001", base = "https://www.sec.gov/Archives/edgar/data/1234567/000123456726000001/";
@@ -13,10 +14,10 @@ test("actual collection → package → Primary prompt/projection preserves offi
   t.mock.method(globalThis, "fetch", async (input: unknown) => {
     const url = String(input); calls++;
     if (url.includes("financialmodelingprep")) { fmp++; throw Error("FMP forbidden"); }
-    if (url === "https://www.sec.gov/files/company_tickers_exchange.json") return Response.json({ fields: ["cik", "name", "ticker", "exchange"], data: [[1234567, "Example Buyer", catalogTicker, "NYSE"], [7654321, "Example Buyer II", "TARGET", "Nasdaq"]] });
+    if (url === "https://www.sec.gov/files/company_tickers_exchange.json") return Response.json({ fields: ["cik", "name", "ticker", "exchange"], data: [[1234567, "Example Buyer", catalogTicker, "NYSE"], [7654321, "Example Buyer II", "TARGET", "Nasdaq"], [9999999, "ANOTHER DEVICES INC", "UNIDX", "Nasdaq"]] });
     if (url === base + "index.json") return Response.json({ directory: { item: [] } });
     if (url === base + accession + "-index.html") return new Response(`<html><span class="companyName">Example Buyer (${archiveIsSubject ? "Subject" : "Filed by"}) <a href="?CIK=1234567">CIK 1234567</a></span><span class="companyName">Example Buyer II (${archiveIsSubject ? "Filed by" : "Subject"}) <a href="?CIK=7654321">CIK 7654321</a></span><div class="infoHead">Filing Date</div><div class="info">2026-06-01</div><table summary="Document Format Files"><tr><td>1</td><td>Primary</td><td><a href="primary.htm">primary.htm</a></td><td>425</td><td>1000</td></tr></table></html>`);
-    if (url === base + "primary.htm") return new Response("<html><p>Filed by Example Buyer</p><p>Subject Company: Example Buyer II</p><p>Example Buyer signed a merger agreement on June 1. CUSIP 123456789. The transaction remains subject to conditions.</p></html>");
+    if (url === base + "primary.htm") return new Response("<html><p>Filed by Example Buyer</p><p>Subject Company: Example Buyer II</p><p>Example Buyer signed a merger agreement on June 1. CUSIP 123456789. The transaction remains subject to conditions.</p><p>Pending merger with Another Devices Inc. (Nasdaq: UNIDX) remains conditional.</p></html>");
     throw Error("Unrecognized mocked request");
   });
   await fetchTickerLookup(true);
@@ -31,6 +32,14 @@ test("actual collection → package → Primary prompt/projection preserves offi
   const input = { filing_package: filing } as unknown as SecFilingAnalysisInput;
   const beforeInputCalls = calls, fact = sec425Adapter.buildFactInput(input), factInput = JSON.parse(fact.user);
   assert.equal(calls, beforeInputCalls, "input builder cannot fetch or dispatch a provider");
+  assert.equal(factInput.source_company_observations[0].cik, "0009999999");
+  assert.equal(factInput.source_company_observations[0].filingRole, null);
+  assert.equal(factInput.source_company_observations[0].transactionRole, null);
+  const claims = [{ name: "Another Devices Inc.", ticker: "UNIDX", role: "target" }, { name: "Another Devices Inc.", ticker: "BUY", role: "target" }, { name: "Devices Inc.", ticker: "UNIDX", role: "target" }];
+  const identityResults = compareSec425PartyIdentities(claims, filing, factInput.cleaned_source_blocks);
+  assert.deepEqual(identityResults.map(r => r.status), ["corroborated", "conflict", "unresolved"]);
+  assert.equal(identityResults[0].verifiedCik, "0009999999"); assert.equal(identityResults[0].transactionRoleVerified, false);
+  assert.deepEqual(identityResults.map(r => r.claim), claims);
   assert.deepEqual(factInput.official_company_observations.map((r: { cik: string; listings: { ticker: string }[] }) => [r.cik, r.listings[0]?.ticker]), [["0001234567", "BUY"], ["0007654321", "TARGET"]]);
   assert.ok(factInput.official_company_observations.every((r: { transactionRole: unknown }) => r.transactionRole === null));
   assert.equal(factInput.source.sourceSha256, filing.sec425_primary_source!.sourceSha256);
@@ -58,6 +67,7 @@ test("actual collection → package → Primary prompt/projection preserves offi
     const supplied = JSON.parse(prompt.user); assert.equal(supplied.current_filing.ticker, "BUY");
     assert.equal(supplied.filing_roles.transactionRole, null); assert.equal(supplied.filing_roles.indexRoles.roles.length, 2);
     assert.deepEqual(supplied.official_company_observations.map((r: { cik: string }) => r.cik), ["0001234567", "0007654321"]);
+    assert.equal(supplied.source_company_observations[0].cik, "0009999999");
   }
   const wrong = structuredClone(model); wrong.analysis_output.primary_ticker.ticker = "TARGET";
   const rejected = adaptSec425AnalysisPromptResultForAnalysis(wrong, input, router);

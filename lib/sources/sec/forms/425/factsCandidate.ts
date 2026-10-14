@@ -1,7 +1,7 @@
 // Candidate-only source extraction. No ingest hook, persistence, canonical publication or Alert dispatch.
 import { createHash } from "node:crypto";
 import Ajv from "ajv";
-import { inspectSec425Currentness, inspectSec425Identity, type Sec425ActionContext, type Sec425IdentityEvidence } from "./verification.ts";
+import { inspectSec425Currentness, inspectSec425Identity, compareSec425PartyIdentities, type Sec425ActionContext, type Sec425IdentityEvidence } from "./verification.ts";
 
 export const SEC425_FACT_CANDIDATE_VERSION = "sec425_fact_candidate_v2";
 export const SEC425_ANNOUNCEMENT_TYPES = ["new_acquisition_proposal", "revised_acquisition_proposal", "definitive_agreement_signed"] as const;
@@ -78,7 +78,7 @@ export const SEC425_FACT_SYSTEM = [
   "Include action_context for confirmed claims: separately quote the actual action and its announcement-time context. Record the source's literal action date, not the filing date. Prior agreement descriptions and current meeting/vote events are different actions; the same or different dates alone do not decide newness. If context is unclear retain unclear. FILED BY and SUBJECT COMPANY are filing roles, not acquirer/target roles. No supplied verified CIK/mapping means identity is unresolved; do not infer it from a name or abbreviation.",
 ].join("\n");
 
-export function inspectSec425FactCandidate(value: unknown, blocks: readonly Sec425FactBlock[], identityEvidence?: Sec425IdentityEvidence) {
+export function inspectSec425FactCandidate(value: unknown, blocks: readonly Sec425FactBlock[], identityEvidence?: Sec425IdentityEvidence, filingPackage?: Record<string, unknown>) {
   const validator = new Ajv({ strict: false, allErrors: true }).compile(SEC425_FACT_LOCAL_SCHEMA);
   const schemaPass = validator(value), schemaErrors = structuredClone(validator.errors);
   const bindings: { path: string; exact: boolean; length: number; missingBlock: boolean }[] = [];
@@ -109,7 +109,8 @@ export function inspectSec425FactCandidate(value: unknown, blocks: readonly Sec4
   if (data?.decision !== "confirmed" && data?.announcement != null) errors.push("nonconfirmed_announcement_must_be_null");
   const citationPass = bindings.every(p => p.exact && p.length <= 240);
   const currentness = inspectSec425Currentness({ decision: data?.decision, announcementType: data?.announcement?.announcement_type, evidence: data?.evidence, actionContext: data?.action_context }, blocks);
-  const identities = (Array.isArray(data?.announcement?.parties) ? data.announcement.parties : []).map((p, i) => inspectSec425Identity({
+  const parties = Array.isArray(data?.announcement?.parties) ? data.announcement.parties : [];
+  const identities = filingPackage ? compareSec425PartyIdentities(parties, filingPackage, blocks) : parties.map((p, i) => inspectSec425Identity({
     key: `party:${i}`, name: p?.name ?? null, ticker: p?.ticker ?? null, exchange: null,
   }, blocks, identityEvidence));
   return { schemaPass, schemaErrors, fieldBindingPass: errors.length === 0, errors, citationPass, bindings, mechanicalPass: schemaPass && errors.length === 0 && citationPass,
@@ -117,8 +118,9 @@ export function inspectSec425FactCandidate(value: unknown, blocks: readonly Sec4
     semanticStatus: "unverified" as const, publicationStatus: "not_ready" as const, available: false as const, matchEligible: false as const, alertEligible: false as const, corrected: false as const };
 }
 
-export function createSec425FactCandidate(source: Sec425FactSource, sourceBytes: Uint8Array, output: unknown, blocks: readonly Sec425FactBlock[], identityEvidence?: Sec425IdentityEvidence) {
+export function createSec425FactCandidate(source: Sec425FactSource, sourceBytes: Uint8Array, output: unknown, blocks: readonly Sec425FactBlock[], identityEvidence?: Sec425IdentityEvidence, filingPackage?: Record<string, unknown>) {
   const url = new URL(source.sourceUrl);
   if (!["raw_html", "sec_public_text_excerpt"].includes(source.representation) || !/^\d{10}-\d{2}-\d{6}$/.test(source.accession) || url.origin !== "https://www.sec.gov" || !url.pathname.startsWith("/Archives/edgar/data/") || !url.pathname.includes(`/${source.accession.replaceAll("-", "")}/`) || url.search || url.hash || createHash("sha256").update(sourceBytes).digest("hex") !== source.sourceSha256) throw Error("sec425_source_identity_or_hash_mismatch");
-  return { version: SEC425_FACT_CANDIDATE_VERSION, source: { ...source }, sourceScope: "supplied_blocks_only" as const, rawOutput: structuredClone(output), assessment: inspectSec425FactCandidate(output, blocks, identityEvidence) };
+  if (filingPackage && (filingPackage.accession_number !== source.accession || (filingPackage.sec425_primary_source as { sourceSha256?: unknown })?.sourceSha256 !== source.sourceSha256)) throw Error("sec425_identity_package_source_mismatch");
+  return { version: SEC425_FACT_CANDIDATE_VERSION, source: { ...source }, sourceScope: "supplied_blocks_only" as const, rawOutput: structuredClone(output), assessment: inspectSec425FactCandidate(output, blocks, identityEvidence, filingPackage) };
 }

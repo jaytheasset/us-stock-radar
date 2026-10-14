@@ -1,7 +1,7 @@
 import type { SecFilingAnalysisInput } from "../prompts/secFilingAnalysis.ts";
 import { readSec425ParserOutput } from "./sec425AnalysisAdapter.ts";
 import { SEC425_FACT_CANDIDATE_VERSION, SEC425_FACT_LOCAL_SCHEMA, SEC425_FACT_SYSTEM } from "../sources/sec/forms/425/factsCandidate.ts";
-import { sec425FilingRoles, sec425OfficialCompanies } from "../sources/sec/forms/425/verification.ts";
+import { sec425FilingRoles, sec425OfficialCompanies, sec425SourceCompanies } from "../sources/sec/forms/425/verification.ts";
 
 /** Fresh raw package → candidate FACT input. No Router/Primary response, saved prompt,
  * persistence, model dispatch, role assignment or source supplementation. */
@@ -21,7 +21,7 @@ export function buildSec425FactInput(input: SecFilingAnalysisInput) {
     throw Error("sec425_complete_primary_source_required");
   }
   return {
-    key: "sec425_fact_input_v1", candidateVersion: SEC425_FACT_CANDIDATE_VERSION,
+    key: "sec425_fact_input_v2", candidateVersion: SEC425_FACT_CANDIDATE_VERSION,
     system: `${SEC425_FACT_SYSTEM}\nOfficial company observations identify only the listed SEC filing roles and observed catalog symbols. They do not assign acquirer/target roles. Do not map another party by partial name or copy the filer CIK. Missing company identity remains unresolved. The filing timestamp is not the action timestamp.`,
     user: JSON.stringify({
       source: { accession, sourceUrl: source.url, sourceSha256: source.sourceSha256, representation: source.representation },
@@ -29,6 +29,7 @@ export function buildSec425FactInput(input: SecFilingAnalysisInput) {
       filing_timestamps: filing.sec425_filing_timestamps ?? null,
       filing_roles: sec425FilingRoles(filing, parser.facts),
       official_company_observations: sec425OfficialCompanies(filing),
+      source_company_observations: sec425SourceCompanies(filing, parser.raw.cleaned_source_blocks),
       scope: "All cleaned blocks of this freshly packaged filing and collected attachments; no Router selection or prior analysis. The primary source hash does not authenticate attachment bytes.",
       cleaned_source_blocks: parser.raw.cleaned_source_blocks.map(({ block_id, heading, text, source_ref, origin, document_role }) => ({ block_id, heading, text, source_ref, origin, document_role })),
     }),
