@@ -1,4 +1,4 @@
-import { SEC_425_DISPLAY_PAYLOAD_VERSION, type Sec425RouterDecision } from "./routerPrompt";
+import { SEC_425_DISPLAY_PAYLOAD_VERSION, resolveSec425RouterEvidence, type Sec425RouterDecision } from "./routerPrompt";
 import type { Sec425DisplayPayload, Sec425ParserOutput } from "./types";
 import { inspectSec425Identity, type Sec425IdentityEvidence } from "./verification.ts";
 
@@ -9,8 +9,9 @@ export function buildSec425DisplayPayload(
 ): Sec425DisplayPayload {
   const facts = parserOutput.facts;
   const identity = inspectSec425Identity({ key: "primary", name: facts.company_name, ticker: facts.primary_ticker, exchange: facts.exchange }, parserOutput.raw.cleaned_source_blocks, identityEvidence);
+  const sourceEvidence = resolveSec425RouterEvidence(routerDecision.selected_source_block_ids || [], parserOutput);
   const evidence = uniqueStrings([
-    ...routerDecision.evidence,
+    ...sourceEvidence.map(block => [block.heading, block.text].filter(Boolean).join("\n")),
     ...facts.deal.evidence,
     ...facts.vote.evidence,
     ...facts.offer.evidence,
@@ -33,6 +34,7 @@ export function buildSec425DisplayPayload(
       event_type: routerDecision.event_type,
       score_hint: routerDecision.score,
       routing_reason: routerDecision.routing_reason,
+      router_source_evidence: sourceEvidence,
       company_name: facts.company_name,
       primary_ticker: identity.verifiedTicker,
       exchange: identity.verifiedExchange,
