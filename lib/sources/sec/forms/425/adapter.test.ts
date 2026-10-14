@@ -21,6 +21,7 @@ assert.equal(typeof sec425Adapter.parse, "function");
 assert.equal(typeof sec425Adapter.buildRouterPrompt, "function");
 assert.equal(typeof sec425Adapter.buildDisplayPayload, "function");
 assert.equal(typeof sec425Adapter.buildAnalysisPrompt, "function");
+assert.equal(typeof sec425Adapter.buildFactInput, "function");
 
 const parserOutput = parseSec425AdapterInput({
   formType: "425",

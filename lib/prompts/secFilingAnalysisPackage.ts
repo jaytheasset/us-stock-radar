@@ -5,6 +5,7 @@ import {
 } from "@/lib/sources/sec/forms/formWorkerRegistry";
 import type { OwnershipParserOutput } from "@/lib/sources/sec/forms/ownership/adapter";
 import type { SecS3FilingFacts } from "@/lib/sources/sec/forms/s3-f3/adapter";
+import { createHash } from "node:crypto";
 
 export const SEC_FILING_PACKAGE_VERSION = "sec_filing_package_v1";
 
@@ -121,7 +122,16 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
         tickerResolution: toRecord(rawPayload.ticker_resolution),
         filingRoles: toRecord(rawPayload.sec425_filing_roles),
         observedAt: nullableString(rawItem.fetched_at),
+        officialCompanies: recordArray(rawPayload.sec425_official_companies),
       },
+      sec425_primary_source: {
+        url: nullableString(primaryDocumentUrl),
+        representation: "stored_primary_html_utf8",
+        sourceSha256: typeof rawPayload.primary_document_html === "string" && rawPayload.primary_document_html && !rawPayload.primary_document_html_truncated
+          ? createHash("sha256").update(rawPayload.primary_document_html, "utf8").digest("hex") : null,
+        complete: typeof rawPayload.primary_document_html === "string" && !!rawPayload.primary_document_html && !rawPayload.primary_document_html_truncated,
+      },
+      sec425_filing_timestamps: { filingDate: nullableString(rawPayload.filing_date), acceptedAt: nullableString(rawPayload.accepted_at), publishedAt: nullableString(rawItem.published_at) },
     } : {}),
     tickers: Array.isArray(rawPayload.tickers) ? rawPayload.tickers : [],
     market_context:

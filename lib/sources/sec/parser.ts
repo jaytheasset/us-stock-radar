@@ -354,6 +354,9 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
       const tickerRow = tickerResolution.primary;
       const sec425FilingNames = formType === "425" ? Array.from(new Set((detail.sc13IndexProvenance?.roles || [])
         .filter(role => Number(role.cik) === Number(identity.cik)).map(role => role.companyName))) : [];
+      const filedByCik = formType === "425"
+        ? detail.sc13IndexProvenance?.filedByCiks.length === 1 ? String(Number(detail.sc13IndexProvenance.filedByCiks[0])) : null
+        : identity.cik;
       const companyName = formType === "425"
         ? (sec425FilingNames.length === 1 ? sec425FilingNames[0] : null) || tickerRow?.name || detail.companyName || readCompanyNameFromTitle(entry.title)
         : form25Identity?.issuerName || ownershipIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
@@ -382,8 +385,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           form_type: formType,
           cik: form25Identity?.subjectCik || ownershipIssuer?.cik || identity.cik,
           cik_padded: (form25Identity?.subjectCik || ownershipIssuer?.cik || identity.cik)?.padStart(10, "0") || null,
-          filer_cik: identity.cik,
-          filer_cik_padded: identity.cikPadded,
+          filer_cik: filedByCik,
+          filer_cik_padded: filedByCik?.padStart(10, "0") || null,
           ownership_issuer_cik: ownershipIssuer?.cik || null,
           ownership_issuer_name: ownershipIssuer?.name || null,
           ownership_issuer_trading_symbol: ownershipIssuer?.ticker || null,
@@ -406,7 +409,14 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             ...(formType === "425" ? { sec_catalog_row: tickerRow,
               sec_catalog_source: SEC_TICKER_CATALOG, catalog_observed_at: fetchedAt } : {}),
           },
-          ...(formType === "425" ? { sec425_filing_roles: detail.sc13IndexProvenance, sec425_detail_company_name: detail.companyName } : {}),
+          ...(formType === "425" ? { sec425_archive_cik: identity.cik, sec425_filing_roles: detail.sc13IndexProvenance, sec425_detail_company_name: detail.companyName,
+            sec425_official_companies: (detail.sc13IndexProvenance?.roles || []).map(role => ({
+              filingRole: role.role, cik: role.cik.padStart(10, "0"), sourceCompanyName: role.companyName,
+              indexUrl: detailUrl, indexSha256: detail.sc13IndexProvenance?.indexSha256 ?? null,
+              catalogSource: SEC_TICKER_CATALOG, catalogAvailable: tickerCatalogAvailable,
+              catalogRows: tickerCatalogAvailable ? tickerLookup.get(String(Number(role.cik))) || [] : [],
+              observedAt: fetchedAt, catalogConfirmedAt: null, transactionRole: null,
+            })) } : {}),
           ...(form25Identity ? { form25_ticker_identity: form25Identity,
             form25_exchange: form25Identity.exchange,
             form25_index_subject_cik: detail.sc13IndexProvenance?.subjectCik || null,
@@ -497,7 +507,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           parser: "sec_edgar",
           form_type: formType,
           cik: ownershipIssuer?.cik || identity.cik,
-          filer_cik: identity.cik,
+          filer_cik: filedByCik,
+          ...(formType === "425" ? { sec425_archive_cik: identity.cik } : {}),
           ownership_issuer_cik: ownershipIssuer?.cik || null,
           accession_number: accessionNumber,
           file_number: detail.fileNumber,

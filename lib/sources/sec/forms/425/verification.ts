@@ -133,6 +133,31 @@ export function sec425FilingRoles(filing: Record<string, unknown>, facts: { file
     transactionRole: null, usage: "Filing roles and Archives CIK do not identify every transaction party; ticker claims require separate official corroboration." };
 }
 
+/** Already collected official index + catalog evidence, no model fields or name-based lookup. */
+export function sec425OfficialCompanies(filing: Record<string, unknown>) {
+  const provenance = filing.sec425_identity_provenance as { officialCompanies?: unknown; filingRoles?: { roles?: { role: string; cik: string; companyName: string }[]; indexSha256?: string } } | undefined;
+  const values = Array.isArray(provenance?.officialCompanies) ? provenance.officialCompanies : [];
+  return values.map(value => {
+    try {
+      const row = value as { cik: string; filingRole: string; sourceCompanyName: string; indexUrl: string; indexSha256: string;
+        catalogAvailable: boolean; catalogSource: string; catalogRows: { cik: string; ticker: string; exchange: string | null; name: string | null }[]; observedAt: string };
+      const cik = normalizeCik(row.cik), url = new URL(row.indexUrl), accession = String(filing.accession_number ?? "");
+      if (!["filed_by", "subject_company"].includes(row.filingRole) || !/^\d{10}-\d{2}-\d{6}$/.test(accession) ||
+          typeof row.sourceCompanyName !== "string" || !row.sourceCompanyName.trim() || typeof row.catalogAvailable !== "boolean" || !Number.isFinite(Date.parse(row.observedAt)) ||
+          url.origin !== "https://www.sec.gov" || !url.pathname.startsWith("/Archives/edgar/data/") || !url.pathname.includes(`/${accession.replaceAll("-", "")}/`) || url.search || url.hash ||
+          row.indexSha256 !== provenance?.filingRoles?.indexSha256 || !/^[a-f0-9]{64}$/.test(row.indexSha256) ||
+          provenance?.filingRoles?.roles?.filter(r => r.role === row.filingRole && normalizeCik(r.cik) === cik && r.companyName === row.sourceCompanyName).length !== 1 ||
+          row.catalogSource !== "https://www.sec.gov/files/company_tickers_exchange.json" || !Array.isArray(row.catalogRows) ||
+          !row.catalogRows.every(r => normalizeCik(r.cik) === cik && typeof r.ticker === "string" && !!r.ticker.trim() && (r.exchange === null || typeof r.exchange === "string") && (r.name === null || typeof r.name === "string"))) throw Error("invalid_official_company_reference");
+      return { status: "identified" as const, cik, filingRole: row.filingRole, sourceCompanyName: row.sourceCompanyName,
+        indexUrl: row.indexUrl, indexSha256: row.indexSha256, catalogSource: row.catalogSource,
+        listings: row.catalogAvailable ? structuredClone(row.catalogRows) : [],
+        tickerStatus: !row.catalogAvailable ? "unavailable" : row.catalogRows.length ? "observed_in_catalog" : "not_in_catalog",
+        observedAt: row.observedAt, catalogConfirmedAt: null, transactionRole: null, historicalTickerVerified: false };
+    } catch { return { status: "unavailable" as const, reason: "invalid_official_company_reference", transactionRole: null }; }
+  });
+}
+
 export function sec425PromptIdentity<T extends { ticker: string | null; exchange: string | null; company_name: string | null; usage_rule: string }>(
   current: T, blocks: readonly VerificationBlock[], filing: Record<string, unknown>, context?: Sec425IdentityEvidence,
 ) {

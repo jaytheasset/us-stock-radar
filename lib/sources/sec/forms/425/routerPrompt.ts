@@ -11,10 +11,10 @@ import {
   buildCurrentFilingIdentity,
   currentFilingIdentityText,
 } from "../common/currentFilingIdentity.ts";
-import { sec425PromptIdentity, sec425FilingRoles, type Sec425IdentityEvidence } from "./verification.ts";
+import { sec425PromptIdentity, sec425FilingRoles, sec425OfficialCompanies, type Sec425IdentityEvidence } from "./verification.ts";
 
 export const SEC_425_ROUTER_PROMPT_KEY = "sec_425_router";
-export const SEC_425_ROUTER_PROMPT_VERSION = "v5";
+export const SEC_425_ROUTER_PROMPT_VERSION = "v6";
 export const SEC_425_DISPLAY_PAYLOAD_VERSION = "sec_425_display_v1";
 
 export const SEC_425_ROUTER_ACTION_VALUES = ["archive", "feed", "alert"] as const;
@@ -133,6 +133,8 @@ type Sec425RouterPromptBlock = Pick<
 >;
 
 export type Sec425RouterSourcePromptInput = {
+  official_company_observations: ReturnType<typeof sec425OfficialCompanies>;
+  filing_timestamps: unknown;
   filing_roles: ReturnType<typeof sec425FilingRoles>;
   current_filing: ReturnType<typeof buildCurrentFilingIdentity>;
   filing_identity_text: string;
@@ -294,6 +296,8 @@ export function buildSec425RouterSourcePromptInput(input: Sec425RouterPromptInpu
   return {
     current_filing: currentFiling,
     filing_roles: sec425FilingRoles(filingPackage, parserOutput.facts),
+    official_company_observations: sec425OfficialCompanies(filingPackage),
+    filing_timestamps: filingPackage.sec425_filing_timestamps ?? null,
     filing_identity_text: currentFilingIdentityText(currentFiling),
     document_inventory: parserOutput.raw.document_inventory.map((document) => ({
       source_ref: document.source_ref,

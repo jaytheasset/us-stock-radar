@@ -6,6 +6,7 @@ import { buildSec425DisplayPayload } from "./displayPayload";
 import { parseSec425Filing } from "./parser";
 import { buildSec425RouterPromptDraft } from "./routerPrompt";
 import { SEC_425_PARSER_GROUP, type Sec425ParseInput } from "./types";
+import { buildSec425FactInput } from "../../../../ai/sec425FactInput.ts";
 
 export const SEC_425_ADAPTER_KEY = "sec_425";
 export const SEC_425_SUPPORTED_FORMS = SEC_425_FORMS;
@@ -26,6 +27,7 @@ export const sec425Adapter = {
   buildRouterPrompt: buildSec425RouterPromptDraft,
   buildDisplayPayload: buildSec425DisplayPayload,
   buildAnalysisPrompt: buildSec425AnalysisPromptDraft,
+  buildFactInput: buildSec425FactInput,
   buildDeterministicRoomResult: buildSec425DeterministicRoomResult,
 } as const;
 

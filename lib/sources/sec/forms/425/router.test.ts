@@ -48,7 +48,7 @@ const routerPrompt = buildSec425RouterPromptDraft({
 });
 
 assert.equal(routerPrompt.key, "sec_425_router");
-assert.equal(routerPrompt.version, "v5");
+assert.equal(routerPrompt.version, "v6");
 assert.deepEqual(sec425RouterResponseSchema.properties.event_type.enum, SEC_425_ROUTER_EVENT_TYPES);
 assert.deepEqual(sec425RouterResponseSchema.properties.route_case.enum, SEC_425_ROUTER_CASE_VALUES);
 assert.deepEqual(sec425RouterResponseSchema.properties.communication_mode.enum, SEC_425_COMMUNICATION_MODE_VALUES);
