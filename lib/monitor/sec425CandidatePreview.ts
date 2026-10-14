@@ -1,3 +1,4 @@
+import {buildNaturalLanguageMonitorDraft} from "./naturalLanguageMonitorDraft.ts";
 import {
   compileNaturalLanguageListingConditions,
   revalidateNaturalLanguageConditionCompilerResult,
@@ -43,6 +44,7 @@ export const SEC425_COMPILER_PREVIEW_SCOPE: ConditionCompilerPreviewScope = {
 
 export function buildSec425MonitorPreview(result: NaturalLanguageConditionCompilerResult, text: string) {
   const validated = revalidateNaturalLanguageConditionCompilerResult(result, text, SEC425_COMPILER_PREVIEW_SCOPE);
+  if(process.env.SEC425_MONITOR_ENABLED==="true")return{draft:buildNaturalLanguageMonitorDraft(validated,text),preview:{version:"sec425_monitor_preview_v1" as const,status:"available" as const,interpretation:validated.status,conditions:validated.conditions.map(c=>({key:c.key,label:catalog.find(d=>d.key===c.key)!.label,value:c.value})),requirements:validated.ledger.requirements,message:"Review the conditions before saving.",canSave:validated.status==="VALID",canMatch:true,canAlert:true}};
   const message = "425 announcement alerts are not available yet. You can review this interpretation, but saving and alerts remain unavailable while source verification and the data connection are incomplete.";
   const preview: Sec425MonitorPreview = {
     version: "sec425_monitor_preview_v1", status: "not_ready", interpretation: validated.status,
@@ -60,6 +62,7 @@ export function buildSec425MonitorPreview(result: NaturalLanguageConditionCompil
 }
 
 export async function compileSec425MonitorPreview(text: string, options: Parameters<typeof compileNaturalLanguageListingConditions>[1] = {}) {
-  const run = await compileNaturalLanguageListingConditions({ text }, { ...options, previewScope: SEC425_COMPILER_PREVIEW_SCOPE });
+  const scope=process.env.SEC425_MONITOR_ENABLED==="true"?{...SEC425_COMPILER_PREVIEW_SCOPE,instructions:"Interpret this SEC425 monitor using only the supplied catalog. Preserve all constraints; unsupported or ambiguous requests require clarification. No company-name-to-symbol guessing. Transaction tags true only, role-specific explicit symbols only."}:SEC425_COMPILER_PREVIEW_SCOPE;
+  const run = await compileNaturalLanguageListingConditions({ text }, { ...options, previewScope: scope });
   return { ...buildSec425MonitorPreview(run.result, text), telemetry: run.telemetry };
 }

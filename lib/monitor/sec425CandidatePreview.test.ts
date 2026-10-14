@@ -49,14 +49,15 @@ test("multiple transaction tags coexist; unqualified or inferred company symbols
   assert.equal(SEC425_COMPILER_PREVIEW_SCOPE.validateConditions([{ key: "sec425.acquirer_ticker", operator: "eq", value: "Example Company" }]).ok, false);
   assert.equal(SEC425_COMPILER_PREVIEW_SCOPE.validateConditions([{ key: "sec425.transaction.merger", operator: "eq", value: false }]).ok, false);
 });
-test("preview does not enter READY registry; forged saving or existing generic matcher remains ineligible", () => {
-  assert.equal(getReadyMonitorCondition(condition.key), null); assert.equal(validateCanonicalListingConditions([condition]).ok, false);
+test("registered425 remains disabled for saving and generic event matching outside candidate runtime", async () => {
+  assert.equal(getReadyMonitorCondition(condition.key)?.family, "sec425"); assert.equal(validateCanonicalListingConditions([condition]).ok, true);
+  const {allowedUser}=await import("../sec425/consumer.ts");assert.equal(await allowedUser("fixture-user"),false);
   const r = evaluateMonitorConditions({ listing: { status: "not_ready", reason: "fixture" }, corporateAction: { status: "not_ready", reason: "fixture" }, ownership: { status: "not_ready", reason: "fixture" } }, [condition], { evaluationDate: "2026-10-15" });
   assert.equal(r.status, "ineligible"); assert.notEqual(r.reasonCode, "all_conditions_match");
 });
-test("default compiler still rejects candidate keys and accepts existing-family conditions", () => {
+test("compiler recognizes the newly supported425 keys while preserving existing-family conditions", () => {
   const text = "Watch a revised offer.";
-  assert.throws(() => validateNaturalLanguageConditionCompilerOutput(output(text), text), /validation/);
+  assert.equal(validateNaturalLanguageConditionCompilerOutput(output(text), text).status, "VALID");
   const standard = validateNaturalLanguageConditionCompilerOutput(output(text, [{ key: "market.price", operator: "lt", value: 1 }]), text);
   assert.equal(standard.status, "VALID");
 });
@@ -74,4 +75,8 @@ test("forged ledger fails before preview; readiness cannot be changed by compile
   const result = validateNaturalLanguageConditionCompilerOutput(output(text), text, SEC425_COMPILER_PREVIEW_SCOPE);
   const changed = structuredClone(result); (changed.ledger.conditions[0] as { id: string }).id = "forged";
   assert.throws(() => buildSec425MonitorPreview(changed, text), /validation/);
+});
+
+test("enabled candidate uses existing review/create gate, without bypassing unsupported requests",async()=>{
+ const before=process.env.SEC425_MONITOR_ENABLED;process.env.SEC425_MONITOR_ENABLED="true";try{const text=SEC425_MONITOR_EXAMPLES[1];const r=await compileSec425MonitorPreview(text,options(output(text)));assert.equal(r.preview.canSave,true);assert.equal(getListingMonitorDraftCreateGate(createListingMonitorDraftReview(r.draft)).ready,true);}finally{if(before===undefined)delete process.env.SEC425_MONITOR_ENABLED;else process.env.SEC425_MONITOR_ENABLED=before;}
 });

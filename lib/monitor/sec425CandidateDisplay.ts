@@ -7,14 +7,14 @@ export const SEC425_MONITOR_EXAMPLES = [
 ] as const;
 export type Sec425MonitorPreview = {
   version: "sec425_monitor_preview_v1";
-  status: "not_ready";
+  status: "not_ready" | "available";
   interpretation: NaturalLanguageConditionCompilerResult["status"];
   conditions: readonly { key: string; label: string; value: unknown }[];
   requirements: NaturalLanguageConditionCompilerResult["ledger"]["requirements"];
   message: string;
-  canSave: false;
-  canMatch: false;
-  canAlert: false;
+  canSave: boolean;
+  canMatch: boolean;
+  canAlert: boolean;
 };
 export function formatSec425PreviewValue(condition: Sec425MonitorPreview["conditions"][number]) {
   if (condition.key === "sec425.announcement_type") {

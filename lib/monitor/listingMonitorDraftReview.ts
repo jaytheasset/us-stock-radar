@@ -1,3 +1,4 @@
+import {conditionErrors as sec425ConditionErrors} from "../sec425/conditions.ts";
 import {offeringPlanConditionErrors} from './offeringPlanConditions.ts';
 import { effectConditionErrors, hasEffect } from "../sec-effect/conditions.ts";
 import {
@@ -348,6 +349,7 @@ function validateListingConditionSet(
     conditions.push(cloneCondition(condition));
   });
   if (requireNonempty) errors.push(...offeringPlanConditionErrors(conditions));
+  errors.push(...sec425ConditionErrors(conditions));
   if (findEqContradictions(conditions).length > 0) errors.push("conditions_contradictory");
   return {
     valid: errors.length === 0,

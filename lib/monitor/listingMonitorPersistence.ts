@@ -1,3 +1,4 @@
+import {conditionErrors as sec425ConditionErrors} from "../sec425/conditions.ts";
 import {offeringPlanConditionErrors} from './offeringPlanConditions.ts';
 import { hasEffect, effectConditionErrors } from "../sec-effect/conditions.ts";
 import {
@@ -294,7 +295,7 @@ export function validateCanonicalListingConditions(value: unknown, stage: "store
     return { ok: false, conditions: [], errors: ["condition_set_empty"] };
   }
   const conditions: CanonicalListingMonitorCondition[] = [];
-  const errors: string[] = [];
+  const errors: string[] = sec425ConditionErrors(value);
   value.forEach((candidate, index) => {
     if (!record(candidate)) {
       errors.push(`conditions[${index}]:condition_invalid`);

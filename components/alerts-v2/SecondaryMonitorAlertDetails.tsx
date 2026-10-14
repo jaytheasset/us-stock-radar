@@ -1,3 +1,5 @@
+import type {FactEvidence} from "@/lib/sec425/evidence";
+import {announcementLabels,transactionLabels} from "@/lib/sec425/conditions";
 import type { SecondaryMonitorDisplay } from "@/lib/monitor/secondaryMonitorEvidence";
 import { MONITOR_CONDITION_OPERATOR_DISPLAY_LABELS } from "@/lib/monitor/conditionRegistry";
 import { formatSecondaryMonitorValue } from "@/lib/monitor/secondaryMonitorDisplay";
@@ -5,10 +7,23 @@ import type { ReportedHoldingsDisplay } from "@/lib/monitor/reportedHoldingsEvid
 import { reportedHoldingsConditionText } from "@/lib/monitor/reportedHoldings";
 
 /** Renders only the saved snapshot supplied by the owner-scoped alert API. */
-export function SecondaryMonitorAlertDetails({ display, createdAt }: {
+export function SecondaryMonitorAlertDetails({ display, createdAt, sec425Evidence }: {
   display?: SecondaryMonitorDisplay | ReportedHoldingsDisplay;
   createdAt: string;
+  sec425Evidence?:FactEvidence;
 }) {
+  if(sec425Evidence){const e=sec425Evidence;return <div style={{minWidth:0,width:"100%",overflowWrap:"anywhere"}}>
+    <strong>{announcementLabels[e.announcementType]}</strong><p>{e.statement}</p><p>Announcement only; not confirmation of a completed transaction.</p>
+    <p>{e.companies.map(c=>[c.name,c.ticker,c.role].filter(Boolean).join(" · ")).join(" / ")}</p>
+    <details><summary>View matched conditions and SEC evidence</summary>
+      <p>Form 425 · {e.accession} · Filed {formatTimestamp(e.filedAt)}</p>
+      <p>{e.transactionTypes.map(t=>transactionLabels[t as keyof typeof transactionLabels]??t).join(" · ")}</p>
+      {e.terms.map((t,i)=><p key={i}>{t}</p>)}
+      <ul>{e.conditions.map((c,i)=><li key={i}>{c.key.replace("sec425.","").replaceAll("_"," ")} · {String(c.value).replaceAll("_"," ")}</li>)}</ul>
+      {e.quotes.map((q,i)=><blockquote key={i}>{q.sourceQuote}</blockquote>)}
+      <p>Matched {formatTimestamp(e.evaluatedAt)}. Evidence recorded at matching time.</p>
+      <a href={e.sourceUrl} target="_blank" rel="noreferrer">SEC original filing</a>
+    </details></div>;}
   const evidence = display?.evidence;
   if (!evidence) return <>
     <strong>Alert delivered</strong>

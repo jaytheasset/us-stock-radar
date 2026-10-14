@@ -1,3 +1,4 @@
+import {enqueueSec425Facts} from "./sec425/starter";
 import {enqueueCombinedOffering} from './sec-combined-offering/repository';
 import {isCombinedForm} from './sec-combined-offering/eligibility';
 import { enqueueOsSnapshot } from "./sec-os-snapshot/repository";
@@ -76,6 +77,7 @@ type SecRawIngestDependencies = {
   persistS8Registration?: typeof persistS8Registration;
   enqueueS8Structured?: typeof enqueueS8Structured;
   enqueueTenderStructured?: typeof enqueueTenderStructured;
+  enqueueSec425Facts?: typeof enqueueSec425Facts;
   enqueueProxyStructured?: typeof enqueueProxyStructured;
   enqueueOsSnapshot?: typeof enqueueOsSnapshot;
   enqueueOfferingPlan?: typeof enqueueOfferingPlan;
@@ -101,6 +103,7 @@ export async function runSecRawIngest(
     persistS8Registration: dependencies.persistS8Registration ?? persistS8Registration,
     enqueueS8Structured: dependencies.enqueueS8Structured ?? enqueueS8Structured,
     enqueueTenderStructured: dependencies.enqueueTenderStructured ?? enqueueTenderStructured,
+    enqueueSec425Facts: dependencies.enqueueSec425Facts ?? enqueueSec425Facts,
     enqueueProxyStructured: dependencies.enqueueProxyStructured ?? enqueueProxyStructured,
     enqueueOsSnapshot: dependencies.enqueueOsSnapshot ?? enqueueOsSnapshot,
     enqueueOfferingPlan: dependencies.enqueueOfferingPlan ?? enqueueOfferingPlan,
@@ -132,6 +135,10 @@ export async function runSecRawIngest(
     if (dryRun || !isTenderStructuredForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
     try { return await runtime.enqueueTenderStructured(rawItemId); }
     catch (error) { return { status: "failed", reason: String(error) }; }
+  }
+  async function facts425AfterRawSave(rawItem:SecParsedRawItem,rawItemId:string){
+    if(dryRun||rawItem.raw_payload.form_type!=="425")return{status:"not_applicable"};
+    try{return await runtime.enqueueSec425Facts(rawItemId);}catch{return{status:"failed",reason:"sec425_enqueue_failed"};}
   }
   async function proxyAfterRawSave(rawItem: SecParsedRawItem, rawItemId: string) {
     if (!isProxyForm(rawItem.raw_payload.form_type)) return { status: "not_applicable" };
@@ -376,6 +383,7 @@ export async function runSecRawIngest(
             s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(existing.id)),
             tender_structured: await tenderAfterRawSave(rawItem, stringValue(existing.id)),
             proxy_structured: await proxyAfterRawSave(rawItem, stringValue(existing.id)),
+            sec425_facts: await facts425AfterRawSave(rawItem,stringValue(existing.id)),
             os_snapshot: await osAfterRawSave(rawItem, stringValue(existing.id)),
             offering_plan: await offeringAfterRawSave(rawItem, stringValue(existing.id)),
             sec_cover_observation_persistence: secCoverObservationPersistence,
@@ -420,6 +428,7 @@ export async function runSecRawIngest(
           s8_registration_persistence: await persistS8AfterRawSave(rawItem, stringValue(persisted.id)),
           tender_structured: await tenderAfterRawSave(rawItem, stringValue(persisted.id)),
           proxy_structured: await proxyAfterRawSave(rawItem, stringValue(persisted.id)),
+          sec425_facts: await facts425AfterRawSave(rawItem,stringValue(persisted.id)),
           os_snapshot: await osAfterRawSave(rawItem, stringValue(persisted.id)),
           offering_plan: await offeringAfterRawSave(rawItem, stringValue(persisted.id)),
           sec_cover_observation_persistence: secCoverObservationPersistence,

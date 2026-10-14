@@ -7,10 +7,12 @@ import { MONITOR_API_NO_STORE_HEADERS, monitorAuthRequiredResponse } from "../..
 export async function handleSec425PreviewPost(request: Request, dependencies: {
   resolveUserId: () => Promise<string | null>;
   compile: typeof compileSec425MonitorPreview;
+  allowed?: (id:string)=>Promise<boolean>;
 }) {
   const rejection = rejectCrossOriginMutationRequest(request, MONITOR_API_NO_STORE_HEADERS);
   if (rejection) return rejection;
-  if (!await dependencies.resolveUserId()) return monitorAuthRequiredResponse();
+  const userId=await dependencies.resolveUserId();if(!userId)return monitorAuthRequiredResponse();
+  if(dependencies.allowed&&!await dependencies.allowed(userId))return NextResponse.json({ok:false,error:"PRO_REQUIRED",message:"425 monitors require Pro access."},{status:403,headers:MONITOR_API_NO_STORE_HEADERS});
   const parsed = parseNaturalLanguageConditionCompilerRequest(await request.json().catch(() => null));
   if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.code, message: parsed.message }, { status: parsed.status, headers: MONITOR_API_NO_STORE_HEADERS });
   try {

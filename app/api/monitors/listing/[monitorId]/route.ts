@@ -1,3 +1,5 @@
+import {has425} from "@/lib/sec425/conditions";
+import {allowedUser} from "@/lib/sec425/consumer";
 import { NextRequest, NextResponse } from "next/server";
 import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -48,6 +50,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const parsed = parseListingMonitorUpdateRequest(body);
   if (!parsed.ok) return monitorRequestErrorResponse(parsed);
   try {
+    const current=await readListingMonitorForOwner(userId,monitorId);
+    if(current.status!=="available")return monitorNotFoundResponse();
+    if((has425(current.monitor.conditions)||has425(parsed.value.conditions??[]))&&!(parsed.value.isActive===false&&parsed.value.conditions===undefined)&&!await allowedUser(userId))return NextResponse.json({ok:false,error:"PRO_REQUIRED",message:"425 monitors require Pro access."},{status:403,headers:MONITOR_API_NO_STORE_HEADERS});
     const monitor = await updateListingMonitor({
       ownerId: userId,
       monitorId,
