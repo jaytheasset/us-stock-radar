@@ -88,6 +88,14 @@ type CompilerOptions = Readonly<{
   model?: string;
   runPrompt?: typeof runStructuredGeminiJson;
   now?: () => number;
+  /** Server-selected preview catalog only. Never changes the production READY registry or persistence validation. */
+  previewScope?: ConditionCompilerPreviewScope;
+}>;
+
+export type ConditionCompilerPreviewScope = Readonly<{
+  registry: NonNullable<Parameters<typeof buildNaturalLanguageConditionCompilerPrompt>[1]>["registry"];
+  instructions: string;
+  validateConditions: typeof validateCanonicalListingConditions;
 }>;
 
 type ProviderCondition = Readonly<{
@@ -175,7 +183,7 @@ export async function compileNaturalLanguageListingConditions(
     );
   }
 
-  const prompt = buildNaturalLanguageConditionCompilerPrompt(parsedRequest.text);
+  const prompt = buildNaturalLanguageConditionCompilerPrompt(parsedRequest.text, options.previewScope);
   const now = options.now ?? (() => performance.now());
   const startedAt = now();
   const run = await (options.runPrompt ?? runStructuredGeminiJson)({
@@ -195,7 +203,7 @@ export async function compileNaturalLanguageListingConditions(
   }
 
   return {
-    result: validateNaturalLanguageConditionCompilerOutput(run.parsed, parsedRequest.text),
+    result: validateNaturalLanguageConditionCompilerOutput(run.parsed, parsedRequest.text, options.previewScope),
     telemetry: {
       compilerVersion: NATURAL_LANGUAGE_CONDITION_COMPILER_VERSION,
       promptVersion: NATURAL_LANGUAGE_CONDITION_COMPILER_PROMPT_VERSION,
@@ -213,11 +221,12 @@ export async function compileNaturalLanguageListingConditions(
 export function validateNaturalLanguageConditionCompilerOutput(
   value: unknown,
   originalText: string,
+  previewScope?: ConditionCompilerPreviewScope,
 ): NaturalLanguageConditionCompilerResult {
   if (!record(value)) throw invalidOutput(["output_invalid"]);
   assertExactKeys(value, ["requirements"], "output");
   const providerRequirements = readProviderRequirements(value.requirements, originalText);
-  const adapted = adaptProviderRequirements(providerRequirements);
+  const adapted = adaptProviderRequirements(providerRequirements, previewScope);
   const requirements = adapted.requirements;
   const ledgerConditions = adapted.conditions;
   const canonicalConditions = Object.freeze(ledgerConditions.map(({ key, operator, value: conditionValue }) => Object.freeze({
@@ -263,6 +272,7 @@ export function validateNaturalLanguageConditionCompilerOutput(
 export function revalidateNaturalLanguageConditionCompilerResult(
   result: NaturalLanguageConditionCompilerResult,
   originalText: string,
+  previewScope?: ConditionCompilerPreviewScope,
 ) {
   const conditionById = new Map<string, NaturalLanguageConditionLedgerCondition>();
   result.ledger.conditions.forEach((condition, index) => {
@@ -292,7 +302,7 @@ export function revalidateNaturalLanguageConditionCompilerResult(
       question: requirement.question,
     };
   });
-  const finalized = validateNaturalLanguageConditionCompilerOutput({ requirements }, originalText);
+  const finalized = validateNaturalLanguageConditionCompilerOutput({ requirements }, originalText, previewScope);
   if (JSON.stringify(finalized) !== JSON.stringify(result)) {
     throw invalidOutput(["ledger_finalization_mismatch"]);
   }
@@ -361,12 +371,12 @@ function readProviderRequirements(
   }));
 }
 
-function adaptProviderRequirements(providerRequirements: readonly ProviderRequirement[]) {
+function adaptProviderRequirements(providerRequirements: readonly ProviderRequirement[], previewScope?: ConditionCompilerPreviewScope) {
   const conditionIdByFingerprint = new Map<string, string>();
   const ledgerConditions: NaturalLanguageConditionLedgerCondition[] = [];
   const requirements = providerRequirements.map((requirement, requirementIndex) => {
     const canonicalConditions = requirement.decision === "mapped"
-      ? readCanonicalConditions(requirement.conditions, requirementIndex)
+      ? readCanonicalConditions(requirement.conditions, requirementIndex, previewScope)
       : Object.freeze([]);
     const refs: string[] = [];
     for (const condition of canonicalConditions) {
@@ -415,9 +425,10 @@ function readInlineConditions(value: unknown, requirementIndex: number): readonl
 function readCanonicalConditions(
   value: unknown,
   requirementIndex?: number,
+  previewScope?: ConditionCompilerPreviewScope,
 ): readonly CanonicalListingMonitorCondition[] {
   if (!Array.isArray(value) || value.length === 0) return Object.freeze([]);
-  const validation = validateCanonicalListingConditions(value, "draft");
+  const validation = (previewScope?.validateConditions ?? validateCanonicalListingConditions)(value, "draft");
   if (!validation.ok) {
     throw invalidOutput(validation.errors.map((error) => (
       requirementIndex === undefined ? error : `requirements[${requirementIndex}].${error}`

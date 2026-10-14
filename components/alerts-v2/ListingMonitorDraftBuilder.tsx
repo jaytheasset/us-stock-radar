@@ -22,6 +22,8 @@ import { SecondaryMonitorAlertDetails } from "./SecondaryMonitorAlertDetails";
 import type { CanonicalListingMonitorCondition, ListingMonitor } from "@/lib/monitor/listingMonitorPersistence";
 import { hasRetiredMonitorConditions, type MonitorConditionOperator } from "@/lib/monitor/conditionRegistry";
 import type { NaturalLanguageMonitorDraft } from "@/lib/monitor/naturalLanguageMonitorDraft";
+import { SEC425_MONITOR_EXAMPLES, formatSec425PreviewValue, type Sec425MonitorPreview } from "@/lib/monitor/sec425CandidateDisplay";
+import { requestSec425MonitorPreview } from "@/lib/monitor/sec425CandidateClient";
 import {
   createMonitorPresetDraft,
   getMonitorAddConditionCatalog,
@@ -52,6 +54,7 @@ type ApiPayload = Readonly<{
   data?: unknown;
   error?: string;
   message?: string;
+  preview?: Sec425MonitorPreview;
 }>;
 
 type ListingMonitorListData = Readonly<{
@@ -65,6 +68,8 @@ type ListingMonitorAlertsData = Readonly<{
 
 export function ListingMonitorDraftBuilder() {
   const [text, setText] = useState("");
+  const [compileScope, setCompileScope] = useState<"standard" | "sec425">("standard");
+  const [sec425Preview, setSec425Preview] = useState<Sec425MonitorPreview | null>(null);
   const [review, setReview] = useState<ListingMonitorDraftReview | null>(null);
   const [draft, setDraft] = useState<NaturalLanguageMonitorDraft | null>(null);
   const [action, setAction] = useState<"idle" | "compiling" | "confirming" | "creating">("idle");
@@ -101,7 +106,7 @@ export function ListingMonitorDraftBuilder() {
     setMessage("");
     setCreatedMonitor(null);
     try {
-      const response = await fetch("/api/monitors/listing/compile", {
+      const response = compileScope === "sec425" ? await requestSec425MonitorPreview(text) : await fetch("/api/monitors/listing/compile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
@@ -109,10 +114,12 @@ export function ListingMonitorDraftBuilder() {
       const payload = await readApiPayload(response);
       if (!response.ok || !payload?.data) throw apiError(response, payload, "Could not build this monitor.");
       const nextReview = createListingMonitorDraftReview(payload.data);
+      if (compileScope === "sec425" && (payload.preview?.version !== "sec425_monitor_preview_v1" || payload.preview.canSave !== false || payload.preview.status !== "not_ready")) throw new Error("425 preview response is incomplete.");
+      setSec425Preview(compileScope === "sec425" ? payload.preview! : null);
       setDraft(payload.data as NaturalLanguageMonitorDraft);
       setReview(nextReview);
       setAuthRequired(false);
-      setMessage(nextReview.proposals.length > 0
+      setMessage(compileScope === "sec425" ? payload.preview!.message : nextReview.proposals.length > 0
         ? "Confirm or remove the suggested filter to finish this monitor."
         : "Your monitor is ready to review.");
     } catch (error) {
@@ -160,7 +167,7 @@ export function ListingMonitorDraftBuilder() {
   }
 
   async function createMonitor() {
-    if (!review || !createGate?.ready || action !== "idle") return;
+    if (!review || !createGate?.ready || action !== "idle" || compileScope === "sec425" || sec425Preview) return;
     setAction("creating");
     setMessage("");
     setCreatedMonitor(null);
@@ -213,6 +220,8 @@ export function ListingMonitorDraftBuilder() {
 
   function selectPreset(presetId: string) {
     if (action !== "idle") return;
+    setCompileScope("standard");
+    setSec425Preview(null);
     setMessage("");
     setCreatedMonitor(null);
     try {
@@ -263,8 +272,24 @@ export function ListingMonitorDraftBuilder() {
       <FinancialMonitorBuilder authRequired={authChecking || authRequired} />
       <ReportedHoldingsMonitorBuilder authRequired={authChecking || authRequired} />
 
+      <section className={styles.presets} aria-labelledby="sec425-preview-title">
+        <h2 id="sec425-preview-title">425 announcement previews</h2>
+        <p>Choose an example, edit the text below, then build an interpretation. Saving and automatic alerts are not available yet.</p>
+        <div className={styles.presetGrid}>
+          {SEC425_MONITOR_EXAMPLES.map((example, index) => (
+            <button className={styles.presetCard} type="button" key={example} disabled={action !== "idle"}
+              aria-label={`Use 425 example ${index + 1}`} onClick={() => {
+                setText(example); setCompileScope("sec425"); setSec425Preview(null); setReview(null); setDraft(null); setCreatedMonitor(null); setMessage("");
+              }}>{example}</button>
+          ))}
+        </div>
+      </section>
+
       <form className={styles.promptForm} onSubmit={compileDraft}>
         <label htmlFor="monitor-natural-language">What should Stock Radar watch?</label>
+        {compileScope === "sec425" ? <p role="status">425 preview only. <button type="button" disabled={action !== "idle"} onClick={() => {
+          setCompileScope("standard"); setSec425Preview(null); setReview(null); setDraft(null); setMessage("");
+        }}>Use standard monitor builder</button></p> : null}
         <textarea
           disabled={authChecking || authRequired || action !== "idle"}
           id="monitor-natural-language"
@@ -319,6 +344,16 @@ export function ListingMonitorDraftBuilder() {
       {message ? <p className={styles.message} aria-live="polite">{message}</p> : null}
 
       {createdMonitor ? <CreatedMonitorSummary monitor={createdMonitor} /> : null}
+      {sec425Preview ? (
+        <section className={styles.review} aria-label="425 interpretation preview">
+          <h2>425 interpretation — not available for alerts</h2>
+          <p>{sec425Preview.interpretation === "VALID" ? "The request was interpreted. Source verification and the data connection are still incomplete." : "Review the unsupported or unclear parts of your request."}</p>
+          {sec425Preview.conditions.map((condition, i) => <p key={`${condition.key}:${i}`}><strong>{condition.label}</strong> — {formatSec425PreviewValue(condition)}</p>)}
+          {sec425Preview.requirements.filter(r => r.decision !== "mapped").map(r => <p key={r.id}><q>{r.source_text}</q> — {r.reason ?? r.question}</p>)}
+          <p>Edit the request above and build it again to change the interpretation.</p>
+          <button type="button" disabled>Create monitor unavailable</button>
+        </section>
+      ) : null}
       {review && draft?.effectResolution ? (
         <section className={styles.createdSummary} aria-label="Registration target review">
           <h2>Confirm the registration</h2>
@@ -337,7 +372,7 @@ export function ListingMonitorDraftBuilder() {
         </section>
       ) : null}
 
-      {review ? (
+      {review && !sec425Preview ? (
         <div className={styles.review}>
           <div className={styles.reviewHeading}>
             <div>

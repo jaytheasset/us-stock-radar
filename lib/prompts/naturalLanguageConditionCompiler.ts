@@ -67,8 +67,11 @@ export function getListingConditionCompilerRegistryContext() {
   );
 }
 
-export function buildNaturalLanguageConditionCompilerPrompt(text: string) {
-  const registryContext = getListingConditionCompilerRegistryContext();
+export function buildNaturalLanguageConditionCompilerPrompt(text: string, previewScope?: Readonly<{
+  registry: ReturnType<typeof getListingConditionCompilerRegistryContext>;
+  instructions: string;
+}>) {
+  const registryContext = previewScope?.registry ?? getListingConditionCompilerRegistryContext();
   const system = [
     "You are Stock Radar's natural-language monitor condition compiler.",
     "Interpret the user's complete intent using the Registry semantic definitions. Match meaning, not literal field or enum names.",
@@ -95,6 +98,7 @@ export function buildNaturalLanguageConditionCompilerPrompt(text: string) {
     `registry_version=${MONITOR_CONDITION_REGISTRY_VERSION}`,
     `monitor_registry=${JSON.stringify(registryContext)}`,
     `output_contract=${JSON.stringify(NATURAL_LANGUAGE_CONDITION_COMPILER_RESPONSE_SCHEMA)}`,
+    ...(previewScope ? [previewScope.instructions] : []),
   ].join("\n");
 
   return {
