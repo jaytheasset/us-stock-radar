@@ -11,9 +11,10 @@ import {
   buildCurrentFilingIdentity,
   currentFilingIdentityText,
 } from "../common/currentFilingIdentity.ts";
+import { sec425PromptIdentity, sec425FilingRoles, type Sec425IdentityEvidence } from "./verification.ts";
 
 export const SEC_425_ROUTER_PROMPT_KEY = "sec_425_router";
-export const SEC_425_ROUTER_PROMPT_VERSION = "v4";
+export const SEC_425_ROUTER_PROMPT_VERSION = "v5";
 export const SEC_425_DISPLAY_PAYLOAD_VERSION = "sec_425_display_v1";
 
 export const SEC_425_ROUTER_ACTION_VALUES = ["archive", "feed", "alert"] as const;
@@ -76,6 +77,7 @@ export type Sec425CommunicationMode = (typeof SEC_425_COMMUNICATION_MODE_VALUES)
 export type Sec425TransactionStage = (typeof SEC_425_TRANSACTION_STAGE_VALUES)[number];
 
 export type Sec425RouterPromptInput = {
+  identity_evidence?: Sec425IdentityEvidence;
   filing_package: Record<string, unknown>;
   parser_output: Sec425ParserOutput;
   filing_excerpt?: string | null;
@@ -131,6 +133,7 @@ type Sec425RouterPromptBlock = Pick<
 >;
 
 export type Sec425RouterSourcePromptInput = {
+  filing_roles: ReturnType<typeof sec425FilingRoles>;
   current_filing: ReturnType<typeof buildCurrentFilingIdentity>;
   filing_identity_text: string;
   document_inventory: Array<{
@@ -282,14 +285,15 @@ export function buildSec425RouterPromptDraft(input: Sec425RouterPromptInput) {
 export function buildSec425RouterSourcePromptInput(input: Sec425RouterPromptInput): Sec425RouterSourcePromptInput {
   const filingPackage = input.filing_package || {};
   const parserOutput = input.parser_output;
-  const currentFiling = buildCurrentFilingIdentity({
+  const currentFiling = sec425PromptIdentity(buildCurrentFilingIdentity({
     filingPackage,
     parserOutput: parserOutput as unknown as Record<string, unknown>,
     formFamily: "425",
-  });
+  }), parserOutput.raw.cleaned_source_blocks, filingPackage, input.identity_evidence);
 
   return {
     current_filing: currentFiling,
+    filing_roles: sec425FilingRoles(filingPackage, parserOutput.facts),
     filing_identity_text: currentFilingIdentityText(currentFiling),
     document_inventory: parserOutput.raw.document_inventory.map((document) => ({
       source_ref: document.source_ref,

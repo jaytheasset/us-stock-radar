@@ -21,6 +21,7 @@ type RawItemRow = {
   source_url?: unknown;
   title?: unknown;
   published_at?: unknown;
+  fetched_at?: unknown;
   body_text?: unknown;
   analysis_text?: unknown;
   raw_payload?: unknown;
@@ -115,6 +116,13 @@ export function buildSecFilingAnalysisPackage(rawItem: RawItemRow, options: SecF
       ticker: nullableString(rawPayload.ticker) || nullableString(metadata.ticker),
       exchange: nullableString(rawPayload.exchange) || nullableString(metadata.exchange),
     },
+    ...(formType === "425" ? {
+      sec425_identity_provenance: {
+        tickerResolution: toRecord(rawPayload.ticker_resolution),
+        filingRoles: toRecord(rawPayload.sec425_filing_roles),
+        observedAt: nullableString(rawItem.fetched_at),
+      },
+    } : {}),
     tickers: Array.isArray(rawPayload.tickers) ? rawPayload.tickers : [],
     market_context:
       toRecord(rawPayload.market_context) ||

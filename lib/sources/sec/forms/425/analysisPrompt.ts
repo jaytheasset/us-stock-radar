@@ -24,9 +24,10 @@ import {
 } from "./routerPrompt";
 import { buildSec425DisplayPayload } from "./displayPayload";
 import { buildSecSourceBlockPromptInput } from "../common/sourceBlockPromptInput";
+import { sec425PromptIdentity, sec425FilingRoles } from "./verification.ts";
 
 export const SEC_425_ANALYSIS_PROMPT_KEY = "sec_425_analysis_draft";
-export const SEC_425_ANALYSIS_PROMPT_VERSION = "v9";
+export const SEC_425_ANALYSIS_PROMPT_VERSION = "v10";
 
 export const SEC_425_ANALYSIS_CASE_VALUES = [
   "strategic_transaction_terms",
@@ -61,6 +62,8 @@ export const sec425AnalysisSystemPrompt = [
   "Use only cleaned_source_blocks, router result, and fixture-provided market_context. Do not call, request, or assume live market data.",
   "Use current_filing.form_type exactly when naming the SEC form. Do not substitute another form from the same 425 family.",
   "Do not use parser-generated facts, signals, route hints, extraction summaries, event labels, display labels, or investment labels as analysis authority.",
+  "Distinguish FILED BY/SUBJECT COMPANY filing roles from transaction acquirer/target roles. Company identity requires official SEC CIK evidence; a source abbreviation or model string is not a verified ticker. Do not copy filing-issuer identity to other parties. Current catalog observations do not establish historical symbols or justify replacing source-stated symbols.",
+  "Separate filing date from the date of the actual action. Use the action, time and announcement context together: a current vote about a previously announced agreement is not a new signing. Neither equal nor different dates alone establish newness. Preserve ambiguity and distinguish historical transaction descriptions from newly announced changes.",
   `Use only these approved event types: ${SEC_425_APPROVED_EVENT_TYPES.join(", ")}.`,
   "Do not choose the event_type. Copy analysis_output.event_type exactly from router_result.event_type.",
   "Do not choose or change display_type. The router already selected the page family.",
@@ -316,7 +319,8 @@ export function buildSec425AnalysisPromptDraft(input: Sec425AnalysisPromptInput)
     version: SEC_425_ANALYSIS_PROMPT_VERSION,
     system: sec425AnalysisSystemPrompt,
     user: JSON.stringify({
-      current_filing: sourcePromptInput.current_filing,
+      current_filing: sec425PromptIdentity(sourcePromptInput.current_filing, input.parser_output.raw.cleaned_source_blocks, input.filing_package, input.identity_evidence),
+      filing_roles: sec425FilingRoles(input.filing_package, input.parser_output.facts),
       cleaned_source_blocks: analysisSourceBlocks,
       analysis_source_block_count: analysisSourceBlocks.length,
       analysis_source_blocks_truncated: input.parser_output.raw.cleaned_source_blocks.length > analysisSourceBlocks.length,

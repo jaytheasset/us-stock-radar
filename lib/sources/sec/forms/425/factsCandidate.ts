@@ -1,8 +1,9 @@
 // Candidate-only source extraction. No ingest hook, persistence, canonical publication or Alert dispatch.
 import { createHash } from "node:crypto";
 import Ajv from "ajv";
+import { inspectSec425Currentness, inspectSec425Identity, type Sec425ActionContext, type Sec425IdentityEvidence } from "./verification.ts";
 
-export const SEC425_FACT_CANDIDATE_VERSION = "sec425_fact_candidate_v1";
+export const SEC425_FACT_CANDIDATE_VERSION = "sec425_fact_candidate_v2";
 export const SEC425_ANNOUNCEMENT_TYPES = ["new_acquisition_proposal", "revised_acquisition_proposal", "definitive_agreement_signed"] as const;
 export const SEC425_TRANSACTION_TYPES = ["acquisition", "merger", "tender_offer", "exchange_offer", "spac_business_combination", "asset_acquisition"] as const;
 export type Sec425Proof = { block_id: string; source_field: "heading" | "text"; quote: string };
@@ -11,6 +12,7 @@ export type Sec425FactOutput = {
   decision: "confirmed" | "not_applicable" | "uncertain";
   reason: string;
   evidence: Sec425Proof[];
+  action_context?: Sec425ActionContext;
   announcement: null | {
     announcement_type: typeof SEC425_ANNOUNCEMENT_TYPES[number] | null;
     transaction_types: typeof SEC425_TRANSACTION_TYPES[number][] | null;
@@ -33,6 +35,10 @@ const object = (properties: Record<string, unknown>) => ({ type: "object", addit
 const proof = object({ block_id: string, source_field: { type: "string", enum: ["heading", "text"] }, quote: { ...string, maxLength: 240 } });
 const evidence = { type: "array", items: proof };
 const nullable = (values?: readonly string[]) => ({ type: ["string", "null"], ...(values ? { enum: [...values, null] } : { minLength: 1 }) });
+export const SEC425_ACTION_CONTEXT_SCHEMA = object({
+  disclosure_context: { type: "string", enum: ["current_announcement", "prior_background", "unclear"] },
+  action_date_literal: nullable(), action_evidence: evidence, context_evidence: evidence,
+});
 export const SEC425_FACT_LOCAL_SCHEMA = object({
   decision: { type: "string", enum: ["confirmed", "not_applicable", "uncertain"] }, reason: string, evidence,
   announcement: { ...object({
@@ -42,6 +48,8 @@ export const SEC425_FACT_LOCAL_SCHEMA = object({
     statement: nullable(), key_terms: { type: "array", items: object({ value: nullable(), evidence }) },
   }), type: ["object", "null"] },
 });
+// Backward-readable old outputs stay intact; absence is explicitly unresolved at the consumption boundary.
+Object.assign(SEC425_FACT_LOCAL_SCHEMA.properties, { action_context: SEC425_ACTION_CONTEXT_SCHEMA });
 
 // Same previously exercised Gemini subset: nullable, objects, arrays, enums. Quote limit remains description-only on wire.
 function wireSchema(value: unknown): unknown {
@@ -67,9 +75,10 @@ export const SEC425_FACT_SYSTEM = [
   "statement explains the current action. Each key_terms.value must contain an actual concise condition/value, not a heading such as Agreement Date or Merger Consideration. Preserve stated cash/share/implied values without calculations; preserve non-binding status, alternatives such as termination OR inapplicability, majority basis, exceptions, absence of financing conditions, ownership exclusions and conditional future completion. Do not simplify away economically material qualifications. If an incomplete table lacks context to express a value correctly, return null for that term rather than guessing or presenting unqualified formula alternatives.",
   "Every non-null value must be supported by its associated root/party/term evidence. Each key term has its own evidence covering the actual value AND material qualifications. Do not use an unrelated generic quote for a condition. Evidence source_field is heading or text of the exact block_id. Copy short contiguous spans of at most240 characters with exact punctuation/newlines, using multiple spans when needed. Do not normalize, repair, relocate or reconstruct quotations.",
   "Missing evidence, ambiguous company attribution or lost condition meaning must remain unavailable; schema consistency is not semantic verification. No canonical-ready status, automatic matching, ticker change or Alert authority is granted. Do not derive facts from an investor-facing Primary summary or score.",
+  "Include action_context for confirmed claims: separately quote the actual action and its announcement-time context. Record the source's literal action date, not the filing date. Prior agreement descriptions and current meeting/vote events are different actions; the same or different dates alone do not decide newness. If context is unclear retain unclear. FILED BY and SUBJECT COMPANY are filing roles, not acquirer/target roles. No supplied verified CIK/mapping means identity is unresolved; do not infer it from a name or abbreviation.",
 ].join("\n");
 
-export function inspectSec425FactCandidate(value: unknown, blocks: readonly Sec425FactBlock[]) {
+export function inspectSec425FactCandidate(value: unknown, blocks: readonly Sec425FactBlock[], identityEvidence?: Sec425IdentityEvidence) {
   const validator = new Ajv({ strict: false, allErrors: true }).compile(SEC425_FACT_LOCAL_SCHEMA);
   const schemaPass = validator(value), schemaErrors = structuredClone(validator.errors);
   const bindings: { path: string; exact: boolean; length: number; missingBlock: boolean }[] = [];
@@ -99,12 +108,17 @@ export function inspectSec425FactCandidate(value: unknown, blocks: readonly Sec4
   if (data?.decision === "confirmed" && (!data.announcement || data.announcement.announcement_type == null || data.announcement.statement == null || !data.evidence?.length)) errors.push("confirmed_announcement_incomplete");
   if (data?.decision !== "confirmed" && data?.announcement != null) errors.push("nonconfirmed_announcement_must_be_null");
   const citationPass = bindings.every(p => p.exact && p.length <= 240);
+  const currentness = inspectSec425Currentness({ decision: data?.decision, announcementType: data?.announcement?.announcement_type, evidence: data?.evidence, actionContext: data?.action_context }, blocks);
+  const identities = (Array.isArray(data?.announcement?.parties) ? data.announcement.parties : []).map((p, i) => inspectSec425Identity({
+    key: `party:${i}`, name: p?.name ?? null, ticker: p?.ticker ?? null, exchange: null,
+  }, blocks, identityEvidence));
   return { schemaPass, schemaErrors, fieldBindingPass: errors.length === 0, errors, citationPass, bindings, mechanicalPass: schemaPass && errors.length === 0 && citationPass,
+    currentness, identities,
     semanticStatus: "unverified" as const, publicationStatus: "not_ready" as const, available: false as const, matchEligible: false as const, alertEligible: false as const, corrected: false as const };
 }
 
-export function createSec425FactCandidate(source: Sec425FactSource, sourceBytes: Uint8Array, output: unknown, blocks: readonly Sec425FactBlock[]) {
+export function createSec425FactCandidate(source: Sec425FactSource, sourceBytes: Uint8Array, output: unknown, blocks: readonly Sec425FactBlock[], identityEvidence?: Sec425IdentityEvidence) {
   const url = new URL(source.sourceUrl);
   if (!["raw_html", "sec_public_text_excerpt"].includes(source.representation) || !/^\d{10}-\d{2}-\d{6}$/.test(source.accession) || url.origin !== "https://www.sec.gov" || !url.pathname.startsWith("/Archives/edgar/data/") || !url.pathname.includes(`/${source.accession.replaceAll("-", "")}/`) || url.search || url.hash || createHash("sha256").update(sourceBytes).digest("hex") !== source.sourceSha256) throw Error("sec425_source_identity_or_hash_mismatch");
-  return { version: SEC425_FACT_CANDIDATE_VERSION, source: { ...source }, sourceScope: "supplied_blocks_only" as const, rawOutput: structuredClone(output), assessment: inspectSec425FactCandidate(output, blocks) };
+  return { version: SEC425_FACT_CANDIDATE_VERSION, source: { ...source }, sourceScope: "supplied_blocks_only" as const, rawOutput: structuredClone(output), assessment: inspectSec425FactCandidate(output, blocks, identityEvidence) };
 }
