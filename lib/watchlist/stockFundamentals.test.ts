@@ -191,52 +191,14 @@ test("normalizes issuance and repurchase magnitudes before net supply math", () 
   });
 });
 
-test("stock-detail FMP request fetches only displayed institutional ownership", async () => {
-  const requestedUrls: string[] = [];
-  const seenApiKeys: string[] = [];
-  const fetchImpl = async (
-    input: string | URL,
-    init?: RequestInit & { next?: { revalidate: number } },
-  ) => {
-    const url = String(input);
-    requestedUrls.push(url);
-    seenApiKeys.push(new Headers(init?.headers).get("apikey") ?? "");
-    if (url.includes("/institutional-ownership/")) {
-      return new Response("plan details", { status: 403 });
-    }
-    return Response.json([]);
-  };
-
-  const snapshot = await fetchStockFundamentals("AMD", {
-    apiKey: "server-only-test-key",
-    fetchImpl,
-    now: new Date("2026-07-31T00:00:00.000Z"),
-  });
-
-  assert.equal(snapshot.sources.incomeStatement.state, "unavailable");
-  assert.equal(snapshot.sources.balanceSheet.state, "unavailable");
-  assert.equal(snapshot.sources.cashFlow.state, "unavailable");
-  assert.equal(snapshot.sources.institutionalOwnership.state, "plan_unavailable");
-  assert.equal("trades" in snapshot.ownership, false);
-  assert.equal("statistics" in snapshot.ownership, false);
-  assert.equal(snapshot.financials.quarters.length, 0);
-  assert.equal(snapshot.financials.annuals.length, 0);
-  assert.equal(requestedUrls.some((url) => url.includes("/income-statement?")), false);
-  assert.equal(requestedUrls.some((url) => url.includes("/balance-sheet-statement?")), false);
-  assert.equal(requestedUrls.some((url) => url.includes("/cash-flow-statement?")), false);
-  assert.equal(requestedUrls.some((url) => url.includes("/insider-trading/")), false);
-  assert.deepEqual(
-    requestedUrls.map((url) => new URL(url).pathname).sort(),
-    [
-      "/stable/institutional-ownership/extract-analytics/holder",
-      "/stable/institutional-ownership/symbol-positions-summary",
-    ],
-  );
-  assert.ok(requestedUrls.every((url) => !url.includes("apikey")));
-  assert.ok(seenApiKeys.every((key) => key === "server-only-test-key"));
-  const serialized = JSON.stringify(snapshot);
-  assert.equal(serialized.includes("server-only-test-key"), false);
-  assert.equal(serialized.includes("provider details"), false);
-  assert.equal(serialized.includes("upstream details"), false);
-  assert.equal(serialized.includes("plan details"), false);
+test("retired stock fundamentals ignore credentials and return unavailable without fetch or cache", async () => {
+  let calls = 0;
+  const snapshot = await fetchStockFundamentals("AMD", { apiKey: "retired-test-key", cache: true, fetchImpl: async () => { calls++; throw new Error("must not fetch"); } });
+  assert.equal(calls, 0);
+  for (const source of Object.values(snapshot.sources)) assert.equal(source.state, "unavailable");
+  assert.equal(snapshot.ownership.institutionalSummary, null);
+  assert.deepEqual(snapshot.ownership.institutionalHolders, []);
+  assert.deepEqual(snapshot.financials.quarters, []);
+  assert.deepEqual(snapshot.financials.annuals, []);
+  assert.equal(JSON.stringify(snapshot).includes("retired-test-key"), false);
 });

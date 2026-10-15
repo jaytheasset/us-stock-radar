@@ -180,7 +180,7 @@ async function readFreshMarketRow(symbol: string, persist: boolean): Promise<Fre
     ),
     volume: firstNumber(quote?.volume),
     avg_volume: firstNumber(quote?.avgVolume, quote?.averageVolume, profile?.volAvg),
-    as_of: asOf,
+    as_of: quoteResult.ok || profileResult.ok || floatResult.ok ? asOf : null,
     errors,
     raw_payload: {
       fmp_quote: quote || null,
@@ -189,7 +189,7 @@ async function readFreshMarketRow(symbol: string, persist: boolean): Promise<Fre
     },
   };
 
-  if (persist) {
+  if (persist && (quoteResult.ok || profileResult.ok || floatResult.ok)) {
     await persistFreshMarketRow(row);
   }
 
@@ -284,6 +284,7 @@ function postgrestIn(values: string[]) {
 
 function firstNumber(...values: unknown[]) {
   for (const value of values) {
+    if (value === null || value === undefined || typeof value === "boolean" || (typeof value === "string" && !value.trim())) continue;
     const parsed = typeof value === "number" ? value : Number(value);
     if (Number.isFinite(parsed)) return parsed;
   }
@@ -309,8 +310,8 @@ function isRecord(value: unknown): value is Row {
 function sourceForValue(value: number | null, candidates: Array<[unknown, string]>) {
   if (value === null) return null;
   for (const [candidate, source] of candidates) {
-    const parsed = typeof candidate === "number" ? candidate : Number(candidate);
-    if (Number.isFinite(parsed) && parsed === value) return source;
+    const parsed = firstNumber(candidate);
+    if (parsed !== null && parsed === value) return source;
   }
   return null;
 }

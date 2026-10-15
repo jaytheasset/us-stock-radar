@@ -78,12 +78,13 @@ test("the chat activity RPC is service-only and applies every public safety gate
   assert.match(migration, /grant execute[\s\S]*to service_role/i);
 });
 
-test("Dow reuses the existing market-pulse refresh and shared quote cache", () => {
+test("Dow remains unavailable after FMP retirement; other activity uses the shared cache", () => {
   const refresh = readFileSync("lib/marketPulseRefresh.ts", "utf8");
   const server = readFileSync("lib/marketActivity.server.ts", "utf8");
   const route = readFileSync("app/api/market-activity/route.ts", "utf8");
 
-  assert.match(refresh, /cacheSymbol: "\^DJI", providerSymbol: "\^DJI"/);
+  assert.match(refresh, /retiredSymbols = .*"\^DJI"/);
+  assert.doesNotMatch(refresh, /refreshFmpQuote/);
   assert.match(route, /readMarketQuoteCacheMap/);
   assert.doesNotMatch(server, /financialmodelingprep|polygon\.io|fetch\(/i);
 });

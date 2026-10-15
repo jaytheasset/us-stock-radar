@@ -385,7 +385,7 @@ function OwnershipSection({
         ) : (
           <div className={styles.planCard}>
             <strong>Institutional ownership</strong>
-            <span>Unavailable on the current FMP plan.</span>
+            <span>Institutional ownership data unavailable.</span>
             <span>
               No institutional percentage or Top 13F holder ranking is inferred.
               Local SEC ownership filings remain available below.

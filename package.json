@@ -14,8 +14,6 @@
     "supabase:db:lint": "supabase db lint --local --level error --fail-on error",
     "supabase:test:db": "supabase test db --local",
     "refresh:market-snapshots": "node scripts/refresh-market-group-snapshots.js",
-    "sync:market-universe": "node scripts/sync-fmp-universe.js",
-    "sync:etf-universe": "node scripts/sync-fmp-universe.js --asset-type=etf --exchanges=NASDAQ,NYSE,AMEX,CBOE",
     "sync:sec-tickers:local": "node scripts/sync-sec-ticker-catalog-local.js",
     "qa:alert-route": "node scripts/qa-alert-route.mjs",
     "qa:calendar-route": "node scripts/qa-calendar-route.mjs",

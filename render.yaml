@@ -17,8 +17,6 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      - key: FMP_API_KEY
-        sync: false
       - key: POLYGON_API_KEY
         sync: false
       - key: DASHBOARD_MOVERS_CRON_SECRET

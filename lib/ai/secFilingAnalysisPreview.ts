@@ -5234,81 +5234,6 @@ function resolveTenderSecurityCusip(filingPackage: Record<string, unknown>) {
   return "";
 }
 
-type TenderTargetTickerCandidate = {
-  ticker: string;
-  exchange: string | null;
-  company_name: string | null;
-  cusip: string;
-  source: string;
-};
-
-async function resolveTenderTargetTickerCandidateByCusip(
-  filingPackage: Record<string, unknown>,
-): Promise<TenderTargetTickerCandidate | null> {
-  const cusip = resolveTenderSecurityCusip(filingPackage);
-  if (!cusip) return null;
-
-  const apiKey = getServerEnv().fmpApiKey;
-  if (!apiKey) return null;
-
-  const searchUrl = new URL("https://financialmodelingprep.com/stable/search-cusip");
-  searchUrl.searchParams.set("cusip", cusip);
-  searchUrl.searchParams.set("apikey", apiKey);
-
-  try {
-    const searchResponse = await fetch(searchUrl);
-    if (!searchResponse.ok) return null;
-    const searchJson: unknown = await searchResponse.json();
-    const searchRows = Array.isArray(searchJson) ? searchJson.filter((row) => readRecord(row)) : [];
-
-    for (const rowValue of searchRows.slice(0, 5)) {
-      const row = readRecord(rowValue) || {};
-      const ticker = normalizeMarketContextTicker(stringValue(row.symbol) || stringValue(row.ticker));
-      if (!ticker) continue;
-
-      const rowCusip = normalizeCusipValue(stringValue(row.cusip));
-      const profile = await fetchFmpTickerProfileForCusipCheck(ticker, apiKey);
-      const profileCusip = normalizeCusipValue(stringValue(profile?.cusip));
-      const verifiedBySearch = rowCusip === cusip;
-      const verifiedByProfile = profileCusip === cusip;
-      if (!verifiedBySearch && !verifiedByProfile) continue;
-
-      return {
-        ticker,
-        exchange: stringValue(row.exchangeShortName) || stringValue(profile?.exchangeShortName) || stringValue(profile?.exchange) || null,
-        company_name: stringValue(row.companyName) || stringValue(row.name) || stringValue(profile?.companyName) || null,
-        cusip,
-        source: verifiedByProfile ? "fmp_search_cusip_profile_verified" : "fmp_search_cusip_verified",
-      };
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
-}
-
-async function fetchFmpTickerProfileForCusipCheck(ticker: string, apiKey: string) {
-  const profileUrl = new URL("https://financialmodelingprep.com/stable/profile");
-  profileUrl.searchParams.set("symbol", ticker);
-  profileUrl.searchParams.set("apikey", apiKey);
-
-  try {
-    const response = await fetch(profileUrl);
-    if (!response.ok) return null;
-    const json: unknown = await response.json();
-    const rows = Array.isArray(json) ? json : [];
-    return readRecord(rows[0]);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeCusipValue(value: string) {
-  const normalized = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  return /^[A-Z0-9]{9}$/.test(normalized) ? normalized : "";
-}
-
 function extractExchangeTickerNearCompany(sourceText: string, companyName: string) {
   const text = sourceText.replace(/\s+/g, " ").trim();
   if (!text || !companyName) return null;
@@ -5722,9 +5647,7 @@ async function buildTenderTransactionHistoryContext(input: SecFilingAnalysisInpu
   const currentFiledAt = Date.parse(stringValue(rawItem.published_at));
   const currentFormType = stringValue(filingPackage.form_type) || readRawFormType(rawItem);
   const currentFamily = normalizeGenericParentFormFamily(currentFormType);
-  const targetTickerCandidate = await resolveTenderTargetTickerCandidateByCusip(filingPackage);
   const subjectTicker =
-    targetTickerCandidate?.ticker ||
     resolveTenderSubjectMarketContextSymbol(filingPackage) ||
     normalizeMarketContextTicker(stringValue(readRecord(filingPackage.primary_ticker)?.ticker)) ||
     readRawTicker(rawItem) ||
@@ -5732,7 +5655,7 @@ async function buildTenderTransactionHistoryContext(input: SecFilingAnalysisInpu
   const subjectCompany = resolveTenderSubjectCompanyName(filingPackage);
   const companySearchTerm = tenderCompanyHistorySearchTerm(subjectCompany || readRawCompanyName(rawItem));
   const securityCusip = resolveTenderSecurityCusip(filingPackage);
-  const currentMatchFacts = buildCurrentTenderTransactionMatchFacts(filingPackage, rawItem, targetTickerCandidate?.ticker || "");
+  const currentMatchFacts = buildCurrentTenderTransactionMatchFacts(filingPackage, rawItem, "");
   const currentCik = normalizeCik(readRawCik(rawItem));
   const candidateEvents = await fetchTenderTransactionHistoryEventRows(rawItem, subjectTicker, subjectCompany);
   const candidateRawRows = await fetchTenderTransactionHistoryRawRows(rawItem, companySearchTerm, securityCusip);
@@ -5799,10 +5722,10 @@ async function buildTenderTransactionHistoryContext(input: SecFilingAnalysisInpu
         form_family: currentFamily || null,
         filed_at: stringValue(rawItem.published_at) || readRawFiledDate(rawItem) || null,
         ticker: subjectTicker || null,
-        target_ticker: targetTickerCandidate?.ticker || null,
-        target_exchange: targetTickerCandidate?.exchange || null,
-        target_ticker_source: targetTickerCandidate?.source || null,
-        target_ticker_cusip: targetTickerCandidate?.cusip || null,
+        target_ticker: null,
+        target_exchange: null,
+        target_ticker_source: null,
+        target_ticker_cusip: null,
         company_name: subjectCompany || readRawCompanyName(rawItem) || null,
         company_search_term: companySearchTerm || null,
         cusip: securityCusip || null,
@@ -5826,10 +5749,10 @@ async function buildTenderTransactionHistoryContext(input: SecFilingAnalysisInpu
       form_family: currentFamily || null,
       filed_at: stringValue(rawItem.published_at) || readRawFiledDate(rawItem) || null,
       ticker: subjectTicker || null,
-      target_ticker: targetTickerCandidate?.ticker || null,
-      target_exchange: targetTickerCandidate?.exchange || null,
-      target_ticker_source: targetTickerCandidate?.source || null,
-      target_ticker_cusip: targetTickerCandidate?.cusip || null,
+      target_ticker: null,
+      target_exchange: null,
+      target_ticker_source: null,
+      target_ticker_cusip: null,
       company_name: subjectCompany || readRawCompanyName(rawItem) || null,
       company_search_term: companySearchTerm || null,
       cusip: securityCusip || null,

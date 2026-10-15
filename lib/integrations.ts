@@ -99,17 +99,7 @@ export async function probeSec(): Promise<IntegrationResult> {
   };
 }
 
-export async function probeFmp(): Promise<IntegrationResult> {
-  const result = await fetchFmpQuote("AAPL");
-  return {
-    key: "fmp",
-    label: "FMP",
-    ok: result.ok,
-    status: result.status,
-    detail: result.ok ? "AAPL quote reachable" : undefined,
-    error: result.error,
-  };
-}
+export async function probeFmp(): Promise<IntegrationResult> { return { key: "fmp", label: "FMP (retired)", ok: false, status: 410, error: "FMP_RETIRED" }; }
 
 export async function probePolygon(): Promise<IntegrationResult> {
   const result = await fetchPolygonTicker("AAPL");
@@ -191,85 +181,16 @@ export async function probeWebPush(): Promise<IntegrationResult> {
   };
 }
 
-export async function fetchFmpQuote(symbol: string) {
-  const env = getServerEnv();
-  if (!env.fmpApiKey) {
-    return { ok: false, status: 0, data: null, error: "FMP_API_KEY is missing" };
-  }
+// Compatibility boundary for existing consumers; FMP has been retired.
+export async function fetchFmpQuote(_symbol: string): Promise<{ ok: boolean; status: number; data: unknown; error: string }> { return { ok: false, status: 410, data: null, error: "FMP_RETIRED" }; }
 
-  const cleanSymbol = normalizeMarketDataSymbol(symbol);
-  const url = new URL("https://financialmodelingprep.com/stable/quote");
-  url.searchParams.set("symbol", cleanSymbol);
-  url.searchParams.set("apikey", env.fmpApiKey);
+export async function fetchFmpQuotes(_symbols: string[]): Promise<{ ok: boolean; status: number; data: unknown; error: string }> { return { ok: false, status: 410, data: null, error: "FMP_RETIRED" }; }
 
-  return fetchJson(url);
-}
+// Compatibility boundary for existing consumers; FMP has been retired.
+export async function fetchFmpProfile(_symbol: string): Promise<{ ok: boolean; status: number; data: unknown; error: string }> { return { ok: false, status: 410, data: null, error: "FMP_RETIRED" }; }
 
-export async function fetchFmpQuotes(symbols: string[]) {
-  const env = getServerEnv();
-  if (!env.fmpApiKey) {
-    return { ok: false, status: 0, data: null, error: "FMP_API_KEY is missing" };
-  }
-
-  const cleanSymbols = normalizeSymbols(symbols);
-  if (cleanSymbols.length <= 1) {
-    return fetchFmpQuote(cleanSymbols[0] || "AAPL");
-  }
-
-  if (env.fmpBatchQuoteEnabled) {
-    const batchUrl = new URL("https://financialmodelingprep.com/stable/batch-quote");
-    batchUrl.searchParams.set("symbols", cleanSymbols.join(","));
-    batchUrl.searchParams.set("apikey", env.fmpApiKey);
-    const batchResult = await fetchJson(batchUrl);
-
-    if (batchResult.ok) {
-      return {
-        ...batchResult,
-        mode: "batch",
-      };
-    }
-
-    const fallback = await fetchFmpSingleQuoteList(cleanSymbols);
-    return {
-      ...fallback,
-      mode: "single-fallback",
-      warning: `Batch quote failed: ${batchResult.status} ${batchResult.error || ""}`.trim(),
-    };
-  }
-
-  return {
-    ...(await fetchFmpSingleQuoteList(cleanSymbols)),
-    mode: "single",
-  };
-}
-
-export async function fetchFmpProfile(symbol: string) {
-  const env = getServerEnv();
-  if (!env.fmpApiKey) {
-    return { ok: false, status: 0, data: null, error: "FMP_API_KEY is missing" };
-  }
-
-  const cleanSymbol = normalizeMarketDataSymbol(symbol);
-  const url = new URL("https://financialmodelingprep.com/stable/profile");
-  url.searchParams.set("symbol", cleanSymbol);
-  url.searchParams.set("apikey", env.fmpApiKey);
-
-  return fetchJson(url);
-}
-
-export async function fetchFmpSharesFloat(symbol: string) {
-  const env = getServerEnv();
-  if (!env.fmpApiKey) {
-    return { ok: false, status: 0, data: null, error: "FMP_API_KEY is missing" };
-  }
-
-  const cleanSymbol = normalizeMarketDataSymbol(symbol);
-  const url = new URL("https://financialmodelingprep.com/stable/shares-float");
-  url.searchParams.set("symbol", cleanSymbol);
-  url.searchParams.set("apikey", env.fmpApiKey);
-
-  return fetchJson(url);
-}
+// Compatibility boundary for existing consumers; FMP has been retired.
+export async function fetchFmpSharesFloat(_symbol: string): Promise<{ ok: boolean; status: number; data: unknown; error: string }> { return { ok: false, status: 410, data: null, error: "FMP_RETIRED" }; }
 
 export async function fetchPolygonTicker(symbol: string) {
   const env = getServerEnv();
@@ -307,10 +228,10 @@ export async function fetchDailyBars(symbol: string, days = 20) {
     };
   }
 
-  const fmpResult = await fetchFmpDailyBars(symbol, days);
   return {
-    ...fmpResult,
-    provider: fmpResult.ok ? "fmp" : "none",
+    ...polygonResult,
+    ok: false,
+    provider: "none",
     warning: polygonResult.ok ? undefined : `Polygon failed: ${polygonResult.error || polygonResult.status}`,
   };
 }
@@ -348,31 +269,7 @@ export async function fetchPolygonDailyBars(symbol: string, days = 20) {
   };
 }
 
-export async function fetchFmpDailyBars(symbol: string, days = 20) {
-  const env = getServerEnv();
-  if (!env.fmpApiKey) {
-    return {
-      ok: false,
-      status: 0,
-      data: [] as MarketBar[],
-      error: "FMP_API_KEY is missing",
-    };
-  }
-
-  const cleanSymbol = normalizeMarketDataSymbol(symbol);
-  const { from, to } = dateWindow(days);
-  const url = new URL("https://financialmodelingprep.com/stable/historical-price-eod/full");
-  url.searchParams.set("symbol", cleanSymbol);
-  url.searchParams.set("from", from);
-  url.searchParams.set("to", to);
-  url.searchParams.set("apikey", env.fmpApiKey);
-
-  const result = await fetchJson(url);
-  return {
-    ...result,
-    data: normalizeFmpBars(result.data).slice(-days),
-  };
-}
+export async function fetchFmpDailyBars(_symbol: string, _days = 20) { return { ok: false, status: 410, data: [] as MarketBar[], error: "FMP_RETIRED" }; }
 
 export async function fetchSecCompanyTickers(query: string, options: { exactTicker?: boolean; fresh?: boolean } = {}) {
   const env = getServerEnv();
@@ -475,17 +372,6 @@ export async function fetchSecCurrentFilings(form: string, count: number) {
   }
 }
 
-function normalizeSymbols(symbols: string[]) {
-  return Array.from(
-    new Set(
-      symbols
-        .flatMap((symbol) => symbol.split(","))
-        .map((symbol) => normalizeMarketDataSymbol(symbol))
-        .filter(Boolean),
-    ),
-  ).slice(0, 50);
-}
-
 function dateWindow(days: number) {
   const end = new Date();
   const start = new Date(end);
@@ -518,29 +404,6 @@ function normalizePolygonBars(value: unknown): MarketBar[] {
       });
     })
     .filter((row): row is MarketBar => Boolean(row));
-}
-
-function normalizeFmpBars(value: unknown): MarketBar[] {
-  const rows =
-    value && typeof value === "object" && "historical" in value
-      ? (value as { historical?: unknown }).historical
-      : value;
-
-  return asArray(rows)
-    .map((row) => {
-      if (!row || typeof row !== "object") return null;
-      const item = row as Record<string, unknown>;
-      return normalizeBar({
-        date: textValue(item.date),
-        open: item.open,
-        high: item.high,
-        low: item.low,
-        close: item.close,
-        volume: item.volume,
-      });
-    })
-    .filter((row): row is MarketBar => Boolean(row))
-    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function normalizeBar(value: {
@@ -577,21 +440,6 @@ function numberValue(value: unknown) {
     return Number(value);
   }
   return Number.NaN;
-}
-
-async function fetchFmpSingleQuoteList(symbols: string[]) {
-  const results = await Promise.all(symbols.map((symbol) => fetchFmpQuote(symbol)));
-  const failed = results.find((result) => !result.ok);
-
-  return {
-    ok: !failed,
-    status: failed?.status || 200,
-    data: results.flatMap((result) => {
-      if (!result.ok) return [];
-      return Array.isArray(result.data) ? result.data : [result.data];
-    }),
-    error: failed?.error,
-  };
 }
 
 async function fetchJson(url: URL) {

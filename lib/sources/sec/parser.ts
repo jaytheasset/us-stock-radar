@@ -164,8 +164,6 @@ type TickerResolution = {
   cusip: string | null;
 };
 
-const fmpCusipLookupCache = new Map<string, Promise<TickerRow[]>>();
-
 export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise<SecRawFetchResult> {
   const fetchedAt = new Date().toISOString();
   const requestedAccessionNumber = normalizeAccessionNumber(options.accessionNumber);
@@ -1765,22 +1763,6 @@ async function resolveTrustedTickerRows({
     };
   }
 
-  const fmpCusipRows = await resolveFmpCusipTickerRows(cusips, {
-    issuerName: issuer?.name || null,
-    issuerCik: issuer?.cik || filerCik,
-  });
-  if (fmpCusipRows.rows.length === 1 && fmpCusipRows.cusip) {
-    const primary = fmpCusipRows.rows[0];
-    return {
-      rows: fmpCusipRows.rows,
-      primary,
-      source: "cusip_fmp_verified",
-      confidence: "high",
-      reason: "CUSIP exact match was verified by FMP search-cusip and profile data.",
-      cusip: fmpCusipRows.cusip,
-    };
-  }
-
   if (isOwnershipIntegrationForm(formType)) {
     return {
       rows: [],
@@ -1864,86 +1846,6 @@ function normalizeCusip(value: unknown) {
 
 function recordValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
-}
-
-async function resolveFmpCusipTickerRows(
-  cusips: string[],
-  context: { issuerName: string | null; issuerCik: string | null },
-): Promise<{ rows: TickerRow[]; cusip: string | null }> {
-  for (const cusip of cusips) {
-    const rows = await fetchFmpCusipTickerRows(cusip, context);
-    if (rows.length === 1) return { rows, cusip };
-    if (rows.length > 1) return { rows: [], cusip };
-  }
-  return { rows: [], cusip: null };
-}
-
-function fetchFmpCusipTickerRows(cusip: string, context: { issuerName: string | null; issuerCik: string | null }) {
-  const cacheKey = `${cusip}:${context.issuerCik || ""}:${context.issuerName || ""}`;
-  if (!fmpCusipLookupCache.has(cacheKey)) {
-    fmpCusipLookupCache.set(cacheKey, fetchFmpCusipTickerRowsInner(cusip, context));
-  }
-  return fmpCusipLookupCache.get(cacheKey)!;
-}
-
-async function fetchFmpCusipTickerRowsInner(cusip: string, context: { issuerName: string | null; issuerCik: string | null }) {
-  const env = getServerEnv();
-  if (!env.fmpApiKey) return [];
-
-  const searchUrl = new URL("https://financialmodelingprep.com/stable/search-cusip");
-  searchUrl.searchParams.set("cusip", cusip);
-  searchUrl.searchParams.set("apikey", env.fmpApiKey);
-
-  const searchResponse = await fetch(searchUrl, { cache: "no-store" }).catch(() => null);
-  if (!searchResponse?.ok) return [];
-  const searchData = await searchResponse.json().catch(() => null);
-  if (!Array.isArray(searchData) || searchData.length !== 1) return [];
-
-  const searchRecord = recordValue(searchData[0]);
-  const symbol = normalizeTicker(searchRecord?.symbol);
-  if (!symbol) return [];
-
-  const profileUrl = new URL("https://financialmodelingprep.com/stable/profile");
-  profileUrl.searchParams.set("symbol", symbol);
-  profileUrl.searchParams.set("apikey", env.fmpApiKey);
-
-  const profileResponse = await fetch(profileUrl, { cache: "no-store" }).catch(() => null);
-  if (!profileResponse?.ok) return [];
-  const profileData = await profileResponse.json().catch(() => null);
-  const profile = Array.isArray(profileData) ? recordValue(profileData[0]) : null;
-  if (!isFmpCusipTickerProfileTrusted(profile, cusip, context)) return [];
-
-  return [
-    {
-      cik: normalizeCik(profile?.cik) || "",
-      ticker: symbol,
-      exchange: stringValue(profile?.exchange) || stringValue(profile?.exchangeShortName) || null,
-      name: stringValue(profile?.companyName) || stringValue(searchRecord?.companyName) || null,
-    },
-  ];
-}
-
-function isFmpCusipTickerProfileTrusted(
-  profile: Record<string, unknown> | null,
-  cusip: string,
-  context: { issuerName: string | null; issuerCik: string | null },
-) {
-  if (!profile) return false;
-  const symbol = normalizeTicker(profile.symbol);
-  if (!symbol) return false;
-
-  const profileCusip = normalizeCusip(profile.cusip);
-  const profileIsin = stringValue(profile.isin).toUpperCase();
-  if (profileCusip !== cusip && !profileIsin.includes(cusip)) return false;
-
-  const profileCik = normalizeCik(profile.cik);
-  const issuerCik = normalizeCik(context.issuerCik);
-  if (issuerCik && profileCik && issuerCik === profileCik) return true;
-
-  const profileName = stringValue(profile.companyName);
-  if (context.issuerName && profileName && companyNamesClearlyMatch(context.issuerName, profileName)) return true;
-
-  return false;
 }
 
 function companyNamesClearlyMatch(left: string, right: string) {

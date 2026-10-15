@@ -551,25 +551,14 @@ test("backfill persistence reports upsert/history/unchanged without alert delive
   );
 });
 
-test("client and protected route keep credentials/raw payload server-side", async () => {
-  const client = await read("lib/calendar-v1/fmpCalendarClient.ts");
-  const repository = await read("lib/calendar-v1/fmpCalendarRepository.ts");
+test("retired route remains protected and never reaches provider or persistence", async () => {
   const route = await read("app/api/sources/fmp-calendar/ingest/route.ts");
-  const combined = `${client}\n${repository}\n${route}`;
-
-  assert.match(client, /import "server-only"/);
+  const repository = await read("lib/calendar-v1/fmpCalendarRepository.ts");
   assert.match(repository, /import "server-only"/);
-  assert.match(client, /AbortController/);
-  assert.match(client, /FMP_CALENDAR_FETCH_TIMEOUT_MS/);
-  assert.match(client, /url\.searchParams\.set\("from", date\)/);
-  assert.match(client, /url\.searchParams\.set\("to", date\)/);
-  assert.match(route, /sourceIngestAuthResponse\(request\)/);
-  assert.equal(
-    (route.match(/sourceIngestAuthResponse\(request\)/g) ?? []).length,
-    2,
-  );
-  assert.doesNotMatch(route, /rawPayload|raw_payload|apiKey|FMP_API_KEY/);
-  assert.doesNotMatch(combined, /NEXT_PUBLIC_[A-Z_]*FMP/);
+  assert.equal((route.match(/sourceIngestAuthResponse\(request\)/g) ?? []).length, 2);
+  assert.match(route, /FMP_RETIRED/);
+  assert.match(route, /status: 410/);
+  assert.doesNotMatch(route, /runFmp|request\.json|rawPayload|raw_payload|apiKey|FMP_API_KEY|NEXT_PUBLIC_/);
 });
 
 function adapt(

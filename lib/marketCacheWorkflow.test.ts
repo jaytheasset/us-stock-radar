@@ -276,7 +276,7 @@ test("workflow and cron wiring use durable retry steps and one minimal cron", ()
   assert.match(marketPulseRefresh, /providerSymbol: "I:NDX"/);
   assert.match(
     marketPulseRefresh,
-    /unavailableWithCurrentProviderPlan: \["NQUSD", "RTYUSD"\]/,
+    /unavailableWithCurrentProviderPlan: retiredSymbols/,
   );
   assert.match(
     marketPulseRefresh,

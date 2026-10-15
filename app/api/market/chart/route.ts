@@ -5,7 +5,6 @@ import {
   readMarketBarCache,
   readMarketQuoteCache,
   writeMarketBarCache,
-  writeMarketQuoteCache,
 } from "@/lib/marketDataCache";
 import { deriveMarketRangeMovement } from "@/lib/marketChartMovement";
 import {
@@ -111,7 +110,6 @@ export async function GET(request: NextRequest) {
     marketChartRequestKey({ forceRefresh, interval, range, symbol }),
     () =>
       loadMarketChart({
-        fmpApiKey: env.fmpApiKey,
         forceRefresh,
         interval,
         polygonApiKey: env.polygonApiKey,
@@ -126,14 +124,12 @@ export async function GET(request: NextRequest) {
 }
 
 async function loadMarketChart({
-  fmpApiKey,
   forceRefresh,
   interval,
   polygonApiKey,
   range,
   symbol,
 }: {
-  fmpApiKey: string;
   forceRefresh: boolean;
   interval: string;
   polygonApiKey: string;
@@ -142,12 +138,10 @@ async function loadMarketChart({
 }): Promise<MarketChartPayload> {
   const [polygonResult, quote] = await Promise.all([
     fetchPolygonChart(symbol, range, polygonApiKey),
-    fetchQuoteSnapshot(symbol, fmpApiKey, forceRefresh),
+    fetchQuoteSnapshot(symbol, forceRefresh),
   ]);
 
-  const chartResult = polygonResult.ok
-    ? polygonResult
-    : await fetchFmpChart(symbol, range, fmpApiKey);
+  const chartResult = polygonResult;
 
   if (!chartResult.ok || !chartResult.points.length) {
     return {
@@ -305,133 +299,12 @@ async function fetchPolygonChart(
   };
 }
 
-async function fetchFmpChart(
-  symbol: string,
-  range: PriceRange,
-  apiKey: string,
-): Promise<ChartFetchResult> {
-  if (!apiKey) {
-    return {
-      ok: false,
-      provider: "fmp",
-      providerLabel: "FMP",
-      points: [],
-      error: "FMP_API_KEY is missing",
-    };
-  }
-
-  const config = fmpRangeConfig(range);
-  const to = new Date();
-  const from = new Date(to);
-  from.setDate(from.getDate() - config.calendarDays);
-
-  const url = new URL("https://financialmodelingprep.com/stable/historical-price-eod/full");
-  url.searchParams.set("symbol", symbol);
-  url.searchParams.set("from", toDateString(from));
-  url.searchParams.set("to", toDateString(to));
-  url.searchParams.set("apikey", apiKey);
-
-  const result = await fetchJson(url);
-  if (!result.ok) {
-    return {
-      ok: false,
-      provider: "fmp",
-      providerLabel: "FMP",
-      points: [],
-      error: result.error || `FMP failed with ${result.status}`,
-    };
-  }
-
-  const rows =
-    result.data && typeof result.data === "object" && "historical" in result.data
-      ? (result.data as { historical?: unknown }).historical
-      : result.data;
-  const normalized = asArray(rows)
-    .map((row) => normalizeFmpPoint(row, range))
-    .filter((point): point is TimedChartPoint => Boolean(point))
-    .sort((a, b) => a.timestamp - b.timestamp)
-    .slice(-config.pointLimit);
-
-  if (!normalized.length) {
-    return {
-      ok: false,
-      provider: "fmp",
-      providerLabel: "FMP",
-      points: [],
-      error: "FMP returned no bars",
-    };
-  }
-
-  return {
-    ok: true,
-    provider: "fmp",
-    providerLabel: range === "1D" ? "FMP daily fallback" : "FMP daily",
-    previousClose: normalized.length > 1 ? normalized[normalized.length - 2].close : undefined,
-    points: normalized.map(stripInternalPoint),
-  };
-}
-
-async function fetchQuoteSnapshot(symbol: string, apiKey: string, forceRefresh: boolean): Promise<QuoteSnapshot> {
+async function fetchQuoteSnapshot(symbol: string, forceRefresh: boolean): Promise<QuoteSnapshot> {
   if (!forceRefresh) {
     const cached = await readMarketQuoteCache(symbol);
-    if (cached.hit && cached.quote) {
-      return {
-        ...cached.quote,
-        cacheStatus: "hit",
-      };
-    }
+    if (cached.hit && cached.quote && cached.quote.provider !== "fmp") return { ...cached.quote, cacheStatus: "hit" };
   }
-
-  const fetched = await fetchFmpQuoteSnapshot(symbol, apiKey);
-  if (fetched.price !== undefined || fetched.previousClose !== undefined) {
-    await writeMarketQuoteCache({
-      changeAmount: fetched.changeAmount,
-      changePercent: fetched.changePercent,
-      previousClose: fetched.previousClose,
-      price: fetched.price,
-      provider: fetched.provider || "fmp",
-      rawPayload: fetched.rawPayload,
-      symbol,
-      volume: fetched.volume,
-    });
-  }
-
-  return {
-    ...fetched,
-    cacheStatus: forceRefresh ? "bypass" : fetched.cacheStatus || "miss",
-  };
-}
-
-async function fetchFmpQuoteSnapshot(symbol: string, apiKey: string): Promise<QuoteSnapshot> {
-  if (!apiKey) return { cacheStatus: "unavailable" };
-
-  const url = new URL("https://financialmodelingprep.com/stable/quote");
-  url.searchParams.set("symbol", symbol);
-  url.searchParams.set("apikey", apiKey);
-
-  const result = await fetchJson(url);
-  if (!result.ok) return { cacheStatus: "unavailable" };
-
-  const row = asArray(result.data)[0];
-  if (!row || typeof row !== "object") return { cacheStatus: "unavailable" };
-
-  const item = row as Record<string, unknown>;
-  const price = numberValue(item.price);
-  const previousClose = numberValue(item.previousClose ?? item.previousClosePrice);
-  const changeAmount = numberValue(item.change);
-  const changePercent = numberValue(item.changesPercentage ?? item.changePercentage);
-  const volume = numberValue(item.volume);
-
-  return {
-    cacheStatus: "miss",
-    price: Number.isFinite(price) ? price : undefined,
-    previousClose: Number.isFinite(previousClose) ? previousClose : undefined,
-    changeAmount: Number.isFinite(changeAmount) ? changeAmount : undefined,
-    changePercent: Number.isFinite(changePercent) ? changePercent : undefined,
-    provider: "fmp",
-    rawPayload: row,
-    volume: Number.isFinite(volume) ? volume : undefined,
-  };
+  return { cacheStatus: "unavailable" };
 }
 
 function polygonRangeConfig(range: PriceRange): PolygonRangeConfig {
@@ -448,22 +321,6 @@ function polygonRangeConfig(range: PriceRange): PolygonRangeConfig {
       return { multiplier: 1, timespan: "day", calendarDays: 420, pointLimit: 252, label: "Polygon daily" };
     case "5Y":
       return { multiplier: 1, timespan: "day", calendarDays: 1900, pointLimit: 1260, label: "Polygon daily" };
-  }
-}
-
-function fmpRangeConfig(range: PriceRange) {
-  switch (range) {
-    case "1D":
-    case "5D":
-      return { calendarDays: 14, pointLimit: 5 };
-    case "1M":
-      return { calendarDays: 45, pointLimit: 22 };
-    case "3M":
-      return { calendarDays: 120, pointLimit: 66 };
-    case "1Y":
-      return { calendarDays: 420, pointLimit: 252 };
-    case "5Y":
-      return { calendarDays: 1900, pointLimit: 1260 };
   }
 }
 
@@ -499,42 +356,6 @@ function normalizePolygonPoint(value: unknown, range: PriceRange, config: Polygo
     timestamp,
     volume: Number.isFinite(volume) ? volume : 0,
     vwap: Number.isFinite(vwap) ? vwap : typicalPrice(high, low, close),
-  };
-}
-
-function normalizeFmpPoint(value: unknown, range: PriceRange): TimedChartPoint | null {
-  if (!value || typeof value !== "object") return null;
-
-  const item = value as Record<string, unknown>;
-  const date = stringValue(item.date);
-  const timestamp = date ? Date.parse(`${date}T16:00:00-05:00`) : Number.NaN;
-  const open = numberValue(item.open);
-  const high = numberValue(item.high);
-  const low = numberValue(item.low);
-  const close = numberValue(item.close);
-  const volume = numberValue(item.volume);
-
-  if (
-    !date ||
-    !Number.isFinite(timestamp) ||
-    !Number.isFinite(open) ||
-    !Number.isFinite(high) ||
-    !Number.isFinite(low) ||
-    !Number.isFinite(close)
-  ) {
-    return null;
-  }
-
-  return {
-    close,
-    dateKey: date,
-    high,
-    low,
-    open,
-    time: formatDateLabel(date, range),
-    timestamp,
-    volume: Number.isFinite(volume) ? volume : 0,
-    vwap: typicalPrice(high, low, close),
   };
 }
 

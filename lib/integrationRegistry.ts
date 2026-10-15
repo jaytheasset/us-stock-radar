@@ -26,12 +26,6 @@ export const integrationRegistry = [
     envKeys: ["SEC_USER_AGENT"],
   },
   {
-    key: "fmp",
-    label: "FMP",
-    category: "market-data",
-    envKeys: ["FMP_API_KEY", "FMP_BATCH_QUOTE_ENABLED"],
-  },
-  {
     key: "polygon",
     label: "Polygon",
     category: "market-data",
