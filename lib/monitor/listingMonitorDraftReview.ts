@@ -1,3 +1,4 @@
+import {conditionErrors as sec425ConditionErrors} from "../sec425/conditions.ts";
 import {offeringPlanConditionErrors} from './offeringPlanConditions.ts';
 import { effectConditionErrors, hasEffect } from "../sec-effect/conditions.ts";
 import {
@@ -215,11 +216,12 @@ export type ListingMonitorConditionDomain =
   | "corporate-actions"
   | "listing-risk"
   | "proxy"
+  | "sec425"
   | "offering-plan";
 
 export type ListingMonitorConditionDomainGroup = Readonly<{
   id: ListingMonitorConditionDomain;
-  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy" | "Registration EFFECT" | "예상 공모 희석" | "Offering Plan";
+  title: "Market" | "Corporate Actions" | "Listing Risk" | "Proxy" | "425 Announcement" | "Registration EFFECT" | "예상 공모 희석" | "Offering Plan";
   items: readonly Readonly<{
     condition: CanonicalListingMonitorCondition;
     index: number;
@@ -248,6 +250,7 @@ const CONDITION_DOMAIN_DEFINITIONS: readonly Readonly<{
   },
   { id: "offering-plan", title: "Offering Plan", matches: condition => condition.key.startsWith("offering_plan.") },
   { id: "proxy", title: "Proxy", matches: condition => condition.key.startsWith("proxy.") },
+  { id: "sec425", title: "425 Announcement", matches: condition => condition.key.startsWith("sec425.") },
   { id: "projected", title: "예상 공모 희석", matches: condition => condition.key.startsWith("projected.") },
   { id: "effect", title: "Registration EFFECT", matches: condition => condition.key.startsWith("effect.") },
 ];
@@ -348,6 +351,7 @@ function validateListingConditionSet(
     conditions.push(cloneCondition(condition));
   });
   if (requireNonempty) errors.push(...offeringPlanConditionErrors(conditions));
+  errors.push(...sec425ConditionErrors(conditions));
   if (findEqContradictions(conditions).length > 0) errors.push("conditions_contradictory");
   return {
     valid: errors.length === 0,

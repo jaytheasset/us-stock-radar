@@ -306,6 +306,15 @@ test("human presentation covers price operators and Listing values without raw l
   assert.doesNotMatch(previews.join("\n"), /market\.price|\blt\b|\blte\b|deficiency_notice|within_days|\badverse\b|reverse_split|corporate_action/);
 });
 
+test("425 review keeps mapped conditions visible and editable without changing their values",()=>{
+ const conditions=[{key:"sec425.announcement_type",operator:"eq" as const,value:"revised_acquisition_proposal"},{key:"sec425.target_ticker",operator:"eq" as const,value:"GNK"}];
+ const before=JSON.stringify(conditions),groups=groupListingMonitorConditionsByDomain(conditions);
+ assert.equal(groups.length,1);assert.equal(groups[0].id,"sec425");assert.equal(groups[0].items.length,2);
+ assert.deepEqual(groups[0].items.map(i=>i.condition),conditions);
+ const catalog=getListingMonitorConditionEditorCatalog();for(const c of conditions)assert.ok(catalog.some(i=>i.key===c.key));
+ assert.equal(JSON.stringify(conditions),before);
+});
+
 test("Listing monitor review groups only present conditions into stable human domains", () => {
   assert.deepEqual(formatListingMonitorConditionPreview(PRICE), {
     label: "Price",

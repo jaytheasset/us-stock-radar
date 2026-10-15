@@ -1,4 +1,5 @@
 import type { SecFilingAnalysisInput } from "@/lib/prompts/secFilingAnalysis";
+import { inspectSec425Identity, inspectSec425FilingTicker, sec425FilingRoles, type Sec425IdentityEvidence } from "@/lib/sources/sec/forms/425/verification";
 import {
   SEC_425_ANALYSIS_CASE_VALUES,
   SEC_425_IMPACT_LEVEL_VALUES,
@@ -131,6 +132,7 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
   value: unknown,
   input: SecFilingAnalysisInput,
   routerResult: Record<string, unknown>,
+  identityEvidence?: Sec425IdentityEvidence,
 ): Sec425AnalysisAdapterResult {
   const root = readRecord(value);
   if (!root) return { ok: false, error: "SEC 425 analysis response did not contain a JSON object" };
@@ -146,7 +148,7 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
     ? "procedural_update"
     : modelImpactLevel;
   const score = capScoreForImpactLevel(proposedScore, impactLevel);
-  const primaryTicker = normalizePrimaryTicker(readRecord(analysisOutput.primary_ticker), input, parserOutput);
+  const primaryTicker = normalizePrimaryTicker(readRecord(analysisOutput.primary_ticker));
   const archiveScore = score < 50;
   const normalizedOutput: Sec425AnalysisOutput = {
     source_group: "filings",
@@ -219,6 +221,7 @@ export function adaptSec425AnalysisPromptResultForAnalysis(
     stringValue(root.analysis_case),
     readStringArray(root.source_blocks_used),
     { impactLevel, proposedScore },
+    { rawModelOutput: root, identityEvidence },
   );
 }
 
@@ -247,18 +250,41 @@ function adaptSec425RoomResultForPersistence(
     impactLevel: (typeof SEC_425_IMPACT_LEVEL_VALUES)[number];
     proposedScore: number;
   },
+  verification?: { rawModelOutput: Record<string, unknown>; identityEvidence?: Sec425IdentityEvidence },
 ): Sec425AnalysisAdapterResult {
   const validationWarnings = validateSec425RoomResult(roomResult);
   const analysis = roomResult.analysis_output;
   const archiveSummary = analysis.score < 50 ? analysis.summary || analysis.quick_take : null;
   const impactLevel = scoring?.impactLevel || normalizeImpactLevel("", analysis.score);
   const proposedScore = scoring?.proposedScore ?? analysis.score;
+  const filing = readFilingPackage(input), blocks = roomResult.parser_output.raw.cleaned_source_blocks;
+  const inspect = (key: string, ticker: { ticker: string | null; exchange: string | null }) => {
+    // A separate server-owned exact binding supplies company identity; never borrow the filer name.
+    const binding = verification?.identityEvidence?.bindings.find(b => b.claim.key === key && b.claim.ticker === ticker.ticker);
+    return inspectSec425Identity({ key, name: binding?.claim.name ?? null, ...ticker }, blocks, verification?.identityEvidence);
+  };
+  const primaryIdentity = inspectSec425FilingTicker({ key: "primary", name: nullableString(filing.company_name), ...analysis.primary_ticker }, filing, blocks, verification?.identityEvidence);
+  const tickerIdentities = analysis.tickers.map((ticker, i) => ticker.ticker === analysis.primary_ticker.ticker && ticker.exchange === analysis.primary_ticker.exchange ? primaryIdentity : inspect(`ticker:${i}`, ticker));
+  const relatedIdentities = analysis.related_tickers.map((ticker, i) => inspect(`related:${i}`, ticker));
+  const primary = { ticker: primaryIdentity.verifiedTicker, exchange: primaryIdentity.verifiedExchange };
+  const rawRoot = verification?.rawModelOutput;
+  const project = (rows: typeof tickerIdentities) => rows.filter(row => row.status === "corroborated" && row.verifiedTicker)
+    .map(row => ({ ticker: row.verifiedTicker!, exchange: row.verifiedExchange }));
   return {
     ok: true,
     analysis: {
       ...analysis,
+      // Projection for identity-consuming clients. Raw model and parser claims remain separate below.
+      primary_ticker: primary,
+      tickers: project(tickerIdentities),
+      related_tickers: project(relatedIdentities),
+      sec_425_raw_model_output: rawRoot ? structuredClone(rawRoot) : null,
+      sec_425_identity: { primary: primaryIdentity, tickers: tickerIdentities, related: relatedIdentities,
+        parserClaims: { ticker: roomResult.parser_output.facts.primary_ticker, exchange: roomResult.parser_output.facts.exchange },
+        filingRoles: sec425FilingRoles(filing, roomResult.parser_output.facts) },
       archive_summary: archiveSummary,
-      display_payload: roomResult.display_payload,
+      display_payload: { ...roomResult.display_payload, data: { ...roomResult.display_payload.data,
+        primary_ticker: primary.ticker, exchange: primary.exchange, identity_verification: primaryIdentity } },
       sec_425_router_result: routerResult,
       sec_425_analysis_case: analysisCase || stringValue(routerResult.route_case) || null,
       sec_425_impact_level: impactLevel,
@@ -276,13 +302,10 @@ function adaptSec425RoomResultForPersistence(
 
 function normalizePrimaryTicker(
   value: Record<string, unknown> | null,
-  input: SecFilingAnalysisInput,
-  parserOutput: Sec425ParserOutput,
 ) {
-  const fallback = readRecord(readFilingPackage(input).primary_ticker);
   return {
-    ticker: stringValue(value?.ticker) || stringValue(fallback?.ticker) || parserOutput.facts.primary_ticker || null,
-    exchange: stringValue(value?.exchange) || stringValue(fallback?.exchange) || parserOutput.facts.exchange || null,
+    ticker: stringValue(value?.ticker) || null,
+    exchange: stringValue(value?.exchange) || null,
   };
 }
 

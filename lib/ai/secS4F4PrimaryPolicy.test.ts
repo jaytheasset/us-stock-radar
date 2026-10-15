@@ -17,6 +17,9 @@ const branch = fn("runSecFilingAnalysisForRawRow").body!.statements.find((s) =>
   ts.isIfStatement(s) && s.expression.getText(ast) === "isS4F4FilingInput(input)");
 assert.ok(branch);
 const executable = stripTypeScriptTypes([
+  // Execute the real shared serializer inside this function sandbox; only the
+  // module export modifier is omitted, not its body or the retry assertions.
+  fn("buildSecGeminiRequestBody").getText(ast).replace(/^export\s+/, ""),
   fn("runOpenAiJsonPrompt").getText(ast), fn("runGeminiJsonPromptAttempts").getText(ast),
   fn("runGeminiJsonPrompt").getText(ast), fn("runGeminiJsonPromptModelSequence").getText(ast),
   `async function run(input, llmConfig) { const env = {}, rawItem = {}; ${branch.getText(ast)} }`,

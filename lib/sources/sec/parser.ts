@@ -1,5 +1,6 @@
 import {isCombinedForm} from '../../sec-combined-offering/eligibility';
 import { XMLParser } from "fast-xml-parser";
+import { createHash } from "node:crypto";
 import { captureEffectSource, type EffectSource } from "../../sec-effect/source";
 import { getServerEnv } from "@/lib/env";
 import {
@@ -21,6 +22,7 @@ import {
 import { parseSc13StructuralXml } from "@/lib/sources/sec/forms/sc13/structuralParser";
 import {
   selectSourceBackedSecTickerRow,
+  findSourceBackedSecTradingPairs,
   type SecTickerSelectionRow,
 } from "@/lib/sources/sec/sourceTickerSelection";
 import { secFetch } from "./secFetch";
@@ -29,6 +31,8 @@ import { buildForm25IdentityEvidence, SEC_TICKER_CATALOG } from "../../sec-form2
 import { captureForm25Document, FORM25_SOURCE_VERSION, type Form25OriginalDocument } from "./forms/form25/storedSource";
 import { captureS8Document, isS8Form, S8_SOURCE_VERSION, type S8Document } from "../../sec-s8/directFacts";
 import { captureSc13ReporterIdentitySource, sc13IdentitySubmissionUrl, sc13SingleReporterIdentityCandidate, SC13_IDENTITY_MAX_SUBMISSION_BYTES, type Sc13ReporterIdentitySource } from "../../sec-sc13-xml/reporterIdentity.ts";
+import { buildCommonFormParserInput } from "./forms/common/formAdapterRuntime.ts";
+import { parseSec425AdapterInput } from "./forms/425/adapter.ts";
 
 const SEC_BASE_URL = "https://www.sec.gov";
 const SEC_CURRENT_URL = `${SEC_BASE_URL}/cgi-bin/browse-edgar`;
@@ -351,7 +355,14 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
       }
       const tickerRows = tickerResolution.rows;
       const tickerRow = tickerResolution.primary;
-      const companyName = form25Identity?.issuerName || ownershipIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
+      const sec425FilingNames = formType === "425" ? Array.from(new Set((detail.sc13IndexProvenance?.roles || [])
+        .filter(role => Number(role.cik) === Number(identity.cik)).map(role => role.companyName))) : [];
+      const filedByCik = formType === "425"
+        ? detail.sc13IndexProvenance?.filedByCiks.length === 1 ? String(Number(detail.sc13IndexProvenance.filedByCiks[0])) : null
+        : identity.cik;
+      const companyName = formType === "425"
+        ? (sec425FilingNames.length === 1 ? sec425FilingNames[0] : null) || tickerRow?.name || detail.companyName || readCompanyNameFromTitle(entry.title)
+        : form25Identity?.issuerName || ownershipIssuer?.name || detail.companyName || tickerRow?.name || readCompanyNameFromTitle(entry.title);
       const accessionNumber = identity.accessionNumber;
       const sourceUniqueId = accessionNumber || detailUrl;
 
@@ -377,8 +388,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           form_type: formType,
           cik: form25Identity?.subjectCik || ownershipIssuer?.cik || identity.cik,
           cik_padded: (form25Identity?.subjectCik || ownershipIssuer?.cik || identity.cik)?.padStart(10, "0") || null,
-          filer_cik: identity.cik,
-          filer_cik_padded: identity.cikPadded,
+          filer_cik: filedByCik,
+          filer_cik_padded: filedByCik?.padStart(10, "0") || null,
           ownership_issuer_cik: ownershipIssuer?.cik || null,
           ownership_issuer_name: ownershipIssuer?.name || null,
           ownership_issuer_trading_symbol: ownershipIssuer?.ticker || null,
@@ -398,7 +409,17 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
             confidence: tickerResolution.confidence,
             reason: tickerResolution.reason,
             cusip: tickerResolution.cusip,
+            ...(formType === "425" ? { sec_catalog_row: tickerRow,
+              sec_catalog_source: SEC_TICKER_CATALOG, catalog_observed_at: fetchedAt } : {}),
           },
+          ...(formType === "425" ? { sec425_archive_cik: identity.cik, sec425_filing_roles: detail.sc13IndexProvenance, sec425_detail_company_name: detail.companyName,
+            sec425_official_companies: (detail.sc13IndexProvenance?.roles || []).map(role => ({
+              filingRole: role.role, cik: role.cik.padStart(10, "0"), sourceCompanyName: role.companyName,
+              indexUrl: detailUrl, indexSha256: detail.sc13IndexProvenance?.indexSha256 ?? null,
+              catalogSource: SEC_TICKER_CATALOG, catalogAvailable: tickerCatalogAvailable,
+              catalogRows: tickerCatalogAvailable ? tickerLookup.get(String(Number(role.cik))) || [] : [],
+              observedAt: fetchedAt, catalogConfirmedAt: null, transactionRole: null,
+            })) } : {}),
           ...(form25Identity ? { form25_ticker_identity: form25Identity,
             form25_exchange: form25Identity.exchange,
             form25_index_subject_cik: detail.sc13IndexProvenance?.subjectCik || null,
@@ -489,7 +510,8 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           parser: "sec_edgar",
           form_type: formType,
           cik: ownershipIssuer?.cik || identity.cik,
-          filer_cik: identity.cik,
+          filer_cik: filedByCik,
+          ...(formType === "425" ? { sec425_archive_cik: identity.cik } : {}),
           ownership_issuer_cik: ownershipIssuer?.cik || null,
           accession_number: accessionNumber,
           file_number: detail.fileNumber,
@@ -503,6 +525,17 @@ export async function fetchSecEdgarRawItems(options: FetchOptions = {}): Promise
           document_count: detail.documents.length,
         },
       });
+      if (formType === "425") {
+        const item = items[items.length - 1];
+        try {
+          const parsed = parseSec425AdapterInput({ ...buildCommonFormParserInput(item, formType), metadata: item.metadata, rawPayload: item.raw_payload });
+          item.raw_payload.sec425_trading_pairs = {
+            status: tickerCatalogAvailable ? "available" : "unavailable",
+            catalogSource: SEC_TICKER_CATALOG, observedAt: fetchedAt,
+            rows: findSourceBackedSecTradingPairs(parsed.raw.cleaned_source_blocks, [...tickerLookup.values()].flat()),
+          };
+        } catch { item.raw_payload.sec425_trading_pairs = { status: "unavailable", rows: [] }; }
+      }
     }
 
     return {
@@ -1079,15 +1112,18 @@ function readSc13IndexProvenanceFromDetailHtml(
   documents: SecDocument[],
   formType: string | null,
 ) {
-  if (!isSchedule13FormType(formType) && !/^25(?:-NSE)?(?:\/A)?$/i.test(formType || "")) return null;
+  if (formType !== "425" && !isSchedule13FormType(formType) && !/^25(?:-NSE)?(?:\/A)?$/i.test(formType || "")) return null;
   const subjectCiks: string[] = [];
   const filedByCiks: string[] = [];
+  const roles: { role: "filed_by" | "subject_company"; cik: string; companyName: string; sourceText: string }[] = [];
   for (const match of html.matchAll(/<span[^>]+class=["'][^"']*companyName[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)) {
     const block = match[1] || "";
     const cik = extractFirst(block, /[?&]CIK=(\d{1,10})\b/i);
     if (!cik) continue;
     if (/\(Subject\)/i.test(block)) subjectCiks.push(cik);
     if (/\(Filed by\)/i.test(block)) filedByCiks.push(cik);
+    if (/\(Subject\)|\(Filed by\)/i.test(block)) roles.push({ role: /\(Subject\)/i.test(block) ? "subject_company" : "filed_by", cik,
+      companyName: cleanInlineText(block).split(/\((?:Subject|Filed by)\)/i)[0].trim(), sourceText: cleanInlineText(block) });
   }
   const canonicalXmlUrl = documents.find((document) => isSc13CanonicalXmlDocumentCandidate(document, formType))?.url || null;
   return {
@@ -1095,6 +1131,7 @@ function readSc13IndexProvenanceFromDetailHtml(
     subjectCikCount: subjectCiks.length,
     filedByCiks: Array.from(new Set(filedByCiks)),
     canonicalXmlUrl,
+    ...(formType === "425" ? { indexSha256: createHash("sha256").update(html).digest("hex"), roles } : {}),
   };
 }
 
@@ -1677,6 +1714,14 @@ async function resolveTrustedTickerRows({
   const issuerTicker = normalizeTicker(issuer?.ticker);
   const issuerRows = issuer?.cik ? lookup.get(issuer.cik) || [] : [];
   const primaryCusip = cusips[0] || null;
+  // 425 filing identity only: never promote a FMP/name/text fallback to a SEC-verified party.
+  if (formType === "425") {
+    const rows = filerCik ? lookup.get(filerCik) || [] : [];
+    return { rows, primary: rows.length === 1 ? rows[0] : null,
+      source: rows.length === 1 ? "accession_cik_sec" : "unresolved",
+      confidence: rows.length === 1 ? "high" : "none", cusip: null,
+      reason: "425 Archives CIK catalog match is filing identity only; transaction-party identity is separate." };
+  }
 
   if (issuerTicker) {
     const exact = selectSourceBackedSecTickerRow(issuerRows, issuerTicker);

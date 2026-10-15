@@ -35,6 +35,26 @@ const SCHEDULED_STAGE = condition("corporate_action.action_stage", "eq", "schedu
 const EFFECTIVE_STAGE = condition("corporate_action.action_stage", "eq", "effective");
 const SHAREHOLDER_APPROVED_STAGE = condition("corporate_action.action_stage", "eq", "shareholder_approved");
 
+test("mapped requirements may omit inapplicable null details without changing provider values",()=>{
+ const raw=providerOutput([{source_text:"Nasdaq",decision:"mapped",conditions:[NASDAQ]}]),before=JSON.stringify(raw);
+ const result=validate(raw,"Nasdaq");
+ assert.equal(result.status,"VALID");assert.deepEqual(result.conditions,[NASDAQ]);
+ assert.equal(result.ledger.requirements[0].reason,null);assert.equal(result.ledger.requirements[0].question,null);
+ assert.equal(JSON.stringify(raw),before);
+});
+test("optional mapped details do not weaken source, unsupported, ambiguous or condition validation",()=>{
+ for(const item of [
+  {source_text:"Nasdaq",decision:"unsupported",conditions:[],question:null},
+  {source_text:"Nasdaq",decision:"ambiguous",conditions:[],reason:null},
+  {source_text:"Nasdaq",decision:"mapped",conditions:[]},
+  {source_text:"not in request",decision:"mapped",conditions:[NASDAQ]},
+  {source_text:"Nasdaq",decision:"mapped",conditions:[NASDAQ],reason:"Not supported"},
+  {source_text:"Nasdaq",decision:"mapped",conditions:[NASDAQ],question:"Which one?"},
+  {source_text:"Nasdaq",decision:"mapped",conditions:[NASDAQ],unexpected:true},
+  {source_text:"Nasdaq",decision:"mapped",conditions:[condition("unknown.key","eq","guessed")]},
+ ])assert.throws(()=>validate(providerOutput([item]),"Nasdaq"),outputInvalid);
+});
+
 test("request parsing trims one text field and rejects empty, oversized, malformed, and identity fields", () => {
   assert.deepEqual(parseNaturalLanguageConditionCompilerRequest({ text: "  listing deficiency  " }), {
     ok: true,

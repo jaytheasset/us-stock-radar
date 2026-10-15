@@ -11,9 +11,10 @@ import {
   buildCurrentFilingIdentity,
   currentFilingIdentityText,
 } from "../common/currentFilingIdentity.ts";
+import { sec425PromptIdentity, sec425FilingRoles, sec425OfficialCompanies, sec425SourceCompanies, type Sec425IdentityEvidence } from "./verification.ts";
 
 export const SEC_425_ROUTER_PROMPT_KEY = "sec_425_router";
-export const SEC_425_ROUTER_PROMPT_VERSION = "v4";
+export const SEC_425_ROUTER_PROMPT_VERSION = "v8";
 export const SEC_425_DISPLAY_PAYLOAD_VERSION = "sec_425_display_v1";
 
 export const SEC_425_ROUTER_ACTION_VALUES = ["archive", "feed", "alert"] as const;
@@ -76,6 +77,7 @@ export type Sec425CommunicationMode = (typeof SEC_425_COMMUNICATION_MODE_VALUES)
 export type Sec425TransactionStage = (typeof SEC_425_TRANSACTION_STAGE_VALUES)[number];
 
 export type Sec425RouterPromptInput = {
+  identity_evidence?: Sec425IdentityEvidence;
   filing_package: Record<string, unknown>;
   parser_output: Sec425ParserOutput;
   filing_excerpt?: string | null;
@@ -103,7 +105,7 @@ export type Sec425RouterDecision = {
   needs_parent_context: boolean;
   deterministic_stage: "router" | null;
   routing_reason: string;
-  evidence: string[];
+  evidence?: string[];
   selected_source_block_ids: string[];
   source_blocks_used: string[];
   needs_human_review: boolean;
@@ -131,6 +133,10 @@ type Sec425RouterPromptBlock = Pick<
 >;
 
 export type Sec425RouterSourcePromptInput = {
+  official_company_observations: ReturnType<typeof sec425OfficialCompanies>;
+  source_company_observations: ReturnType<typeof sec425SourceCompanies>;
+  filing_timestamps: unknown;
+  filing_roles: ReturnType<typeof sec425FilingRoles>;
   current_filing: ReturnType<typeof buildCurrentFilingIdentity>;
   filing_identity_text: string;
   document_inventory: Array<{
@@ -190,7 +196,7 @@ export const sec425RouterSystemPrompt = [
   "Router score is an archive gate, not the final impact score. Use 0-49 only for archive-like repetition and 50 for all cases requiring analysis. Do not assign alert-level scores in the router.",
   "Derive expected_delivery_level and action from score: below 50 archive; 50 feed. The analysis LLM will assign the final score and delivery level.",
   "Select 1-8 source block IDs that best support the route. Use original block_id values exactly and do not return labels in selected_source_block_ids.",
-  "Evidence must be short source-backed reasons, not long quotations.",
+  "selected_source_block_ids and source_blocks_used are the source-evidence references. Return their exact supplied block IDs; do not return an evidence field or copy source quotations. Original text and headings are resolved from those IDs by the application. Keep routing_reason and material_update_reason as the requested concise explanations.",
   "Use display_type spac_transaction_status only for de-SPAC status. Use candidate_special for material transaction terms or complex vote/offer cases. Otherwise use generic.",
 ].join("\n");
 
@@ -218,7 +224,6 @@ export const sec425RouterResponseSchema = {
     "needs_parent_context",
     "deterministic_stage",
     "routing_reason",
-    "evidence",
     "selected_source_block_ids",
     "source_blocks_used",
     "needs_human_review",
@@ -245,7 +250,6 @@ export const sec425RouterResponseSchema = {
     needs_parent_context: { type: "boolean" },
     deterministic_stage: { type: ["string", "null"], enum: ["router", null] },
     routing_reason: { type: "string", maxLength: 500 },
-    evidence: { type: "array", maxItems: 4, items: { type: "string", maxLength: 300 } },
     selected_source_block_ids: { type: "array", minItems: 1, maxItems: 8, items: { type: "string" } },
     source_blocks_used: { type: "array", minItems: 1, maxItems: 8, items: { type: "string" } },
     needs_human_review: { type: "boolean" },
@@ -282,14 +286,18 @@ export function buildSec425RouterPromptDraft(input: Sec425RouterPromptInput) {
 export function buildSec425RouterSourcePromptInput(input: Sec425RouterPromptInput): Sec425RouterSourcePromptInput {
   const filingPackage = input.filing_package || {};
   const parserOutput = input.parser_output;
-  const currentFiling = buildCurrentFilingIdentity({
+  const currentFiling = sec425PromptIdentity(buildCurrentFilingIdentity({
     filingPackage,
     parserOutput: parserOutput as unknown as Record<string, unknown>,
     formFamily: "425",
-  });
+  }), parserOutput.raw.cleaned_source_blocks, filingPackage, input.identity_evidence);
 
   return {
     current_filing: currentFiling,
+    filing_roles: sec425FilingRoles(filingPackage, parserOutput.facts),
+    official_company_observations: sec425OfficialCompanies(filingPackage),
+    source_company_observations: sec425SourceCompanies(filingPackage, parserOutput.raw.cleaned_source_blocks),
+    filing_timestamps: filingPackage.sec425_filing_timestamps ?? null,
     filing_identity_text: currentFilingIdentityText(currentFiling),
     document_inventory: parserOutput.raw.document_inventory.map((document) => ({
       source_ref: document.source_ref,
@@ -305,12 +313,36 @@ export function buildSec425RouterSourcePromptInput(input: Sec425RouterPromptInpu
   };
 }
 
-export function normalizeSec425RouterResult(value: Record<string, unknown>, parserOutput: Sec425ParserOutput) {
+export function inspectSec425RouterReferences(value: Record<string, unknown>, parserOutput: Sec425ParserOutput) {
   const availableIds = new Set(parserOutput.raw.router_source_blocks.map((block) => block.block_id));
+  const errors: string[] = [];
+  if (Object.hasOwn(value, "evidence")) errors.push("obsolete_model_evidence_field");
+  for (const field of ["selected_source_block_ids", "source_blocks_used"]) {
+    const ids = value[field];
+    if (!Array.isArray(ids) || ids.length < 1 || ids.length > 8) { errors.push(`${field}:invalid_reference_array`); continue; }
+    for (const id of ids) if (typeof id !== "string" || !availableIds.has(id) || parserOutput.raw.cleaned_source_blocks.filter(b => b.block_id === id).length !== 1) errors.push(`${field}:unknown_or_ambiguous_source_block`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+/** Resolve references to unchanged source fields for display, never model quote repair. */
+export function resolveSec425RouterEvidence(ids: readonly string[], parserOutput: Sec425ParserOutput) {
+  const supplied = new Set(parserOutput.raw.router_source_blocks.map(b => b.block_id));
+  return [...new Set(ids)].map(id => {
+    const matches = parserOutput.raw.cleaned_source_blocks.filter(b => b.block_id === id);
+    if (!supplied.has(id) || matches.length !== 1) throw Error("sec425_router_source_reference_invalid");
+    const block = matches[0];
+    return { block_id: block.block_id, source_ref: block.source_ref, url: block.url, heading: block.heading, text: block.text };
+  });
+}
+
+export function normalizeSec425RouterResult(value: Record<string, unknown>, parserOutput: Sec425ParserOutput) {
+  const references = inspectSec425RouterReferences(value, parserOutput);
+  if (!references.ok) throw Error(`sec425_router_source_reference_invalid:${references.errors.join(",")}`);
   const selectedIds = uniqueStrings([
     ...stringArray(value.selected_source_block_ids),
     ...stringArray(value.source_blocks_used),
-  ]).filter((blockId) => availableIds.has(blockId)).slice(0, 8);
+  ]).slice(0, 8);
   const communicationMode = typeof value.communication_mode === "string" ? value.communication_mode : "";
   const routeCase = communicationMode === "faq"
     ? "stakeholder_faq_or_communication"

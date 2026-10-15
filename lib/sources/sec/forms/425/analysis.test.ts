@@ -115,7 +115,7 @@ const analysisPrompt = buildSec425AnalysisPromptDraft({
 });
 
 assert.equal(analysisPrompt.key, "sec_425_analysis_draft");
-assert.equal(analysisPrompt.version, "v9");
+assert.equal(analysisPrompt.version, "v12");
 assert.deepEqual(sec425RequiredOutputResponseSchema.properties.analysis_output.properties.event_type.enum, SEC_425_APPROVED_EVENT_TYPES);
 assert.ok(SEC_425_APPROVED_EVENT_TYPES.includes("ipo_listing"));
 assert.ok(analysisPrompt.system.includes("Required Output JSON shape"));

@@ -168,7 +168,9 @@ test("reader failure, source mismatch and query bounds do not masquerade as comp
 const source = (value: string) => `data:text/javascript,${encodeURIComponent(value)}`;
 registerHooks({ resolve(specifier, context, next) {
   const mocks: Record<string, string> = {
-    "@/lib/ai/secInvestableUniverseGate": "export function evaluateSecInvestableUniverse(){return null}",
+    // FACT's shared request serializer imports this symbol; this cover-only
+    // test must still fail if universe skip analysis is actually invoked.
+    "@/lib/ai/secInvestableUniverseGate": "export function evaluateSecInvestableUniverse(){return null} export function buildSecInvestableUniverseSkipAnalysis(){throw Error('Unexpected universe skip analysis in cover test')}",
     "@/lib/sources/sec/parser": "export async function fetchSecEdgarRawItems(){throw Error('No external SEC requests')}",
     "@/lib/secStores/rawStore": "export function ensureSecSource(){} export function createSecSourceRun(){} export function finishSecSourceRun(){} export function findExistingSecRawItem(){} export function saveSecRawItem(){}",
     "@/lib/sec-sc13-xml/persistence": "export async function persistSc13CanonicalXmlForRawItem(){return {status:'not_applicable'}} export function recordSc13CanonicalPersistenceState(){} export function sc13PersistenceFailureState(){}",

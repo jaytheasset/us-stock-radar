@@ -1,3 +1,4 @@
+import {conditionCatalog as sec425Catalog} from "../sec425/conditions.ts";
 import {
   LISTING_EVENT_KINDS,
   LISTING_EVENT_OUTCOMES,
@@ -97,7 +98,7 @@ export type MonitorConditionDefinition = Readonly<{
     exclusiveMinimum?: number;
     minimum?: number;
   }>;
-  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "tender" | "effect" | "projected" | "offering_plan";
+  family: "event" | "market" | "offering" | "listing" | "corporate_action" | "ownership" | "financial" | "sc13" | "nt" | "s8" | "proxy" | "sec425" | "tender" | "effect" | "projected" | "offering_plan";
   domain: string;
   source: Readonly<{
     table?: MonitorFactTable;
@@ -112,6 +113,7 @@ export type MonitorConditionDefinition = Readonly<{
       | "read_current_event_periodic_financial"
       | "read_current_event_nt_lifecycle"
       | "read_s8_structured"
+      | "read_sec425_facts"
       | "read_current_proxy_structured"
       | "read_current_tender_structured"
       | "read_event_filing_metadata"
@@ -208,6 +210,7 @@ const registry = [
       ...(field === "registration_form" ? { enumValueLabels: { "S-1": "S-1", "S-3": "S-3", "F-1": "F-1", "F-3": "F-3" } } : {}) },
     source: { subject: "event", reader: "read_effect_registration" }, qualityCapability: ["exact"], status: "READY",
   })),
+  ...sec425Catalog.map<MonitorConditionDefinition>(c=>({key:c.key,valueType:c.type,allowedOperators:["eq"],family:"sec425",domain:"sec425",monitorDomains:["listing"],description:c.description,display:{label:c.label,...(c.type==="boolean"?{booleanValueLabels:{true:"Included",false:"Unsupported absence"}}:{}),...(c.values?{enumValueLabels:Object.fromEntries(c.values.map(v=>[v,v.replaceAll("_"," ")]))}:{})},...(c.values?{enumValues:c.values,enumValueDescriptions:Object.fromEntries(c.values.map(v=>[v,v.replaceAll("_"," ")]))}:{}),source:{subject:"event",reader:"read_sec425_facts"},qualityCapability:["derived"],status:"READY"})),
   ...(["has_proposal", "has_capital_structure_proposal"] as const).map<MonitorConditionDefinition>(field => ({
     key: `proxy.${field}`, valueType: "boolean", allowedOperators: ["eq"],
     family: "proxy", domain: "proxy", monitorDomains: ["listing"],

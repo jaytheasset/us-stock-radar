@@ -48,7 +48,7 @@ const routerPrompt = buildSec425RouterPromptDraft({
 });
 
 assert.equal(routerPrompt.key, "sec_425_router");
-assert.equal(routerPrompt.version, "v4");
+assert.equal(routerPrompt.version, "v8");
 assert.deepEqual(sec425RouterResponseSchema.properties.event_type.enum, SEC_425_ROUTER_EVENT_TYPES);
 assert.deepEqual(sec425RouterResponseSchema.properties.route_case.enum, SEC_425_ROUTER_CASE_VALUES);
 assert.deepEqual(sec425RouterResponseSchema.properties.communication_mode.enum, SEC_425_COMMUNICATION_MODE_VALUES);
@@ -158,8 +158,7 @@ const normalized = normalizeSec425RouterResult({
   needs_parent_context: false,
   deterministic_stage: null,
   routing_reason: "The filing provides a material shareholder meeting update.",
-  evidence: ["The filing sets a meeting date."],
-  selected_source_block_ids: [selectedId, "missing-block"],
+  selected_source_block_ids: [selectedId],
   source_blocks_used: [selectedId],
   needs_human_review: false,
   debug: {},
@@ -171,6 +170,7 @@ assert.equal(normalized.action, "feed");
 assert.deepEqual(normalized.selected_source_block_ids, [selectedId]);
 assert.equal(normalized.needs_analysis_llm, true);
 assert.equal(normalized.archive_like_candidate, false);
+assert.throws(() => normalizeSec425RouterResult({ ...normalized, selected_source_block_ids: [selectedId, "missing-block"] }, shareholderParserOutput), /source_reference_invalid/);
 
 const normalizedFaq = normalizeSec425RouterResult({
   ...normalized,

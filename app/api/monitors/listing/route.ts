@@ -1,3 +1,5 @@
+import {has425} from "@/lib/sec425/conditions";
+import {allowedUser} from "@/lib/sec425/consumer";
 import { NextRequest, NextResponse } from "next/server";
 import { rejectCrossOriginMutationRequest } from "@/lib/auth/mutationOrigin";
 import { getOptionalCurrentUserId } from "@/lib/currentUser";
@@ -37,6 +39,7 @@ export async function POST(request: NextRequest) {
   const parsed = parseListingMonitorCreateRequest(body);
   if (!parsed.ok) return monitorRequestErrorResponse(parsed);
   try {
+    if(has425(parsed.value.conditions)&&!await allowedUser(userId))return NextResponse.json({ok:false,error:"PRO_REQUIRED",message:"425 monitors require an enabled candidate and Pro access."},{status:403,headers:MONITOR_API_NO_STORE_HEADERS});
     const monitor = await createListingMonitor({
       ownerId: userId,
       ...parsed.value,

@@ -1,3 +1,4 @@
+import {publicEvidence as public425Evidence,type FactEvidence} from "../sec425/evidence.ts";
 import {publicOfferingPlanEvidence} from './offeringPlanFacts.ts';
 import {
   validateCanonicalListingConditions,
@@ -40,6 +41,7 @@ export type ListingMonitorUpdateInput = Readonly<{
 }>;
 
 export type ListingMonitorAlertItem = Readonly<{
+  sec425Evidence?: FactEvidence;
   secondaryDisplay?: SecondaryMonitorDisplay;
   ntAlertTitle?: "SEC late-filing notice filed" | "Delayed periodic report filed";
   offeringPlanEvidence?: NonNullable<ReturnType<typeof publicOfferingPlanEvidence>>;
@@ -221,7 +223,7 @@ async function resolveAlertRepository(): Promise<ListingMonitorAlertRepository> 
     list: ({ ownerId, monitorId, limit, offset }) => supabase.supabaseSelect(
       "user_alert_deliveries",
       {
-        select: "id,alert_event_id,listing_monitor_id,created_at,title,category,source_type,source_label,offering_plan_match_evidence,listing_match_evidence,effect_match_evidence,projected_monitor_id,projected_scenario,secondary_match_evidence,listing_source_execution_id",
+        select: "id,alert_event_id,listing_monitor_id,created_at,title,category,source_type,source_label,sec425_raw_item_id,sec425_match_evidence,offering_plan_match_evidence,listing_match_evidence,effect_match_evidence,projected_monitor_id,projected_scenario,secondary_match_evidence,listing_source_execution_id",
         user_id: `eq.${ownerId}`,
         alert_domain: "eq.listing",
         alert_lane: "eq.listing_monitor",
@@ -293,6 +295,7 @@ function mapAlertRow(row: Record<string, unknown>): ListingMonitorAlertItem[] {
     monitorId: typeof row.listing_monitor_id === "string" ? row.listing_monitor_id : typeof row.projected_monitor_id==='string'?row.projected_monitor_id:null,
     eventId: typeof row.alert_event_id === "string" ? row.alert_event_id : null,
     createdAt: row.created_at,
+    ...(public425Evidence(row.sec425_match_evidence,row.sec425_raw_item_id,row.listing_source_execution_id)?{sec425Evidence:public425Evidence(row.sec425_match_evidence,row.sec425_raw_item_id,row.listing_source_execution_id)!}:{}),
     secondaryDisplay: secondaryMonitorDisplay(row.secondary_match_evidence, row.alert_event_id, row.listing_source_execution_id),
     matchEvidence: parseStoredForm4PurchaseMatchEvidence(row.listing_match_evidence),
     // Display the persisted NT notification only; do not derive lifecycle facts.
