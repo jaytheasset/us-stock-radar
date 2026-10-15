@@ -1,5 +1,26 @@
 # 425 final live-provider E2E: environment blocked (2026-10-15)
 
+## Latest authorized continuation: explicit private bridge
+
+Base0c4c14954a836b3a80315f08718f9b751bdff55d, same425 candidate, detached/clean. Main's actual latest user turn authorizes read-only Docker/host/WSL/VPN overlap analysis; only if a non-overlapping private subnet is confirmed, create one dedicated bridge with explicit --subnet and start the already prepared stack using --network-id. No prune, existing resource deletion, global daemon change, Desktop restart or other-project network sharing. Prior failed attempts remain immutable. New evidence subdirectory: `network-recovery`. Current checkpoint: **dedicated bridge created; explicit-network-ID Supabase start failed; STOP**. Total physical provider budget0/6; live SEC/worker/FACT/Alert execution0.
+
+### Explicit subnet result
+
+- Read-only audit covered49 Docker networks with their IPAM subnets and connected containers, Windows IPv4 routes/addresses, adapter state and user/all-user VPN profiles, and the only running WSL distribution docker-desktop. Its ip command is absent; `/proc/net/route` and `/proc/net/fib_trie` were successfully read instead. The VPN adapter was disconnected. The overlap checker compared86 non-default ranges and found0 overlaps for10.245.240.0/24. Default routes are excluded from address-overlap checks; future VPN routes remain outside this time-specific assessment.
+- Created exactly one dedicated bridge `sec425-final-live-20261015-net`, subnet10.245.240.0/24, gateway10.245.240.1, network ID `e97563a7d647ada0cf13ef8ea06ef9c65b8d120025b161bde90da77ddda00556`. It had no attached containers before startup. No existing network was removed, pruned, shared or reconfigured. Current candidate product files still match the validated runtime archive (4172 files; only report commits since60a859b0).
+- Ran the prepared CLI once with the actual network ID:
+
+```text
+supabase start --workdir C:/Users/PC/.codex/visualizations/sec425-final-live-e2e-20261015/stack --network-id e97563a7d647ada0cf13ef8ea06ef9c65b8d120025b161bde90da77ddda00556 -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+```
+
+- CLI2.110.0 advertises --network-id as using a specified network instead of a generated one. Nevertheless, this invocation exited1 with `LegacyStartNetworkCreateError: failed to create docker network: Error response from daemon: all predefined address pools have been fully subnetted`. Sanitized stdout contains the error; stderr is empty. The command/actual ID and logs are preserved. Why this CLI invocation still attempted generated-network creation is **unconfirmed**; do not claim a proven flag-forwarding defect or retry with guessed alternatives.
+- Post-check:50 networks total; all49 prior network names/drivers/IPAM definitions unchanged; the one new bridge remains empty. No new project container/volume or listening target port; no DB system_identifier. The dedicated bridge is retained for review. No further start, recreation, alternate network/DB, daemon change or cleanup occurred.
+
+Evidence: `network-recovery/NETWORK-AUDIT.json`, `ENVIRONMENT-ACTION-RESERVATION.json`, `NETWORK-CREATED.json`, `STACK-START.json`, sanitized stdout/stderr, `RESOURCE-STATE.json`, and `FINAL-CHECK.json`. These append to the prior failed-attempt evidence without overwriting it. Product code, prompts, responses and schema were not modified. Only this report changes in Git. Main/shared DB/next-env remain protected.
+
+Result: explicit bridge setup PASS; isolated Supabase environment FAIL; Diana/Axcelis actual-provider E2E NOT RUN. Remaining blocker is CLI startup despite the existing explicit private bridge. No425 semantic failure or actual-provider success is established. STOP for independent review.
+
 ## Current authorized continuation
 
 Main's latest actual user turn authorizes read-only environment diagnosis, minimal test-environment repair, and **one** start retry. Base37d22cf79fc4a0d4c0e7e5f148bba86ebcaf3fa9. Product code/response correction remains forbidden. Preserve the first failed attempt and its missing-error-detail limitation below. Retry evidence uses a new `recovery` subdirectory. Current checkpoint: **authorized retry consumed, exit1, Docker network address pool exhausted; STOP**. Provider budget0/6 used; live SEC/worker/FACT/Alert execution0. No further start, reset, network cleanup, alternate DB or environment workaround attempted.
