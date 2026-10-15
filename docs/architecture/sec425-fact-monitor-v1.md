@@ -5,6 +5,14 @@ Full candidate: `2818030adcbb2d06f4442923c98856ab2ed514d6`; previous main: `8a2b
 
 **Status: integrated into local main; operating activation remains OFF.** GitHub publication is a code/documentation checkpoint, not deployment, production migration, or release readiness. Earlier experiment reports are historical; use this page for the integrated scope and current limitations.
 
+### Registry browser dependency and auth-inventory closeout — 2026-10-15
+
+Local main `fcfba2002eb4edc6c230e68c9e8f3c508dea9eaa` merges candidate `c8f534d77357f76f60f2616394d5fe3a7f62fbaf`. The browser Preview no longer imports server `node:crypto`: shared validation stays identical, URL SHA-256 uses Web Crypto in the browser, and synchronous server parsing/stored hashes remain unchanged. Independent before/after comparison matched all 41 normal/invalid inputs; async stale Preview/Apply preparation has regression coverage. The auth inventory now verifies the exact cancellation guard and three delegated Monitor handlers, including early rejection and negative controls. Product authentication policy is unchanged.
+
+Both default and Webpack production builds of archived merged main **PASS**, including typecheck. Merged-main regression: **1,026 PASS / 12 existing optional skips / 1 separate baseline failure**. The remaining failure is `sourceIngestRouteAuth.test.ts` expecting inline FMP economic-calendar `dryRun` parsing; it also fails on pre-fix main and was not weakened or changed. The formerly reported mutation-origin inventory failure is resolved.
+
+Existing Operations session: actual `/admin/data/dilution-registry` Preview, valid binding, tampered URL hash and missing Instrument checks PASS on candidate and main at CSS widths 1440/900/390; Apply was not executed, console errors 0, document overflow 0. Anonymous access redirects to login. Candidate's blanket read-only guard blocks the saved-observations read RPC; main's unchanged reader successfully displays the existing observations. No persistence E2E is claimed. 425 enqueue/consumer remain disabled with zero network/provider/Worker calls. 3110 was not restarted; user `next-env.d.ts` bytes/diff were preserved. No DB mutation/migration, push or deployment was performed. Evidence: `%TEMP%/stockradar-crypto-auth-KZxh2t/` and candidate `crypto-auth-20261015/` outside Git. The earlier closeout below is historical.
+
 ### CSS build and image-review closeout — 2026-10-15
 
 Local product main `defe494fb178fdb39041836a3f7ef414b9c33724` merges CSS fix `4b02faf3b10d4ddc4ece58c4d6e086decbbb8bf1`. Dashboard global rules moved to a regular stylesheet; local classes remain in the CSS Module. An independent comparison preserved all 173 selector occurrences, declaration values/order and media/keyframe contexts. The only JSX change is the stylesheet import. The related test reads the two actual sheets and retains its layout assertions. No 425, Primary, Monitor, DB or environment implementation changed.

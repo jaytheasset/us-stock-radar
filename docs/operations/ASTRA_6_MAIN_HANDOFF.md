@@ -1,5 +1,12 @@
 # Stock Radar — Astra 6 Main Handoff
 
+## Registry browser dependency and auth-inventory repair — 2026-10-15 KST
+
+- Local merge `fcfba2002eb4edc6c230e68c9e8f3c508dea9eaa`, candidate `c8f534d77357f76f60f2616394d5fe3a7f62fbaf`: browser-safe shared Registry validation with unchanged server hashes; exact delegated authentication inventory checks and negative controls. 425 and product authentication policy unchanged.
+- Default/Webpack production builds, typecheck and diffcheck PASS. Independent 41-case before/after parser/hash comparison PASS. Main regression: 1,026 PASS / 12 existing optional skips; separate baseline FMP economic-calendar inline-dryRun inspection failure remains unchanged. Mutation-origin inventory failure resolved.
+- Actual Operations Preview valid/invalid binding, anonymous redirect and CSS widths 1440/900/390 verified on candidate/main. No Apply; console errors 0; existing main O/S observations read normally. Candidate guard blocks its unrelated read-only observations RPC, not a product data failure.
+- 425 operating OFF, no provider/Worker calls, no DB mutations/migrations, 3110 retained, original next-env bytes/diff preserved. No push/deploy; GitHub last verified `d1131ba7`, Vercel not reverified. Evidence: `%TEMP%/stockradar-crypto-auth-KZxh2t/`. [Details](../architecture/sec425-fact-monitor-v1.md#registry-browser-dependency-and-auth-inventory-closeout--2026-10-15).
+
 ## CSS build recovery and image review — 2026-10-15 KST
 
 - Product main `defe494fb178fdb39041836a3f7ef414b9c33724`: `--no-ff` merge of `4b02faf3b10d4ddc4ece58c4d6e086decbbb8bf1`, based on published main `d1131ba7b24cda653b02ded2d473ee692ef02cad`. Four changed files: dashboard global/module CSS, import, direct layout test. All 173 selector occurrences retain declarations/media/order; 425 and other product logic unchanged.
