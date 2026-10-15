@@ -1,5 +1,13 @@
 # Stock Radar — Astra 6 Main Handoff
 
+## CSS build recovery and image review — 2026-10-15 KST
+
+- Product main `defe494fb178fdb39041836a3f7ef414b9c33724`: `--no-ff` merge of `4b02faf3b10d4ddc4ece58c4d6e086decbbb8bf1`, based on published main `d1131ba7b24cda653b02ded2d473ee692ef02cad`. Four changed files: dashboard global/module CSS, import, direct layout test. All 173 selector occurrences retain declarations/media/order; 425 and other product logic unchanged.
+- Normal production build PASS on candidate and exact merged-main archive; typecheck/diff PASS. Post-main focused regression 89 PASS / 8 existing optional skips. Broader candidate regression retains the documented unrelated mutation-origin inventory failure. Auxiliary `--webpack` now exposes a separate unchanged `node:crypto` client import issue; no broad configuration workaround or unrelated fix.
+- Main authenticated Monitor/Alerts 1440/900/390 image review completed; main 390px smoke and dashboard HTML200 repeated after merge. Dashboard mobile detail/filter fixture UI verified separately from live market data. Full details and verification limitations: [425 closeout](../architecture/sec425-fact-monitor-v1.md#css-build-and-image-review-closeout--2026-10-15).
+- Main3110 kept running without restart; original user `next-env.d.ts` bytes/diff preserved. DB/migration/env/425 activation unchanged; no provider/Worker calls. No push or deployment authorized/performed for this fix. GitHub remains at the previously verified `d1131ba7`; Vercel not redeployed or reverified.
+- Evidence outside Git: `%TEMP%/sec425-css-final-n8ZgnB/`; original UI worktree `css-build-20261015/` contains candidate build, selector preservation and fixture captures. No raw source, secrets, dependency copies or screenshots are committed.
+
 ## 425 FACT Monitor local integration / publication — 2026-10-15 KST
 
 - Product main: `ca8fb4f77955b712e0543ce24f86e19c818e36c7`, full candidate `2818030adcbb2d06f4442923c98856ab2ed514d6`, `--no-ff` with no conflicts. Previous main `8a2bb826d38eeca6e0eb071e7017d66e579ba46a`.

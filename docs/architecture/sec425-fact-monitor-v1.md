@@ -5,6 +5,16 @@ Full candidate: `2818030adcbb2d06f4442923c98856ab2ed514d6`; previous main: `8a2b
 
 **Status: integrated into local main; operating activation remains OFF.** GitHub publication is a code/documentation checkpoint, not deployment, production migration, or release readiness. Earlier experiment reports are historical; use this page for the integrated scope and current limitations.
 
+### CSS build and image-review closeout — 2026-10-15
+
+Local product main `defe494fb178fdb39041836a3f7ef414b9c33724` merges CSS fix `4b02faf3b10d4ddc4ece58c4d6e086decbbb8bf1`. Dashboard global rules moved to a regular stylesheet; local classes remain in the CSS Module. An independent comparison preserved all 173 selector occurrences, declaration values/order and media/keyframe contexts. The only JSX change is the stylesheet import. The related test reads the two actual sheets and retains its layout assertions. No 425, Primary, Monitor, DB or environment implementation changed.
+
+The normal `npm run build` command (`next build`, Turbopack) now **PASSES** on the candidate and on an exact archive of merged main with existing dependencies copied inside the build root. Main's running 3110 and user `next-env.d.ts` were not modified by this isolated build. The first archived-build attempt rejected an external dependency junction; this was a temporary harness layout error, resolved without changing product configuration. The optional `--webpack` build passes the former CSS failure but still fails on an unchanged `node:crypto` import through `corporateActionAdjustment` → `preview` → `DilutionRegistryPreview`; that separate bundler issue was not fixed here.
+
+Candidate dashboard regression: 38 PASS. Existing protected suites retain 938 PASS / 8 skips / 1 unrelated mutation-origin inventory failure. Post-merge focused dashboard/425/S-4/Alerts regression: 89 PASS / 8 existing optional skips; typecheck (including the merged-main build) and diffcheck PASS. Existing main login was reused to inspect Monitor/Alerts at actual CSS widths 1440/900/390, with images, no document overflow and no observed console error. 390px Alerts used viewport sections when full-page capture timed out. Dashboard and portal/detail/filter UI was inspected at those widths; data-filled detail/filters use existing fixture responses in an external harness, not a live market API E2E. Light/dark, scroll, close and filtering were checked. Main `/dashboard-v2` HTML returned 200 and main 390px Monitor/Alerts smoke was repeated after merge. The image-review gap described in the original integration ledger below is therefore closed for this scope.
+
+Receipts: `%TEMP%/sec425-css-final-n8ZgnB/` and the existing UI worktree's `css-build-20261015/` evidence folder. Main remains default OFF; provider/Worker calls, product DB changes, push and deployment in this closeout: zero. The following ledger preserves the original 425 integration checkpoint rather than rewriting its earlier failures as historical PASS results.
+
 ## Product scope
 
 - One current announcement per filing: new acquisition proposal, revised acquisition proposal, or signed definitive agreement. Transaction type is separate from announcement type.
