@@ -1,5 +1,27 @@
 # 425 final live-provider E2E: environment blocked (2026-10-15)
 
+## Current authorized continuation
+
+Main's latest actual user turn authorizes read-only environment diagnosis, minimal test-environment repair, and **one** start retry. Base37d22cf79fc4a0d4c0e7e5f148bba86ebcaf3fa9. Product code/response correction remains forbidden. Preserve the first failed attempt and its missing-error-detail limitation below. Retry evidence uses a new `recovery` subdirectory. Current checkpoint: **authorized retry consumed, exit1, Docker network address pool exhausted; STOP**. Provider budget0/6 used; live SEC/worker/FACT/Alert execution0. No further start, reset, network cleanup, alternate DB or environment workaround attempted.
+
+### Recovery preflight and observed failure
+
+- Docker Desktop responds: client/server29.6.1, Linux,20CPUs, memory16645787648 bytes,35 running containers. Supabase CLI2.110.0. Planned3156 and59820/59821/59822/59823/59824/59829 ports were free.
+- All153 copied migration files match their recorded hashes and the candidate files. Planned config remains a unique project `sec425-final-live-20261015` / REST59821 / SQL59822. No confirmed config/migration defect was found before retry; no DB was available to query migration application state.
+- Compared4172 tracked archive files with the current committed Git blobs, omitting only this later report. Git archive EOL attributes had converted3161 files to CRLF; the external disposable runtime was aligned to the exact committed blob bytes after proving all differences were line endings. No non-line-ending differences, no candidate/main file changes. Per-file before/after hashes are retained in recovery/PREFLIGHT.json. This was source-copy preparation, not a product or Supabase failure fix.
+- Reserved the single retry in create-new/fsynced `recovery/START-RETRY-RESERVATION.json`, then ran the same scoped start command once. Process stdout/stderr were retained only after in-memory redaction. No raw output or credentials were stored. Retry exited1; stderr was empty, and stdout contained the actual error:
+
+```json
+{"_tag":"Error","error":{"code":"LegacyStartNetworkCreateError","message":"failed to create docker network: Error response from daemon: all predefined address pools have been fully subnetted"}}
+```
+
+- This confirms network address-pool exhaustion **for the authorized retry**. The original attempt's cause remains unproven because its stdout was discarded; do not retrospectively claim its exact failure was observed.
+- Read-only scoped Docker listings after the retry find no project container, volume or network. No database system_identifier, app runtime, source record, workflow execution or output/Alert ID exists for this attempted run. No existing networks/containers were removed or reconfigured.
+
+Recovery evidence: `recovery/PREFLIGHT.json`, `START-RETRY-RESERVATION.json`, `START-RETRY-RESULT.json`, `start-stdout-redacted.log`, `start-stderr-redacted.log`, and `FINAL-CHECK.json`. First-attempt evidence remains unchanged. Only this report changes in Git; no product tests are rerun for a report-only change. Final HEAD/detached/clean and diffcheck are recorded in the recovery receipt.
+
+Remaining blocker: Docker needs an independently reviewed safe network-capacity remedy before a new environment start can be authorized. This task does not select/remove other projects' networks or bypass the failure using another DB. Diana actual-provider E2E: NOT RUN. Axcelis actual-provider E2E: NOT RUN. No merge/deploy/operational-readiness claim.
+
 Latest user-authorized task, verified against Main's actual user turn: fresh SEC collection → actual425 FACT workflow → official reader → existing Monitor/Alert, Diana/Genco then Axcelis. This supersedes old eeb4/Round4 context. Only candidate `C:/Users/PC/.codex/worktrees/sec425-primary-events/US-Stock Radar`, base60a859b0fc85a264c20283104a0745a0b9206249, detached/clean at start. No new Git worktree/branch/reset.
 
 Budget: total real Router/Primary/FACT/provider attempts at most6; planned FACT1 per accession (2 total). No new compiler, Router or Primary is needed by the independent425 workflow. Durable create-new attempt reservation before HTTP; per-case FACT cap1; no retry/repair/fallback, output correction or retained/synthetic provider response. First failed stage stops further cases/provider calls. Workflow retry configuration is unchanged, but outbound repeated attempts are physically blocked by the shared ledger.
@@ -10,7 +32,7 @@ Existing owned59721/59722 stack has successful runs and remains untouched. Prepa
 
 Known prior blockers are not new failures: cover status metadata refresh, Axcelis XML parse limitation, Diana cover source identity limitation, shared main CSS pure-selector build error, two existing automaticTrigger mock export errors. No product/prompt/CSS/schema changes or broad UI/auth revalidation. Main8a2bb826 and original next-env SHA083e23c4c5e7761db151134ea1ef7896120c86c5888cdc8a861f534f7e86d6fd preserved. GitHub/Vercel/remote state unqueried; no merge/push/deploy/operational enablement.
 
-## Outcome / stop checkpoint
+## Historical first attempt / preserved stop checkpoint
 
 Stopped at isolated environment startup, before live SEC collection or any provider execution. This is an environment BLOCKED result, not a finding that425 FACT semantics or the worker failed. No retained/synthetic response was used. Provider attempts0/6, SEC requests0, worker dispatches0, FACT/Alert records0 for this attempted run. There are no raw/FACT/Alert IDs to report.
 
