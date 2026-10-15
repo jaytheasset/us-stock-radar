@@ -54,6 +54,15 @@ export async function persistSecCoverObservationsForRawItem(input: {
   assertSecCoverCallerMatchesStored(input.rawItem, storedRawItem);
   const payload = buildSecCoverObservationPayload(input.rawItemId, storedRawItem);
   if (!payload) return { status: "not_applicable" as const };
+  // No validated artifact exists to persist. Keep the source rejection instead
+  // of masking it with the RPC's absent-source constraint error.
+  if (payload.sourceRaw === null && payload.payload.extractionStatus === "identity_mismatch") {
+    const issue = payload.payload.issues.find((item) => item.code === "source_identity_invalid");
+    throw new SecCoverObservationSourceError(
+      "source_identity_invalid",
+      issue?.detail ?? "SEC cover source artifact identity could not be validated",
+    );
+  }
 
   const result = await repository.rpc("persist_sec_cover_observation_result", {
     p_raw_item_id: input.rawItemId,
