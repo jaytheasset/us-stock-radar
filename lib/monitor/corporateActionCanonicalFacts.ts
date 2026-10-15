@@ -1,4 +1,16 @@
-import { createHash } from "node:crypto";
+import {
+  CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION,
+  validateCorporateActionEvidenceIdentity,
+  type CorporateActionEvidenceIdentity,
+} from "./corporateActionEvidenceIdentity.ts";
+export {
+  CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION,
+  validateCorporateActionEvidenceIdentity,
+  type CorporateActionEvidenceIdentity,
+} from "./corporateActionEvidenceIdentity.ts";
+import {
+  createHash,
+} from "node:crypto";
 import {
   CORPORATE_ACTION_EVENT_KIND_VOCABULARY,
   CORPORATE_ACTION_STAGE_VOCABULARY,
@@ -8,7 +20,9 @@ export {
   CORPORATE_ACTION_STAGE_VOCABULARY,
   type CorporateActionCanonicalVocabularyEntry,
 } from "./corporateActionVocabulary.ts";
-import { parseJsonWithoutDuplicateKeys } from "./listingRiskAnalyzer.ts";
+import {
+  parseJsonWithoutDuplicateKeys,
+} from "./listingRiskAnalyzer.ts";
 
 export const CORPORATE_ACTION_ANALYZER_INPUT_VERSION = "corporate_action_analyzer_input_v1";
 export const CORPORATE_ACTION_ANALYZER_CONTRACT_VERSION = "corporate_action_stock_split_day_basis_evidence_v4";
@@ -21,7 +35,6 @@ export const FORWARD_SPLIT_APPLICABILITY_VERSION = "forward_split_applicability_
 export const REVERSE_SPLIT_EXECUTION_UPDATE_VERSION = "reverse_split_execution_update_v1";
 export const FORWARD_SPLIT_EXECUTION_UPDATE_VERSION = "forward_split_execution_update_v1";
 export const CORPORATE_ACTION_EVIDENCE_MAX_LENGTH = 800;
-export const CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION = "corporate_action_evidence_identity_v1";
 export const STOCK_SPLIT_CALCULATION_ACTIVATION_VERSION = "stock_split_day_basis_activation_v1";
 export const STOCK_SPLIT_CALCULATION_EFFECTIVE_DATE_BASES = [
   "split_effective",
@@ -49,15 +62,6 @@ export type CorporateActionSourceDocument = {
   source_ref: string;
   label: string | null;
   text: string;
-};
-
-export type CorporateActionEvidenceIdentity = {
-  version: typeof CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION;
-  source_ref: string;
-  range_start: number;
-  range_end: number;
-  source_content_hash: string;
-  exact_source: true;
 };
 
 export type CorporateActionCanonicalEvidence =
@@ -1290,37 +1294,6 @@ export function materializeCorporateActionEvidence(
       exact_source: true,
     },
   };
-}
-
-export function validateCorporateActionEvidenceIdentity(value: unknown): string[] {
-  const errors: string[] = [];
-  const identity = record(value);
-  if (!identity) return ["evidence identity must be an object"];
-  exactKeys(identity, [
-    "version",
-    "source_ref",
-    "range_start",
-    "range_end",
-    "source_content_hash",
-    "exact_source",
-  ], "evidence identity", errors);
-  if (identity.version !== CORPORATE_ACTION_EVIDENCE_IDENTITY_VERSION) {
-    errors.push("evidence identity version is invalid");
-  }
-  if (!stableSourceRef(identity.source_ref)) errors.push("evidence identity source_ref is invalid");
-  if (!Number.isInteger(identity.range_start) || Number(identity.range_start) < 0) {
-    errors.push("evidence identity range_start is invalid");
-  }
-  if (!Number.isInteger(identity.range_end)
-    || Number(identity.range_end) <= Number(identity.range_start)) {
-    errors.push("evidence identity range_end is invalid");
-  }
-  if (typeof identity.source_content_hash !== "string"
-    || !/^[0-9a-f]{64}$/.test(identity.source_content_hash)) {
-    errors.push("evidence identity source_content_hash is invalid");
-  }
-  if (identity.exact_source !== true) errors.push("evidence identity exact_source must be true");
-  return errors;
 }
 
 export function verifyCorporateActionEvidenceIdentity(

@@ -80,7 +80,7 @@ test("a successful Preview enables Apply only while the source is unchanged", ()
   );
 });
 
-test("a successfully Previewed combined source enables the same one Apply", () => {
+test("a successfully Previewed combined source enables the same one Apply", async () => {
   const source = JSON.stringify({
     ...JSON.parse(validSource),
     os_observations: [{ observation_type: "source_stated" }],
@@ -95,20 +95,20 @@ test("a successfully Previewed combined source enables the same one Apply", () =
     true,
   );
   assert.equal(
-    createDilutionRegistryApplyRequestBody({ previewedSource: source, source }),
+    await createDilutionRegistryApplyRequestBody({ previewedSource: source, source }),
     source,
   );
 });
 
-test("the Apply request body is the exact text that produced Preview", () => {
+test("the Apply request body is the exact text that produced Preview", async () => {
   const exactSource = ` {\r\n  "instruments": [],\r\n  "snapshots": [],\r\n  "activities": [],\r\n  "totals": [],\r\n  "note": "한글"\r\n}`;
   assert.equal(parseDilutionRegistryJson(exactSource).ok, true);
-  const body = createDilutionRegistryApplyRequestBody({
+  const body = await createDilutionRegistryApplyRequestBody({
     previewedSource: exactSource,
     source: exactSource,
   });
   assert.deepEqual(Buffer.from(body, "utf8"), Buffer.from(exactSource, "utf8"));
-  assert.throws(
+  await assert.rejects(
     () =>
       createDilutionRegistryApplyRequestBody({
         previewedSource: exactSource,

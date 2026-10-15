@@ -17,7 +17,7 @@ import {
   type DilutionRegistryInstrumentRow,
   type DilutionRegistryPreviewModel,
   type DilutionRegistryRecord,
-} from "@/lib/dilution-registry/preview";
+} from "@/lib/dilution-registry/previewClient";
 import type { DilutionRegistryOsPreviewRow } from "@/lib/dilution-registry/osPreview";
 import styles from "./DilutionRegistryPreview.module.css";
 
@@ -61,6 +61,8 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
     useState<DilutionRegistryCombinedApplyResult | null>(null);
   const activeApplySource = useRef<string | null>(null);
   const activePreviewSource = useRef<string | null>(null);
+  const previewRevision = useRef(0);
+  const applyRevision = useRef(0);
 
   const applyEnabled = isDilutionRegistryApplyEnabled({
     canApply,
@@ -70,6 +72,8 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
   });
 
   function handleSourceChange(nextSource: string) {
+    previewRevision.current += 1;
+    applyRevision.current += 1;
     activeApplySource.current = null;
     activePreviewSource.current = null;
     setSource(nextSource);
@@ -84,6 +88,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
   }
 
   async function handlePreview() {
+    const revision = ++previewRevision.current;
     if (!source.trim()) {
       setPreview(null);
       setPreviewedSource(null);
@@ -93,7 +98,11 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       return;
     }
 
-    const result = parseDilutionRegistryJson(source);
+    activePreviewSource.current = source;
+    setIsPreviewing(true);
+    const result = await parseDilutionRegistryJson(source);
+    if (previewRevision.current !== revision || activePreviewSource.current !== source) return;
+    setIsPreviewing(false);
     if (!result.ok) {
       setPreview(null);
       setPreviewedSource(null);
@@ -137,7 +146,7 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       );
       const body = await response.json().catch(() => null);
       const rows = response.ok ? readOsPreviewRows(body) : null;
-      if (activePreviewSource.current !== source) return;
+      if (previewRevision.current !== revision || activePreviewSource.current !== source) return;
       if (!rows) {
         setErrors(["Shares Outstanding source Preview is unavailable."]);
         return;
@@ -146,10 +155,10 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       setPreview(createDilutionRegistryPreviewModel(result.payload));
       setPreviewedSource(source);
     } catch {
-      if (activePreviewSource.current !== source) return;
+      if (previewRevision.current !== revision || activePreviewSource.current !== source) return;
       setErrors(["Shares Outstanding source Preview is unavailable."]);
     } finally {
-      if (activePreviewSource.current === source) {
+      if (previewRevision.current === revision && activePreviewSource.current === source) {
         activePreviewSource.current = null;
         setIsPreviewing(false);
       }
@@ -163,16 +172,21 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
   async function handleApply() {
     if (!applyEnabled) return;
 
+    const revision = ++applyRevision.current;
+    activeApplySource.current = source;
+    setApplyState("saving");
     let requestBody: string;
     try {
-      requestBody = createDilutionRegistryApplyRequestBody({
+      requestBody = await createDilutionRegistryApplyRequestBody({
         previewedSource,
         source,
       });
     } catch {
+      if (applyRevision.current !== revision || activeApplySource.current !== source) return;
       setApplyState("error");
       return;
     }
+    if (applyRevision.current !== revision || activeApplySource.current !== source) return;
 
     activeApplySource.current = requestBody;
     setApplyState("saving");
@@ -190,14 +204,14 @@ export function DilutionRegistryPreview({ canApply }: { canApply: boolean }) {
       );
       const body = await response.json().catch(() => null);
       const result = readDilutionRegistryApplyResponse(body);
-      if (activeApplySource.current !== requestBody) return;
+      if (applyRevision.current !== revision || activeApplySource.current !== requestBody) return;
       setApplyResult(result);
       setApplyState(result ? "complete" : "error");
     } catch {
-      if (activeApplySource.current !== requestBody) return;
+      if (applyRevision.current !== revision || activeApplySource.current !== requestBody) return;
       setApplyState("error");
     } finally {
-      if (activeApplySource.current === requestBody) {
+      if (applyRevision.current === revision && activeApplySource.current === requestBody) {
         activeApplySource.current = null;
       }
     }
