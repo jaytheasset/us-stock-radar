@@ -1,5 +1,5 @@
 import type { DilutionRegistryCombinedApplyResult } from "./combinedApply.ts";
-import { parseDilutionRegistryJson } from "./preview.ts";
+import { parseDilutionRegistryJson } from "./previewClient.ts";
 
 export type DilutionRegistryApplyUiState =
   | "idle"
@@ -49,7 +49,7 @@ export function isDilutionRegistryApplyEnabled({
   );
 }
 
-export function createDilutionRegistryApplyRequestBody({
+export async function createDilutionRegistryApplyRequestBody({
   previewedSource,
   source,
 }: {
@@ -59,7 +59,7 @@ export function createDilutionRegistryApplyRequestBody({
   if (previewedSource === null || previewedSource !== source) {
     throw new Error("A fresh successful Preview is required before Apply.");
   }
-  const parsed = parseDilutionRegistryJson(source);
+  const parsed = await parseDilutionRegistryJson(source);
   if (!parsed.ok) throw new Error("The exact Preview source is invalid.");
   return previewedSource;
 }
