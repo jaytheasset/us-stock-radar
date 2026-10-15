@@ -1,4 +1,33 @@
-# 425 final live-provider E2E: environment recovered, harness stopped (2026-10-15)
+# 425 final live-provider E2E: tool corrected, terminal resume blocked (2026-10-15)
+
+## Latest continuation: tool-only input correction and existing-run resume audit
+
+Baseb97af073b8a94fdf3e5569d4a3e2ee793635a999, same425 candidate detached/clean. Latest user authorizes correcting the verification tool to use production repository/loadSource, SQL only as an independent storage check, and reusing the existing Diana raw/run when the official resume contract permits it. No new collection, duplicate registration, terminal-state SQL edits, fingerprint/new-ID workaround, product/migration changes or Supabase lifecycle calls. New tool/evidence under `reader-validation`; previous STOP and failed script remain immutable. Current checkpoint: **corrected tool validation PASS; existing run terminal resume BLOCKED; STOP**. Physical provider0/6.
+
+### Corrected verification boundary and actual date types
+
+The new standalone `reader-validation/validate-existing-case.mjs` uses the production `loadSource(rawId, repository)` with actual PostgREST reads for the expected request, binding and execution ID. SQL data only cross-checks persisted source/hash/time. No cast, timestamp replacement, fingerprint override or model-value repair feeds the job. The previous failing run-case.mjs and STOP remain unchanged.
+
+Actual schema: raw_items.published_at and fetched_at are `timestamp with time zone` / timestamptz (wire OID1184); raw_payload is jsonb. raw_payload.filing_date is a JSON string exposed by `->>` as PostgreSQL text, not a SQL DATE column. DB session TimeZone=UTC, Node timezone=Asia/Seoul. pg returns published_at as Date; PostgREST returns `2026-06-17T21:02:07+00:00`. SQL epoch, Date.getTime and Date.parse(PostgREST value) match. There is no instant shift; local display would be the following morning. Package nullableString rejects the Date object, producing the two null request fields in the previous harness. Corrected official input retains the supplied timestamp string unchanged.
+
+Actual-data assertions pass: official execution ID equals stored/enqueued bf58b6dd-7c27-5140-a9a9-4c23435fe674; complete binding equals saved binding; expected request hash equals saved worker-stage hash; raw/source hashes match the SQL cross-check; the deliberately reproduced bad SQL-driver input remains different and is never sent. All outbound network except the owned PostgREST GET path is denied in this validation process. No provider credential was loaded for this read-only tool.
+
+### Official resume contract and remaining blocker
+
+Read the actual applied reserve_sec425_facts, sec425_transition, finish_sec425_facts and guard_sec425_history definitions from the owned DB, as well as starter.ts/storage.ts/workflows/sec425-facts.ts. No mutating RPC was invoked.
+
+- `processFacts` returns the stored state immediately for succeeded/failed/stale runs. Actual invocation with the existing job, real repository reads and all RPCs forbidden returns `{status:"uncertain"}`; RPC0/provider0, no synthetic repository response.
+- Applied sec425_transition schedule/begin return claimed=false for failed terminal runs. The history trigger prohibits changing terminal status/metadata/binding/finished fields. A missing response checkpoint means no saved native response can be resumed.
+- reserve accepts a verification attempt tag at its SQL boundary, but sourceInput fixes attempt=automatic and derives the same execution ID; processFacts rejects an ID/binding mismatch as stale. Changing an attempt tag or manufacturing a different ID is not a supported recovery path. No such attempt was made.
+- Generic workflow re-registration would reach the same terminal processor return. There is no supported re-arm/resume action for this proved-unsent guard-blocked run. External evidence that HTTP attempts were0 does not itself authorize modifying the immutable terminal record.
+
+Therefore actual fresh-model E2E cannot continue on this existing run under the current product/no-state-change constraints. The minimum missing capability is a separately approved, auditable recovery contract for a verified-unsent attempt that preserves the original terminal history and exact source binding. This task does not implement it, alter SQL constraints, clone a run, recollect raw, clear STOP, or route around the contract through a different DB. No Axcelis call was made while Diana remains blocked.
+
+### Read-only preservation and outcome
+
+`reader-validation/BEFORE.json` and AFTER.json match for all9 scoped whole-table hashes/counts and153 migration versions. Applied-contract readout, actual SQL/JS/PostgREST type/time validation, official expected request, actual processor early-return receipt and corrected script are retained alongside the older evidence. Current raw1/run1/output0/monitors2/Alerts0 and cover/ticker decisions0 remain unchanged. Provider count remains0/6; SEC requests in this continuation0; new registration0; DB mutations0. The user-started Supabase remains running, verification app stays stopped.
+
+Tool input validation PASS does not establish a live LLM/FACT/Alert PASS. Diana fresh-model result NOT COMPLETED; Axcelis NOT RUN; successful-run duplicate Alert prevention NOT TESTED. Only the existing failed run's terminal/no-new-request behavior was observed. Only this report changes in Git; product code/migrations and all prior evidence are preserved. Diffcheck at commit; no product test/build rerun for this report-only change. Final identity/status/evidence hashes in reader-validation/FINAL-CHECK.json. STOP for independent review.
 
 ## Current continuation: use user-started stack, no lifecycle commands
 
