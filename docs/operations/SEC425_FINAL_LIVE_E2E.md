@@ -1,4 +1,40 @@
-# 425 final live-provider E2E: environment blocked (2026-10-15)
+# 425 final live-provider E2E: environment recovered, harness stopped (2026-10-15)
+
+## Current continuation: use user-started stack, no lifecycle commands
+
+Base4fe171718acdd6378a5f6cdfd3f903a3e2a05969, same425 candidate detached/clean. User successfully started the existing dedicated network stack with CLI2.120.0. **No supabase start/stop/reset or network/volume deletion was performed in this continuation.** New evidence subdirectory `live-run`; prior failed startup logs remain historical. Product code unchanged. Current checkpoint: environment verified; Diana live SEC ingest/workflow enqueue succeeded; harness execution-ID assertion failed before native provider; read-only cause established; **STOP**. Provider0/6, Axcelis NOT RUN, no replay or product/harness execution fix after this case failure.
+
+### Actual environment and bounded mutations
+
+- Verified four running project containers (db/kong/auth/rest), exact dedicated network ID, project labels/mounts, REST59821/SQL59822, and new PostgreSQL system ID `7696793387154329637`. REST/Auth health200; all153 applied migration versions match prepared files. Initial raw_items/ai_runs/ai_outputs/listing_monitors/user_alert_deliveries/auth.users counts0. No access to old59722, shared56322 or remote DB.
+- Runtime source matches committed product files (4172 hashes; subsequent candidate changes are report-only). Started a verification-only Next runtime from the external archive on3156, with network guard, external sends disabled and provider credentials memory-only. No original worktree next-env changes.
+- Created one disposable owner via actual Supabase Auth and actual app login. Login bootstrap created its default free subscription. The harness's redundant INSERT failed23505; this test-setup assumption was recorded in FIXTURE-PREPARATION-ERROR.json, then only the newly created fixture owner's existing subscription was set to Pro. No product/bootstrap correction. Existing authenticated Monitor API created revised_acquisition_proposal+targetGNK and definitive_agreement_signed+targetVECO monitors. Only their fixture activation times were set to2026-01-01; SEC source dates were unchanged. Credentials/cookies are not stored in receipts.
+- The live guard blocks other providers/Router/Primary/compiler and repeated FACT requests, reserves physical requests durably before native HTTP, and has a shared six-attempt cap. No slot was consumed before the harness stopped.
+
+### Diana actual path and exact stopping cause
+
+Live SEC requests4, all HTTP200: exact accession directory index, exchange ticker catalog, filing index and current primary425 HTML. Current primary native bytes SHA `ce3123d4302ca3905845813c7f801a425dc8ce5ee4744e08661d69eefa93b87e`; no retained response or manually supplemented source. Normal runSecRawIngest completed and saved raw `26170d62-6bbf-4e0e-ba59-5c6527b36173`, source run `7e509ea6-6f45-485d-b5a8-2621328ba594`, FACT execution `bf58b6dd-7c27-5140-a9a9-4c23435fe674`, registered workflow `wrun_01M4Z98BSADZ49DP0E75TMD9C1`. Known cover source_identity_invalid was recorded and did not prevent FACT enqueue. Subject1326200 and source URL filer1318885 were not forced equal.
+
+The harness then incorrectly passed `pg SELECT *` raw data directly to sourceInput. pg returns published_at as a JavaScript Date; the production repository returns a PostgREST timestamp string. Exact request differences:
+
+| Request user field | Harness SQL-driver input | Production repository input |
+|---|---|---|
+| filing_timestamp | null | 2026-06-17T21:02:07+00:00 |
+| filing_timestamps.publishedAt | null | 2026-06-17T21:02:07+00:00 |
+
+This changes sourceFingerprint/request hash and yields harness ID `0935246f-ab3d-5688-a53a-2dd9ed8b3a02`. The actual official loadSource yields `bf58b6dd-7c27-5140-a9a9-4c23435fe674`, exactly matching the enqueued/stored run. Its complete binding matches stored metadata, and its request SHA matches the actual worker-stage requestHash `9cac9630ac20d3aa72d6e982a304a7f201206d7f33c637454ad51a1223dfa4a1`. Both comparison paths retain the same rawHash/sourceSha. Current body, raw_payload and cover metadata equal the first stored-row capture. No input normalization, source correction or fingerprint override was applied.
+
+Timeline (UTC): harness STOP08:01:01.447; FACT stage starts08:01:09.875; run ends08:01:09.887 failed/state uncertain, fact stage started/mode provider, no response checkpoint. Guard checks STOP before attempt reservation/native fetch. The empty physical-attempt ledger, earlier STOP and code path explain the block; the product catch does not retain the thrown exception text, so no direct guard-exception log or provider error is claimed. `mode=provider` alone is not proof of a provider call. Native provider attempts0, responses0, ai_outputs0, Alerts0; official FACT reader is not_ready.
+
+This is a test-harness false mismatch, not an observed production binding defect, raw mutation or model semantic failure. After failure only read-only diagnosis ran. No correction/requeue/reset, no source/body/timestamps changed, and no second case/provider call. The failed/uncertain run is preserved; future execution must not erase it or invent a new fingerprint to bypass the durable contract.
+
+### Final status for this continuation
+
+- Environment identification/health/isolation: PASS. Live Diana SEC collection and actual enqueue: PASS. Actual fresh-model FACT/reader/Monitor/Alert E2E: NOT COMPLETED. Axcelis and duplicate prevention: NOT RUN.
+- Current owned data: raw1, AI run1 (failed/uncertain), AI output0, monitors2, Alerts0, cover results0, cover observations0, ticker automatic/human decisions0. Migration153 unchanged. These include the explicitly authorized test fixtures; no whole-database-unchanged claim.
+- Verification Next process tree on3156 was identified and stopped after failure to prevent further worker activity. User-started Supabase remains running/healthy; no Docker lifecycle action, deletion or daemon modification. Existing main/shared DB/next-env preserved.
+- Evidence in live-run: STACK-IDENTITY.json, FIXTURES.json, actual SEC bytes/receipts under ../sources, diana-DISPATCH.json, diana-STORED-RAW.json, STOP.json, STOP-DIAGNOSIS.json, production input/expected request, SQL-driver diagnostic request, FINAL-READONLY.json and FINAL-CHECK.json. Expected requests are clearly **diagnostic pre-wire data**, not sent provider requests; there is no actual provider response.
+- Only this report changes in Git. Diffcheck at commit; no product tests/build rerun for a report-only change. No UI E2E or semantic PASS, no operational activation/merge/push/deploy. Stop for independent review; do not substitute previous retained-response results.
 
 ## Latest authorized continuation: explicit private bridge
 
