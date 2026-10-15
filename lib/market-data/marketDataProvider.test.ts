@@ -144,46 +144,20 @@ test("provider errors and thrown requests fail closed", async () => {
   await assertUnavailable(thrown.getCurrentPrice("AMD"), "AMD");
 });
 
-test("valid cached FMP price preserves the stored provider timestamp", async () => {
-  let physicalCalls = 0;
-  const marketDataProvider = provider({
-    fetchQuote: async () => {
-      physicalCalls += 1;
-      return { data: null, ok: false };
-    },
-    readCachedQuote: async () => ({
-      fetchedAt: "2026-08-14T03:00:00.000Z",
-      price: 17.25,
-      provider: "fmp",
-      rawPayload: { timestamp: 1_700_000_000 },
-    }),
-  });
-
-  assert.deepEqual(await marketDataProvider.getCurrentPrice("amd"), {
-    asOf: "2023-11-14T22:13:20.000Z",
-    availability: "available",
-    dataMode: "realtime",
-    price: 17.25,
-    symbol: "AMD",
-  });
-  assert.equal(physicalCalls, 0);
+test("retired FMP adapter never reads caches or calls injected provider", async () => {
+  let calls = 0;
+  const retired = provider({ fetchQuote: async () => { calls++; return { ok: true, data: [{ symbol: "AMD", price: 17.25, timestamp: 1700000000 }] }; }, readCachedQuote: async () => { calls++; return { provider: "fmp", price: 17.25, rawPayload: { timestamp: 1700000000 } }; }, writeCachedQuote: async () => { calls++; } });
+  await assertUnavailable(retired.getCurrentPrice("amd"), "AMD");
+  const snapshot = await retired.getQuoteSnapshot("AMD");
+  assert.equal(snapshot.availability, "unavailable");
+  assert.equal(snapshot.price, null);
+  assert.equal(calls, 0);
 });
 
-test("successful provider result survives cache-write failure", async () => {
-  const marketDataProvider = provider({
-    fetchQuote: async () => ({
-      data: [{ price: 17.25, symbol: "AMD", timestamp: 1_700_000_000 }],
-      ok: true,
-    }),
-    writeCachedQuote: async () => {
-      throw new Error("cache unavailable");
-    },
-  });
-
-  assert.equal(
-    (await marketDataProvider.getCurrentPrice("AMD")).availability,
-    "available",
-  );
+test("retired adapter cannot reactivate on a successful injected provider", async () => {
+  let calls = 0;
+  await assertUnavailable(provider({ fetchQuote: async () => { calls++; return { ok: true, data: [{ price: 17.25, symbol: "AMD", timestamp: 1700000000 }] }; } }).getCurrentPrice("AMD"), "AMD");
+  assert.equal(calls, 0);
 });
 
 test("browser quote snapshots remain read-only and never write the market cache", async () => {
@@ -201,7 +175,7 @@ test("browser quote snapshots remain read-only and never write the market cache"
 
   assert.equal(
     (await marketDataProvider.getQuoteSnapshot("AMD")).availability,
-    "available",
+    "unavailable",
   );
   assert.equal(cacheWrites, 0);
 });
@@ -263,16 +237,18 @@ test("the adapter contract exposes no FMP response fields or raw payload", async
   );
 });
 
-test("environment-only selection preserves FMP and selects Marketstack", () => {
+test("environment-only selection requires explicit Marketstack and rejects FMP", async () => {
   const fmp = fakeProvider("FMP");
   const marketstack = fakeProvider("MARKETSTACK");
   const providers = { fmp, marketstack };
 
-  assert.equal(resolveMarketDataProviderName(undefined), "fmp");
-  assert.equal(resolveMarketDataProviderName("fmp"), "fmp");
+  assert.equal(resolveMarketDataProviderName(undefined), "unavailable");
+  assert.equal(resolveMarketDataProviderName("fmp"), "unavailable");
   assert.equal(resolveMarketDataProviderName(" marketstack "), "marketstack");
-  assert.equal(resolveMarketDataProviderName("unknown"), "fmp");
-  assert.equal(selectMarketDataProvider("fmp", providers), fmp);
+  assert.equal(resolveMarketDataProviderName("unknown"), "unavailable");
+  for (const name of [undefined, "fmp", "unknown"]) {
+    await assertUnavailable(selectMarketDataProvider(name, providers).getCurrentPrice("AMD"), "AMD");
+  }
   assert.equal(selectMarketDataProvider("marketstack", providers), marketstack);
 });
 
@@ -281,15 +257,15 @@ test("selected provider wiring remains behind the provider-neutral boundary", ()
   const fmpAdapter = read("lib/market-data/fmpMarketDataProvider.ts");
   const marketstackAdapter = read("lib/market-data/marketstackPriceProvider.ts");
 
-  assert.match(boundary, /const defaultMarketDataProvider: MarketDataProvider/);
-  assert.match(boundary, /new FmpMarketDataProvider\(/);
+  assert.match(boundary, /const provider = selectMarketDataProvider/);
+  assert.doesNotMatch(boundary, /new FmpMarketDataProvider\(/);
   assert.match(boundary, /new MarketstackPriceProvider\(\)/);
   assert.match(
     boundary,
     /selectMarketDataProvider\(process\.env\.MARKET_DATA_PROVIDER/,
   );
-  assert.match(boundary, /getMarketDataProvider\(\)\.getCurrentPrice\(symbol\)/);
-  assert.match(boundary, /getMarketDataProvider\(\)\.getQuoteSnapshot\(symbol\)/);
+  assert.match(boundary, /provider\.getCurrentPrice\(symbol\)/);
+  assert.match(boundary, /provider\.getQuoteSnapshot\(symbol\)/);
   assert.doesNotMatch(boundary, /financialmodelingprep\.com|stable\/quote|\.price\b|\.timestamp\b/);
   assert.doesNotMatch(fmpAdapter, /financialmodelingprep\.com|stable\/quote|FMP_API_KEY/);
   assert.match(marketstackAdapter, /api\.marketstack\.com\/v2\/eod\/latest/);

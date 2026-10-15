@@ -16,18 +16,13 @@ export async function GET(request: NextRequest) {
   }
 
   const data = await fetchStockFundamentals(symbol);
-  const anyAvailable = Object.values(data.sources).some(
-    (source) =>
-      source.rowCount > 0 &&
-      (source.state === "ready" || source.state === "partial"),
-  );
 
   return NextResponse.json(
-    { data, ok: anyAvailable },
+    { data, ok: false, error: "FMP_RETIRED", availability: "unavailable" },
     {
+      status: 410,
       headers: {
-        "Cache-Control":
-          "public, max-age=0, s-maxage=900, stale-while-revalidate=3600",
+        "Cache-Control": "no-store",
       },
     },
   );

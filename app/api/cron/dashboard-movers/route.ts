@@ -31,6 +31,7 @@ async function runDashboardMoverFinalizer(request: NextRequest) {
 
   const now = new Date();
   const eligibleSessions = dashboardV2Sessions.filter((session) => {
+    if (session === "Regular") return false; // FMP regular-session collection is retired.
     const lifecycle = getDashboardMoverLifecycle(session, now);
     return isDashboardMoverFinalizationEligible(session, lifecycle, now);
   });

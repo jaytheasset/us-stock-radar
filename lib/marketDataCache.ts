@@ -136,6 +136,7 @@ export async function readMarketQuoteCache(symbol: string): Promise<MarketQuoteC
   if (!row || typeof row !== "object") return { hit: false };
 
   const item = row as Record<string, unknown>;
+  if (!item.provider || item.provider === "fmp") return { hit: false };
   return {
     hit: true,
     quote: {
@@ -167,6 +168,7 @@ export async function readMarketQuoteProviderCache(
   if (!row || typeof row !== "object") return { hit: false };
 
   const item = row as Record<string, unknown>;
+  if (!item.provider || item.provider === "fmp") return { hit: false };
   return {
     hit: true,
     quote: {
@@ -199,6 +201,7 @@ export async function readMarketQuoteCacheMap(symbols: string[]) {
       .map((row) => {
         if (!row || typeof row !== "object") return null;
         const item = row as Record<string, unknown>;
+        if (!item.provider || item.provider === "fmp") return null;
         const symbol = stringOrFallback(item.symbol, "").toUpperCase();
         if (!symbol) return null;
 
@@ -265,6 +268,7 @@ export async function readMarketBarCache(
   if (!row || typeof row !== "object") return { hit: false };
 
   const item = row as Record<string, unknown>;
+  if (!item.provider || item.provider === "fmp") return { hit: false };
   const points = Array.isArray(item.bars) ? item.bars.map(normalizePoint).filter((point): point is PricePoint => Boolean(point)) : [];
 
   if (!points.length) return { hit: false };
@@ -314,6 +318,7 @@ export async function readMarketBarCacheMap(
       .map((row) => {
         if (!row || typeof row !== "object") return null;
         const item = row as Record<string, unknown>;
+        if (!item.provider || item.provider === "fmp") return null;
         const symbol = stringOrFallback(item.symbol, "").toUpperCase();
         const points = Array.isArray(item.bars)
           ? item.bars.map(normalizePoint).filter((point): point is PricePoint => Boolean(point))

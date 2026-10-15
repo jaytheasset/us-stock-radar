@@ -8,13 +8,7 @@ import {
 } from "@/lib/marketDataCache";
 import type { PricePoint } from "@/lib/marketTypes";
 
-const fmpQuoteTargets = [
-  { cacheSymbol: "^GSPC", providerSymbol: "^GSPC" },
-  { cacheSymbol: "^DJI", providerSymbol: "^DJI" },
-  { cacheSymbol: "^RUT", providerSymbol: "^RUT" },
-  { cacheSymbol: "^VIX", providerSymbol: "^VIX" },
-  { cacheSymbol: "ESUSD", providerSymbol: "ESUSD" },
-] as const;
+const retiredSymbols = ["^GSPC", "^DJI", "^RUT", "^VIX", "ESUSD", "US10Y", "NQUSD", "RTYUSD"] as const;
 
 const polygonIndexTargets = [
   { cacheSymbol: "^NDX", providerSymbol: "I:NDX" },
@@ -24,18 +18,15 @@ const polygonIndexTargets = [
 export const marketPulseCacheTtlSeconds = 4 * 24 * 60 * 60;
 
 export const marketPulseProviderCoverage = {
-  fmpQuotes: fmpQuoteTargets.map((target) => target.cacheSymbol),
+  fmpQuotes: [],
   polygonIndices: polygonIndexTargets.map((target) => target.cacheSymbol),
-  treasuryRates: ["US10Y"],
-  unavailableWithCurrentProviderPlan: ["NQUSD", "RTYUSD"],
+  treasuryRates: [],
+  unavailableWithCurrentProviderPlan: retiredSymbols,
 } as const;
 
 export async function refreshMarketPulseCache() {
   const env = getServerEnv();
   const results = await Promise.all([
-    ...fmpQuoteTargets.map((target) =>
-      refreshFmpQuote(target.cacheSymbol, target.providerSymbol, env.fmpApiKey),
-    ),
     ...polygonIndexTargets.map((target) =>
       refreshPolygonIndex(
         target.cacheSymbol,
@@ -43,7 +34,6 @@ export async function refreshMarketPulseCache() {
         env.polygonApiKey,
       ),
     ),
-    refreshTreasuryRate(env.fmpApiKey),
   ]);
 
   const refreshed = results.filter((result) => result.ok);
@@ -57,49 +47,11 @@ export async function refreshMarketPulseCache() {
       ...marketPulseProviderCoverage.unavailableWithCurrentProviderPlan.map(
         (symbol) => ({
           symbol,
-          error: "Not available under the current FMP provider plan",
+          error: "FMP_RETIRED",
         }),
       ),
     ],
   };
-}
-
-async function refreshFmpQuote(
-  cacheSymbol: string,
-  providerSymbol: string,
-  apiKey: string,
-) {
-  if (!apiKey) return failed(cacheSymbol, "FMP_API_KEY is missing");
-
-  const url = new URL("https://financialmodelingprep.com/stable/quote");
-  url.searchParams.set("symbol", providerSymbol);
-  url.searchParams.set("apikey", apiKey);
-  const result = await fetchJson(url);
-  const row = asRecords(result.data)[0];
-  if (!result.ok || !row) {
-    return failed(cacheSymbol, result.error || "FMP quote unavailable");
-  }
-
-  const price = numberValue(row.price);
-  if (price === null) return failed(cacheSymbol, "FMP quote price unavailable");
-
-  const write = await writeMarketQuoteCache(
-    {
-      changeAmount: numberValue(row.change) ?? undefined,
-      changePercent:
-        numberValue(row.changePercentage ?? row.changesPercentage) ?? undefined,
-      previousClose: numberValue(row.previousClose) ?? undefined,
-      price,
-      provider: "fmp",
-      rawPayload: row,
-      symbol: cacheSymbol,
-      volume: numberValue(row.volume) ?? undefined,
-    },
-    marketPulseCacheTtlSeconds,
-  );
-  return write.ok
-    ? succeeded(cacheSymbol)
-    : failed(cacheSymbol, write.error || "FMP quote cache write failed");
 }
 
 async function refreshPolygonIndex(
@@ -183,83 +135,6 @@ async function refreshPolygonIndex(
     : failed(
         cacheSymbol,
         quoteWrite.error || barWrite.error || "Polygon cache write failed",
-      );
-}
-
-async function refreshTreasuryRate(apiKey: string) {
-  const cacheSymbol = "US10Y";
-  if (!apiKey) return failed(cacheSymbol, "FMP_API_KEY is missing");
-
-  const to = new Date();
-  const from = new Date(to);
-  from.setDate(from.getDate() - 14);
-  const url = new URL("https://financialmodelingprep.com/stable/treasury-rates");
-  url.searchParams.set("from", dateKey(from));
-  url.searchParams.set("to", dateKey(to));
-  url.searchParams.set("apikey", apiKey);
-  const result = await fetchJson(url);
-  const rows = asRecords(result.data)
-    .map((row) => ({ date: String(row.date || ""), value: numberValue(row.year10) }))
-    .filter(
-      (row): row is { date: string; value: number } =>
-        Boolean(row.date) && row.value !== null,
-    )
-    .sort((left, right) => left.date.localeCompare(right.date));
-  if (!result.ok || !rows.length) {
-    return failed(cacheSymbol, result.error || "US 10Y rate unavailable");
-  }
-
-  const latest = rows[rows.length - 1];
-  const previous = rows[rows.length - 2] || latest;
-  const changeAmount = latest.value - previous.value;
-  const changePercent = previous.value
-    ? (changeAmount / previous.value) * 100
-    : 0;
-  const points: PricePoint[] = rows.map((row) => ({
-    close: row.value,
-    high: row.value,
-    low: row.value,
-    open: row.value,
-    time: row.date,
-    volume: 0,
-    vwap: row.value,
-  }));
-
-  const [quoteWrite, barWrite] = await Promise.all([
-    writeMarketQuoteCache(
-      {
-        changeAmount,
-        changePercent,
-        previousClose: previous.value,
-        price: latest.value,
-        provider: "fmp",
-        rawPayload: rows,
-        symbol: cacheSymbol,
-      },
-      marketPulseCacheTtlSeconds,
-    ),
-    writeMarketBarCache(
-      {
-        changeAmount,
-        changePercent,
-        interval: chartIntervalForRange("1D"),
-        latestPrice: latest.value,
-        points,
-        previousClose: previous.value,
-        provider: "fmp",
-        providerLabel: "FMP Treasury Rates",
-        range: "1D",
-        rawPayload: rows,
-        symbol: cacheSymbol,
-      },
-      marketPulseCacheTtlSeconds,
-    ),
-  ]);
-  return quoteWrite.ok && barWrite.ok
-    ? succeeded(cacheSymbol)
-    : failed(
-        cacheSymbol,
-        quoteWrite.error || barWrite.error || "Treasury cache write failed",
       );
 }
 

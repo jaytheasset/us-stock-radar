@@ -1,5 +1,5 @@
 export const OWNERSHIP_FMP_MARKET_CONTEXT_HELPER_NOTE =
-  "FMP helper is test-only; ingest should provide market_context in production.";
+  "FMP network helper is retired; this test-only normalizer accepts supplied historical fixtures only.";
 
 export type OwnershipTestMarketContext = {
   symbol: string;
@@ -30,38 +30,7 @@ type FetchFmpMarketContextOptions = {
   now?: () => Date;
 };
 
-export async function fetchFmpOwnershipMarketContext(
-  symbol: string,
-  options: FetchFmpMarketContextOptions = {},
-): Promise<OwnershipTestMarketContext> {
-  const normalizedSymbol = symbol.trim().toUpperCase();
-  if (!normalizedSymbol) {
-    throw new Error("FMP market_context helper requires a ticker symbol.");
-  }
-
-  const apiKey = options.apiKey ?? process.env.FMP_API_KEY;
-  if (!apiKey) {
-    throw new Error("FMP market_context helper requires FMP_API_KEY or options.apiKey.");
-  }
-
-  const baseUrl = (options.baseUrl ?? "https://financialmodelingprep.com/stable").replace(/\/$/, "");
-  const fetcher = options.fetcher ?? defaultFetcher;
-  const encodedSymbol = encodeURIComponent(normalizedSymbol);
-  const encodedKey = encodeURIComponent(apiKey);
-
-  const [quote, profile, floatData] = await Promise.all([
-    fetchFmpJson(fetcher, `${baseUrl}/quote?symbol=${encodedSymbol}&apikey=${encodedKey}`),
-    fetchFmpJson(fetcher, `${baseUrl}/profile?symbol=${encodedSymbol}&apikey=${encodedKey}`),
-    fetchFmpJson(fetcher, `${baseUrl}/shares-float?symbol=${encodedSymbol}&apikey=${encodedKey}`),
-  ]);
-
-  return buildFmpOwnershipMarketContextFromResponses(normalizedSymbol, {
-    quote,
-    profile,
-    floatData,
-    retrievedAt: (options.now ?? (() => new Date()))().toISOString(),
-  });
-}
+export async function fetchFmpOwnershipMarketContext(_symbol: string, _options: FetchFmpMarketContextOptions = {}): Promise<OwnershipTestMarketContext> { throw new Error("FMP_RETIRED"); }
 
 export function buildFmpOwnershipMarketContextFromResponses(
   symbol: string,
@@ -113,25 +82,10 @@ export function buildFmpOwnershipMarketContextFromResponses(
     currency: stringValue(quote.currency) || stringValue(profile.currency) || null,
     source_notes: [
       OWNERSHIP_FMP_MARKET_CONTEXT_HELPER_NOTE,
-      "Uses FMP quote/profile/shares_float when available.",
+      "Normalizes supplied historical FMP quote/profile/shares_float records.",
       "Runtime parser path must not call this helper automatically.",
     ],
   };
-}
-
-async function fetchFmpJson(fetcher: JsonFetcher, url: string) {
-  const response = await fetcher(url);
-  if (response.ok === false) {
-    throw new Error(`FMP market_context request failed with status ${response.status ?? "unknown"}.`);
-  }
-  return response.json();
-}
-
-async function defaultFetcher(url: string) {
-  if (typeof fetch !== "function") {
-    throw new Error("Global fetch is unavailable; pass options.fetcher for tests.");
-  }
-  return fetch(url);
 }
 
 function firstRecord(value: unknown): Record<string, unknown> {

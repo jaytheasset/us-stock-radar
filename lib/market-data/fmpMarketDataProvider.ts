@@ -39,83 +39,11 @@ export type FmpMarketDataProviderDependencies = {
   writeCachedQuote(payload: FmpCacheWrite): Promise<unknown>;
 };
 
+// Retained for callers importing the old provider; injected fetch/cache dependencies are never used.
 export class FmpMarketDataProvider implements MarketDataProvider {
-  private readonly dependencies: FmpMarketDataProviderDependencies;
-
-  constructor(dependencies: FmpMarketDataProviderDependencies) {
-    this.dependencies = dependencies;
-  }
-
-  async getCurrentPrice(symbolInput: string): Promise<CurrentPrice> {
-    const symbol = normalizeMarketDataSymbol(symbolInput);
-    if (!symbol) return unavailableCurrentPrice(symbol);
-
-    const cached = await this.readCache(symbol);
-    const cachedPrice = normalizeCachedFmpPrice(cached, symbol);
-    if (cachedPrice) return cachedPrice;
-
-    const snapshot = await this.loadQuoteSnapshot(symbol, true);
-    return snapshot.availability === "available"
-      ? {
-          asOf: snapshot.asOf,
-          availability: "available",
-          dataMode: FMP_CURRENT_PRICE_DATA_MODE,
-          price: snapshot.price,
-          symbol: snapshot.symbol,
-        }
-      : unavailableCurrentPrice(symbol);
-  }
-
-  async getQuoteSnapshot(symbolInput: string): Promise<MarketQuoteSnapshot> {
-    const symbol = normalizeMarketDataSymbol(symbolInput);
-    if (!symbol) return unavailableMarketQuoteSnapshot(symbol);
-    return this.loadQuoteSnapshot(symbol, false);
-  }
-
-  private async loadQuoteSnapshot(symbol: string, writeCache: boolean) {
-    let result: FmpClientResult;
-    try {
-      result = await this.dependencies.fetchQuote(symbol);
-    } catch {
-      return unavailableMarketQuoteSnapshot(symbol);
-    }
-
-    if (!result.ok) return unavailableMarketQuoteSnapshot(symbol);
-
-    const snapshot = normalizeFmpQuoteSnapshot(
-      result.data,
-      symbol,
-      (this.dependencies.now ?? (() => new Date()))(),
-    );
-    if (snapshot.availability === "unavailable") return snapshot;
-
-    if (writeCache) {
-      try {
-        await this.dependencies.writeCachedQuote({
-          changeAmount: snapshot.changeAmount ?? undefined,
-          changePercent: snapshot.changePercent ?? undefined,
-          previousClose: snapshot.previousClose ?? undefined,
-          price: snapshot.price,
-          provider: "fmp",
-          rawPayload: firstRecord(result.data),
-          symbol,
-          volume: snapshot.volume ?? undefined,
-        });
-      } catch {
-        // A successful provider read remains usable when the optional cache write fails.
-      }
-    }
-
-    return snapshot;
-  }
-
-  private async readCache(symbol: string) {
-    try {
-      return await this.dependencies.readCachedQuote(symbol);
-    } catch {
-      return null;
-    }
-  }
+  constructor(_dependencies: FmpMarketDataProviderDependencies) {}
+  async getCurrentPrice(symbol: string): Promise<CurrentPrice> { return unavailableCurrentPrice(normalizeMarketDataSymbol(symbol)); }
+  async getQuoteSnapshot(symbol: string): Promise<MarketQuoteSnapshot> { return unavailableMarketQuoteSnapshot(normalizeMarketDataSymbol(symbol)); }
 }
 
 export function normalizeFmpCurrentPrice(
@@ -173,33 +101,6 @@ export function normalizeFmpQuoteSnapshot(
     volume: optionalNonNegativeFiniteNumber(row.volume),
     yearHigh: optionalPositiveFiniteNumber(row.yearHigh),
     yearLow: optionalPositiveFiniteNumber(row.yearLow),
-  };
-}
-
-function normalizeCachedFmpPrice(
-  entry: FmpCacheEntry | null,
-  symbol: string,
-): CurrentPrice | null {
-  if (!entry || entry.provider !== "fmp") return null;
-
-  const price = positiveFiniteNumber(entry.price);
-  if (price === null) return null;
-
-  const rawPayload = firstRecord(entry.rawPayload);
-  const providerTimestamp = rawPayload
-    ? providerTimestampAsOf(rawPayload.timestamp)
-    : undefined;
-  if (providerTimestamp === null) return null;
-
-  const asOf = providerTimestamp;
-  if (!asOf) return null;
-
-  return {
-    asOf,
-    availability: "available",
-    dataMode: FMP_CURRENT_PRICE_DATA_MODE,
-    price,
-    symbol,
   };
 }
 

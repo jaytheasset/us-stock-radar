@@ -417,48 +417,10 @@ test("ownership analysis prompt does not require filing context output", () => {
     assert.ok(prompt.includes("recent_30d_cluster"));
 });
 
-test("ownership FMP market context helper is dev-only and shapes optional market_context", async () => {
-    const requestedUrls: string[] = [];
-    const context = await fetchFmpOwnershipMarketContext("atri", {
-      apiKey: "test-key",
-      baseUrl: "https://example.test/api",
-      now: () => new Date("2026-06-01T00:00:00.000Z"),
-      fetcher: async (url) => {
-        requestedUrls.push(url);
-        if (url.includes("/quote?symbol=ATRI")) {
-          return {
-            ok: true,
-            json: async () => [{
-              symbol: "ATRI",
-              price: 20,
-              marketCap: 2_000_000_000,
-              sharesOutstanding: 100_000_000,
-              avgVolume: 500_000,
-              currency: "USD",
-            }],
-          };
-        }
-        if (url.includes("/profile?symbol=ATRI")) {
-          return { ok: true, json: async () => [{ symbol: "ATRI", mktCap: 1_900_000_000 }] };
-        }
-        if (url.includes("/shares-float?symbol=ATRI")) {
-          return { ok: true, json: async () => [{ symbol: "ATRI", floatShares: 80_000_000 }] };
-        }
-        throw new Error(`unexpected test URL: ${url}`);
-      },
-    });
-
-    assert.equal(context.symbol, "ATRI");
-    assert.equal(context.source, "fmp_test_helper");
-    assert.equal(context.retrieved_at, "2026-06-01T00:00:00.000Z");
-    assert.equal(context.market_cap, 2_000_000_000);
-    assert.equal(context.shares_outstanding, 100_000_000);
-    assert.equal(context.float, 80_000_000);
-    assert.equal(context.public_float, 80_000_000);
-    assert.equal(context.average_daily_dollar_volume, 10_000_000);
-    assert.equal(context.last_price, 20);
-    assert.ok(context.source_notes.includes(OWNERSHIP_FMP_MARKET_CONTEXT_HELPER_NOTE));
-    assert.equal(requestedUrls.length, 3);
+test("ownership live FMP helper is retired even with supplied credentials", async () => {
+  let calls = 0;
+  await assert.rejects(() => fetchFmpOwnershipMarketContext("ATRI", { apiKey: "retired-test-key", fetcher: async () => { calls++; throw new Error("must not fetch"); } }), /FMP_RETIRED/);
+  assert.equal(calls, 0);
 });
 
 test("ownership FMP market context helper can shape supplied responses without live FMP", () => {
