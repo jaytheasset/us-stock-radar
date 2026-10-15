@@ -2,6 +2,8 @@
 
 Use this index to choose the existing reference for a feature-specific investigation. Investigation paths and state semantics remain in the linked documents.
 
+- **425 announcement FACT Monitor — local main integrated, operating OFF** — current architecture, official identity/source binding, single-provider claim, immutable reader, conditions/internal Alerts, local migration and explicit verification limits: [`architecture/sec425-fact-monitor-v1.md`](architecture/sec425-fact-monitor-v1.md). Earlier experiment/checkpoint reports remain historical.
+
 - **Form 3/5 reported holding monitors — candidate** — verified issuer selection, creation/SEC acceptance time gate, canonical same-row matching, immutable internal evidence, actual SEC replay and manual/amendment preservation: [`operations/FORM35_REPORTED_HOLDINGS.md`](operations/FORM35_REPORTED_HOLDINGS.md).
 
 - **Periodic Financial Monitor — issuer targeting candidate** — verified ticker/CIK selection, immutable target and evidence, explicit legacy all-issuer scope, actual Silvaco positive/Apple exclusion and runtime limits: [`operations/PERIODIC_FINANCIAL_MONITOR_TARGETING.md`](operations/PERIODIC_FINANCIAL_MONITOR_TARGETING.md). Historical minimal UI/source evidence: [`operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md`](operations/PERIODIC_FINANCIAL_MONITOR_UI_STAGE1.md).

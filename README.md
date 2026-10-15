@@ -6,6 +6,7 @@ server-side API routes.
 ## Architecture and current implementation
 
 - [Architecture Map](docs/architecture/map/README.md) — source Markdown diagrams and dated verification boundaries.
+- [SEC 425 FACT Monitor](docs/architecture/sec425-fact-monitor-v1.md) — integrated architecture, one-call FACT worker, internal Alerts, default-OFF controls and current verification limits.
 - [Offering / O/S / direct FACT Monitor](docs/operations/OFFERING_PLAN_MONITOR_DIRECT_FACTS.md) — current detailed Mermaid, persistence/readers, automatic internal Alerts, migrations and integration evidence.
 - [Main handoff](docs/operations/ASTRA_6_MAIN_HANDOFF.md) — latest local integration and GitHub/deployment distinction.
 - [Diagnostics index](docs/DIAGNOSTICS_INDEX.md) — family-specific investigation references.

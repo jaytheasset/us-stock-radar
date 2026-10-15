@@ -1,5 +1,16 @@
 # Stock Radar — Astra 6 Main Handoff
 
+## 425 FACT Monitor local integration / publication — 2026-10-15 KST
+
+- Product main: `ca8fb4f77955b712e0543ce24f86e19c818e36c7`, full candidate `2818030adcbb2d06f4442923c98856ab2ed514d6`, `--no-ff` with no conflicts. Previous main `8a2bb826d38eeca6e0eb071e7017d66e579ba46a`.
+- Current source/worker/storage/reader/Monitor/Alert diagram and detailed evidence: [425 FACT Monitor](../architecture/sec425-fact-monitor-v1.md). Independent one-call disclosure-first FACT; existing Primary and internal Monitor infrastructure retained. Operating flag remains OFF.
+- Fresh candidate E2E: Diana Alert 1 / Axcelis not_applicable Alert 0; two native FACT requests; duplicate provider/Alert 0. Main integration made no provider/Worker calls.
+- Merged-main regression: 938 PASS / 8 existing skips / 1 existing mutation-origin inventory failure; typecheck and diff PASS. Existing CSS build error kept separate. Logged-in Monitor/Alerts and anonymous API checks completed; full screenshot set incomplete due capture timeouts. This is not an all-checks-PASS or release-ready claim.
+- Verified local DB56722 only: backup then migration `20261014220801`; ledger150→151, prior checked product rows unchanged. Remote migration not applied or verified. Existing `next-env.d.ts` bytes/diff remain user changes, excluded from commits.
+- Fresh GitHub pre-publication main: `8a2bb826d38eeca6e0eb071e7017d66e579ba46a`, local ahead22 / remote ahead0 before this documentation commit. User explicitly approved publication after the integration report. Final SHA equality checked after push.
+- Hosting read-only: three Stock Radar Render services autoDeploy OFF (cron suspended); Vercel repository-filtered linked-project result empty, latest existing deployment unchanged `dpl_8x8yCBA6mw67f7pkyQrLR7YtBXqU`. No hosting settings, remote DB, cron or deployment change. Deployed/local equality is not claimed.
+- Private integration receipt: `%TEMP%/sec425-main-integration-GRgM7l/FINAL-REPORT.json`. Credentials, DB backup, raw filings and screenshots remain outside Git.
+
 ## Offering direct FACT integration / GitHub publication — 2026-10-13 KST
 
 - Product main: `7651dad75da9137458de78efdb345de7ba65195c`; full candidate `eac0545bddff3f4684cabe49e1225e8fdb89e65e` merged with `--no-ff`, no conflicts. Earlier ticker verification, O/S Snapshot, Registry, Proxy and other main features retained. Primary unchanged.

@@ -1,5 +1,7 @@
 # 425 final live-provider E2E: tool corrected, terminal resume blocked (2026-10-15)
 
+> This file preserves the experiment chronology, including interim STOP records. Final live E2E completed later in the file. Current local-main integration and publication status: [425 FACT Monitor](../architecture/sec425-fact-monitor-v1.md). Do not treat the historical title or an early STOP as the current product outcome.
+
 ## Latest continuation: tool-only input correction and existing-run resume audit
 
 Baseb97af073b8a94fdf3e5569d4a3e2ee793635a999, same425 candidate detached/clean. Latest user authorizes correcting the verification tool to use production repository/loadSource, SQL only as an independent storage check, and reusing the existing Diana raw/run when the official resume contract permits it. No new collection, duplicate registration, terminal-state SQL edits, fingerprint/new-ID workaround, product/migration changes or Supabase lifecycle calls. New tool/evidence under `reader-validation`; previous STOP and failed script remain immutable. Current checkpoint: **corrected tool validation PASS; existing run terminal resume BLOCKED; STOP**. Physical provider0/6.

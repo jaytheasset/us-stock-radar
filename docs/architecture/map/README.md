@@ -79,6 +79,8 @@ Corporate Actions는 합의된 Domain Data 예시에 포함한다. 별도 조사
 
 ## 기존 참고 문서
 
+- [425 FACT Monitor — local main integrated / default OFF](../sec425-fact-monitor-v1.md): 2026-10-15 검증 범위의 가족별 구조도·저장·Monitor·Alert 연결과 제한. 이 문서의 추가가 전체 Structured Data Pipeline 지도 완료를 뜻하지 않는다.
+
 아래는 조사 출발점이며 이 Map의 VERIFIED 근거로 자동 승격하지 않는다.
 
 - [Diagnostics index](../../DIAGNOSTICS_INDEX.md), [SEC diagnostics](../../SEC_DIAGNOSTICS.md): 기존 조사 경로.

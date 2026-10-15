@@ -1,5 +1,7 @@
 # 425 FACT Monitor implementation checkpoints
 
+> Historical candidate checkpoints below. For the 2026-10-15 integrated main scope, current diagram, default-OFF policy and remaining verification limits, see [425 FACT Monitor](../architecture/sec425-fact-monitor-v1.md). Earlier no-merge/blocked statements describe their dated checkpoint.
+
 Active task:2026-10-15, candidate `C:/Users/PC/.codex/worktrees/sec425-primary-events/US-Stock Radar`, base `b08323d7286b6d2cbb7d39a18ecc6163e7451b37`, detached/clean at start. Prior experiments are closed. No eeb4/main/shared DB operation.
 
 ## Acceptance and boundaries
