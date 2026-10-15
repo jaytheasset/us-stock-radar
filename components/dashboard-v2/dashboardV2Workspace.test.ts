@@ -11,14 +11,20 @@ test("Markets uses the established centered 1600px workspace contract", () => {
   const dashboardStyles = read(
     "components/dashboard-v2/StockRadarDashboardV2.module.css",
   );
+  const sharedStyles = read("components/dashboard-v2/StockRadarDashboardV2.css");
+
+  assert.match(
+    read("components/dashboard-v2/StockRadarDashboardV2.tsx"),
+    /import "@\/components\/dashboard-v2\/StockRadarDashboardV2\.css";/,
+  );
 
   assert.match(
     dashboardStyles,
     /\.workspace\s*{[\s\S]*?width: min\(100%, 1600px\);[\s\S]*?margin: 0 auto;/,
   );
   assert.match(
-    dashboardStyles,
-    /\.dashboard-v2-left\)\s*{[\s\S]*?padding: var\(--sr-space-5\) var\(--sr-page-gutter-desktop\) var\(--sr-space-4-5\);/,
+    sharedStyles,
+    /\.dashboard-v2-left\s*{[\s\S]*?padding: var\(--sr-space-5\) var\(--sr-page-gutter-desktop\) var\(--sr-space-4-5\);/,
   );
   assert.match(
     dashboardStyles,
@@ -29,8 +35,8 @@ test("Markets uses the established centered 1600px workspace contract", () => {
     /@media \(max-width: 1180px\)[\s\S]*?\.workspace\s*{[\s\S]*?grid-template-columns: 1fr;/,
   );
   assert.match(
-    dashboardStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-left\)\s*{\s*padding: var\(--sr-page-gutter-mobile\);/,
+    sharedStyles,
+    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-left\s*{\s*padding: var\(--sr-page-gutter-mobile\);/,
   );
 });
 
@@ -110,7 +116,7 @@ test("Markets mobile preview reuses the Live Feed control and sheet contracts", 
   const actions = read("components/dashboard-v2/MarketsPreviewActions.tsx");
   const detail = read("components/dashboard-v2/TickerDetailContent.tsx");
   const dashboardStyles = read(
-    "components/dashboard-v2/StockRadarDashboardV2.module.css",
+    "components/dashboard-v2/StockRadarDashboardV2.css",
   );
 
   assert.match(mobilePreview, /showCloseButton/);
@@ -132,11 +138,11 @@ test("Markets mobile preview reuses the Live Feed control and sheet contracts", 
   assert.doesNotMatch(detail, /dashboard-v2-mobile-favorite/);
   assert.match(
     dashboardStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-detail-header\)\s*\{[\s\S]*?border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?padding: var\(--sr-space-5\) var\(--sr-space-4\) var\(--sr-space-4\);/,
+    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-detail-header\s*\{[\s\S]*?border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?padding: var\(--sr-space-5\) var\(--sr-space-4\) var\(--sr-space-4\);/,
   );
   assert.match(
     dashboardStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-analysis-button\)\s*\{[\s\S]*?position: static;[\s\S]*?min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\);[\s\S]*?font-size: 16px;/,
+    /@media \(max-width: 760px\)[\s\S]*?\.dashboard-v2-analysis-button\s*\{[\s\S]*?position: static;[\s\S]*?min-height: calc\(var\(--sr-size-control\) \+ var\(--sr-space-3\)\);[\s\S]*?font-size: 16px;/,
   );
 });
 
@@ -146,7 +152,7 @@ test("Markets mobile controls stay full-width, single-line, and locally sized", 
   const filterTriggerStyles = read("components/ui/FilterTrigger.module.css");
   const segmentedControl = read("components/ui/SegmentedControl.module.css");
   const dashboardStyles = read(
-    "components/dashboard-v2/StockRadarDashboardV2.module.css",
+    "components/dashboard-v2/StockRadarDashboardV2.css",
   );
 
   assert.match(dashboard, /variant="marketsPrimary"/);
@@ -173,7 +179,7 @@ test("Markets mobile controls stay full-width, single-line, and locally sized", 
   );
   assert.match(
     dashboardStyles,
-    /\.dashboard-v2-mobile-filter-controls\)\s*{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow-x: hidden;/,
+    /\.dashboard-v2-mobile-filter-controls\s*{[\s\S]*?grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);[\s\S]*?overflow-x: hidden;/,
   );
 });
 
@@ -194,14 +200,24 @@ test("Markets availability hierarchy and mobile panels use the flat tokenized tr
     dashboardStyles,
     /\.marketTimestamp\s*{[\s\S]*?font-size: var\(--sr-font-size-sm\);/,
   );
-  assert.match(
-    dashboardStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.marketState,[\s\S]*?\.dashboard-v2-table-panel\)\s*{[\s\S]*?border: 0;[\s\S]*?border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
-  );
-  assert.match(
-    dashboardStyles,
-    /@media \(max-width: 760px\)[\s\S]*?\.marketState,[\s\S]*?\.dashboard-v2-table-panel\)\s*{[\s\S]*?box-sizing: border-box;[\s\S]*?width: calc\(\s*100% \+ var\(--sr-page-gutter-mobile\) \+ var\(--sr-page-gutter-mobile\)\s*\);[\s\S]*?margin-right: calc\(var\(--sr-page-gutter-mobile\) \* -1\);[\s\S]*?margin-left: calc\(var\(--sr-page-gutter-mobile\) \* -1\);/,
-  );
+  // The former mixed selector now lives in both the local and shared sheets.
+  for (const [source, selector] of [
+    [dashboardStyles, "marketState"],
+    [read("components/dashboard-v2/StockRadarDashboardV2.css"), "dashboard-v2-table-panel"],
+  ]) {
+    const rule = source.match(new RegExp(
+      `@media \\(max-width: 760px\\)[\\s\\S]*?\\.${selector}\\s*\\{([^}]+)\\}`,
+    ));
+    assert.ok(rule, `${selector} retains its mobile rule`);
+    assert.match(
+      rule[1],
+      /border: 0;[\s\S]*?border-top: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-bottom: var\(--sr-border-width\) solid var\(--sr-color-divider\);[\s\S]*?border-radius: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
+    );
+    assert.match(
+      rule[1],
+      /box-sizing: border-box;[\s\S]*?width: calc\(\s*100% \+ var\(--sr-page-gutter-mobile\) \+ var\(--sr-page-gutter-mobile\)\s*\);[\s\S]*?margin-right: calc\(var\(--sr-page-gutter-mobile\) \* -1\);[\s\S]*?margin-left: calc\(var\(--sr-page-gutter-mobile\) \* -1\);/,
+    );
+  }
 });
 
 test("Markets UI and safe DOM observation use the same mover state model", () => {

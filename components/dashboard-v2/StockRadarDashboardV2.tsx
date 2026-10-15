@@ -40,6 +40,7 @@ import {
 } from "@/lib/dashboardV2MoverObservation";
 import { areAdsEnabledForPlan } from "@/lib/advertisingPolicy";
 import type { Plan } from "@/lib/subscriptionPolicy";
+import "@/components/dashboard-v2/StockRadarDashboardV2.css";
 import styles from "@/components/dashboard-v2/StockRadarDashboardV2.module.css";
 
 const marketMoverItems: readonly SegmentedControlItem<DashboardV2Tab>[] = dashboardV2Tabs.map(
