@@ -18,7 +18,7 @@ export function SecondaryMonitorAlertDetails({ display, createdAt, sec425Evidenc
     <details><summary>View matched conditions and SEC evidence</summary>
       <p>Form 425 · {e.accession} · Filed {formatTimestamp(e.filedAt)}</p>
       <p>{e.transactionTypes.map(t=>transactionLabels[t as keyof typeof transactionLabels]??t).join(" · ")}</p>
-      {e.terms.map((t,i)=><p key={i}>{t}</p>)}
+      <p>Read the SEC filing for full transaction terms, conditions and exceptions.</p>
       <ul>{e.conditions.map((c,i)=><li key={i}>{c.key.replace("sec425.","").replaceAll("_"," ")} · {String(c.value).replaceAll("_"," ")}</li>)}</ul>
       {e.quotes.map((q,i)=><blockquote key={i}>{q.sourceQuote}</blockquote>)}
       <p>Matched {formatTimestamp(e.evaluatedAt)}. Evidence recorded at matching time.</p>

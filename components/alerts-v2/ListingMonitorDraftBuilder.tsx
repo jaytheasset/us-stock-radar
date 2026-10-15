@@ -126,6 +126,8 @@ export function ListingMonitorDraftBuilder() {
       if (error instanceof MonitorApiError && error.status === 401) {
         setAuthRequired(true);
         setMessage("Sign in to build and create a monitor.");
+      } else if (compileScope === "sec425" && error instanceof MonitorApiError && error.status === 403) {
+        setMessage(error.message);
       } else {
         setMessage("We couldn’t build this monitor. Try a clearer request.");
       }
@@ -346,12 +348,12 @@ export function ListingMonitorDraftBuilder() {
       {createdMonitor ? <CreatedMonitorSummary monitor={createdMonitor} /> : null}
       {sec425Preview ? (
         <section className={styles.review} aria-label="425 interpretation preview">
-          <h2>425 interpretation — not available for alerts</h2>
+          <h2>{sec425Preview.canSave ? "425 interpretation" : "425 interpretation — not available for alerts"}</h2>
           <p>{sec425Preview.interpretation === "VALID" ? "The request was interpreted. Review the conditions below." : "Review the unsupported or unclear parts of your request."}</p>
           {sec425Preview.conditions.map((condition, i) => <p key={`${condition.key}:${i}`}><strong>{condition.label}</strong> — {formatSec425PreviewValue(condition)}</p>)}
           {sec425Preview.requirements.filter(r => r.decision !== "mapped").map(r => <p key={r.id}><q>{r.source_text}</q> — {r.reason ?? r.question}</p>)}
-          <p>Edit the request above and build it again to change the interpretation.</p>
-          <button type="button" disabled>Create monitor unavailable</button>
+          <p>{sec425Preview.canSave ? "Review or adjust your conditions below before creating this monitor." : "Edit the request above and build it again to change the interpretation."}</p>
+          {!sec425Preview.canSave ? <button type="button" disabled>Create monitor unavailable</button> : null}
         </section>
       ) : null}
       {review && draft?.effectResolution ? (
@@ -745,7 +747,7 @@ function ConditionDomainCards({
   }>[];
 }>) {
   const groups = groupListingMonitorConditionsByDomain(conditions);
-  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "effect", "projected", "offering-plan"] as const).filter((id) =>
+  const visibleDomains = (["market", "corporate-actions", "listing-risk", "proxy", "sec425", "effect", "projected", "offering-plan"] as const).filter((id) =>
     groups.some((group) => group.id === id) || (id === "corporate-actions" && proposals.length > 0),
   );
   const titles = {
@@ -753,6 +755,7 @@ function ConditionDomainCards({
     "corporate-actions": "Corporate Actions",
     "listing-risk": "Listing Risk",
     "proxy": "Proxy",
+    "sec425": "425 Announcement",
     "effect": "Registration EFFECT",
     "projected": "Projected offering dilution",
     "offering-plan": "Offering Plan",

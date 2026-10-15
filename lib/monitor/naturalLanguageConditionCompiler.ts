@@ -336,9 +336,12 @@ function readProviderRequirements(
   }
   return Object.freeze(value.map((item, index) => {
     if (!record(item)) throw invalidOutput([`requirements[${index}]:invalid`]);
+    // Mapped requirements have no reason/question. Accept omitted inapplicable
+    // nulls in the transport; never infer missing conditions or decision details.
+    const optionalMappedDetails = item.decision === "mapped";
     assertExactKeys(
       item,
-      ["source_text", "decision", "conditions", "reason", "question"],
+      ["source_text", "decision", "conditions", ...["reason", "question"].filter(key => !optionalMappedDetails || Object.hasOwn(item, key))],
       `requirements[${index}]`,
     );
     const sourceText = readRequiredText(item.source_text, `requirements[${index}].source_text`, 1_000);
@@ -347,8 +350,8 @@ function readProviderRequirements(
     }
     const decision = readDecision(item.decision, index);
     const conditions = readInlineConditions(item.conditions, index);
-    const reason = readNullableText(item.reason, `requirements[${index}].reason`, 240);
-    const question = readNullableText(item.question, `requirements[${index}].question`, 240);
+    const reason = readNullableText(optionalMappedDetails && !Object.hasOwn(item, "reason") ? null : item.reason, `requirements[${index}].reason`, 240);
+    const question = readNullableText(optionalMappedDetails && !Object.hasOwn(item, "question") ? null : item.question, `requirements[${index}].question`, 240);
 
     if (decision === "mapped") {
       if (conditions.length === 0) throw invalidOutput([`requirements[${index}]:mapped_conditions_empty`]);
