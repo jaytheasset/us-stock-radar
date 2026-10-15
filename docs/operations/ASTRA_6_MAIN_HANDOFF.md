@@ -1,5 +1,13 @@
 # Stock Radar — Astra 6 Main Handoff
 
+## FMP retirement and final build/check publication — 2026-10-15 KST
+
+- Verified product main `ed724575a522bf533fce4127215175a5402253ca`, FMP candidate `70456a84939197241c53378b0fbe269a44f3dfca`. All FMP execution retired at user request; existing unavailable responses replace FMP-only data, other providers and SEC identity retained. No TradingView integration or chart redesign. Historical DB rows/migrations and offline helpers retained.
+- Previously reported CSS, browser `node:crypto`, auth inventory and FMP inspection failures are closed for this scope. Actual final main: **1,162 PASS / 0 FAIL / 12 existing optional skips**; default/Webpack builds with typecheck and diffcheck PASS. Main Operations Integrations and Regular dashboard verified at 1440/900/390; six FMP API retirement responses verified. [Scope, evidence and limitations](../architecture/sec425-fact-monitor-v1.md#final-buildcheck-closeout-and-fmp-retirement--2026-10-15).
+- 425 operating OFF; no provider/Worker or product-data/migration operations. Main3110 retained; owned candidate3122 stopped. Original user `next-env.d.ts` bytes/diff remain uncommitted. Existing Operations session refreshed normally during browser checks; do not claim whole shared DB unchanged.
+- Publication approved for GitHub only; pre-push remote main `d1131ba7b24cda653b02ded2d473ee692ef02cad` is an ancestor, with no remote-only commits. Hosting read-only: three Stock Radar Render services autoDeploy OFF, delivery cron suspended; repository-filtered Vercel inventory empty. Existing Vercel READY deployment `dpl_8x8yCBA6mw67f7pkyQrLR7YtBXqU` remains on SHA `bf586ed559c7f4bea6a171790ab7b563cabc7161`, CLI source. Local/GitHub publication does not update deployed code. No deploy, remote migration, environment or cron change authorized.
+- Evidence: `%TEMP%/stockradar-fmp-retirement-eR26ir/`. Earlier entries below record prior checkpoints, not the latest remaining failures.
+
 ## Registry browser dependency and auth-inventory repair — 2026-10-15 KST
 
 - Local merge `fcfba2002eb4edc6c230e68c9e8f3c508dea9eaa`, candidate `c8f534d77357f76f60f2616394d5fe3a7f62fbaf`: browser-safe shared Registry validation with unchanged server hashes; exact delegated authentication inventory checks and negative controls. 425 and product authentication policy unchanged.
